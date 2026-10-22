@@ -1,0 +1,596 @@
+# CD 流水线：Release PR 合并 → gate → 6 架构构建 → merge → release → publish
+#
+# 流程：gate（识别发布提交 + 校验）→ build ×6（原生 runner 打包 + 产物断言）
+#       → merge（Windows/macOS 双架构更新元数据合成）→ release（打 tag + draft）
+#       → publish（资产校验转正式 + Discussions 公告帖）
+#
+# 发版口径：任何一步失败都没有 tag，版本号不占号，修复后重跑即可。
+# 手动重放：workflow_dispatch 必须输入与 package.json 一致的 confirm_version。
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      confirm_version:
+        description: 待构建/补发验证的版本号（必须与 package.json 版本一致）
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+# cancel-in-progress 必须为 false：正在发布的运行被取消会留下半成品（tag 已打、资产未齐）
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    # 识别发布提交（subject 形如 chore(main): release X.Y.Z），
+    # 输出 version / prerelease / release_sha——release_sha 是 tag 的锚点。
+    name: Gate (release-please commit?)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      is_release: ${{ steps.detect.outputs.is_release }}
+      version: ${{ steps.detect.outputs.version }}
+      prerelease: ${{ steps.detect.outputs.prerelease }}
+      release_sha: ${{ steps.detect.outputs.release_sha }}
+      artifact_base: ${{ steps.detect.outputs.artifact_base }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Detect release-please commit
+        id: detect
+        env:
+          CONFIRM_VERSION: ${{ github.event.inputs.confirm_version }}
+        run: |
+          ARTIFACT_BASE=$(node -p "require('./app.config.json').artifactBaseName")
+          echo "artifact_base=${ARTIFACT_BASE}" >> "$GITHUB_OUTPUT"
+          find_release_sha() {
+            local want="$1"
+            git log --format='%H%x09%s' -300 \
+              | grep -E "^[0-9a-f]+	chore\((main|beta)\): release[[:space:]]+${want}([[:space:]]|$)" \
+              | head -n 1 | cut -f1
+          }
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION=$(node -p "require('./package.json').version")
+            CONFIRM="$CONFIRM_VERSION"
+            if [[ -z "$CONFIRM" || "$CONFIRM" != "$VERSION" ]]; then
+              echo "::error::confirm_version='$CONFIRM' 与 package.json 版本 '$VERSION' 不一致，拒绝放行"
+              exit 1
+            fi
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            RELEASE_SHA=$(find_release_sha "$VERSION")
+            if [[ -z "$RELEASE_SHA" ]]; then
+              echo "::error::未能在最近 300 个提交中找到 'chore(main): release $VERSION' 发布提交——无法确定 tag 锚点。若该版本确实尚未发布（无 tag），请用 push 触发或先补一个 Release PR 合并。"
+              exit 1
+            fi
+            echo "release_sha=${RELEASE_SHA}" >> "$GITHUB_OUTPUT"
+            echo "发布提交锚点: ${RELEASE_SHA}（version=$VERSION）"
+            if [[ "$VERSION" == *-* ]]; then
+              echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+          MSG=$(git log -1 --format=%s)
+          echo "HEAD commit: $MSG"
+          if [[ "$MSG" =~ ^chore\((main|beta)\):\ release[[:space:]]+([0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9.]+)?) ]]; then
+            VERSION="${BASH_REMATCH[2]}"
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            if [[ "$VERSION" == *-* ]]; then
+              echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # CHANGELOG 未润色则拦截：润色版本段，或加 <!-- changelog:polished --> 放行标记
+      - name: CHANGELOG polish check (兜底，打 tag 前)
+        if: steps.detect.outputs.is_release == 'true'
+        run: npx --yes tsx@^4.23.0 scripts/check-changelog-polish.ts --version "$RELEASE_VERSION"
+        env:
+          RELEASE_VERSION: ${{ steps.detect.outputs.version }}
+
+      # 三态自洽断言（manifest / tag / 版本方向），fail-closed
+      - name: Release anchor check (post-merge, 打 tag 前)
+        if: steps.detect.outputs.is_release == 'true'
+        run: npx --yes tsx@^4.23.0 scripts/check-release-anchor.ts --phase post-merge --version "$RELEASE_VERSION"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ steps.detect.outputs.version }}
+
+  build:
+    # 6 个单架构 job，全部原生 runner——原生模块必须按目标架构源码编译，
+    # 交叉编译会静默产出 host 架构（check:native-arch 是唯一兜底探针）。
+    # matrix 约束：artifact-suffix 全局唯一（upload-artifact v4 同名冲突）。
+    name: Build & Release ${{ matrix.platform }} (${{ matrix.variant }})
+    needs: gate
+    if: needs.gate.outputs.is_release == 'true'
+    runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Windows
+            variant: x64
+            runs-on: windows-latest
+            artifact-suffix: win-x64
+            build-cmd: pnpm build:win:x64
+          - platform: Windows
+            variant: arm64
+            runs-on: windows-11-arm
+            artifact-suffix: win-arm64
+            build-cmd: pnpm build:win:arm64
+          - platform: macOS
+            variant: arm64
+            runs-on: macos-latest
+            artifact-suffix: mac-arm64
+            build-cmd: pnpm build:mac:arm64
+          - platform: macOS
+            variant: x64
+            runs-on: macos-26-intel
+            artifact-suffix: mac-x64
+            build-cmd: pnpm build:mac:x64
+          - platform: Linux
+            variant: x64
+            runs-on: ubuntu-latest
+            artifact-suffix: linux-x64
+            build-cmd: pnpm build:linux:x64
+          - platform: Linux
+            variant: arm64
+            runs-on: ubuntu-24.04-arm
+            artifact-suffix: linux-arm64
+            build-cmd: pnpm build:linux:arm64
+
+    steps:
+      # 运行时行为监控（audit 起步，39 号 spec §8）：第三方执行面——依赖 postinstall
+      # 与 Electron 二进制下载均在监控下。SHA 对应 step-security/harden-runner v2.22.1。
+      # 2026-10-09 首个 CD 六 build job（含 windows-11-arm/ubuntu-24.04-arm）全 success
+      # ——ARM 试跑期结束，continue-on-error 已撤（spec v4.5）
+      - name: Harden Runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
+        with:
+          egress-policy: audit
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate SBOM (CycloneDX)
+        shell: bash
+        run: |
+          mkdir -p release
+          pnpm sbom:generate
+          cp bom.json release/sbom-${{ matrix.artifact-suffix }}.cdx.json
+
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libfuse2 rpm xz-utils
+
+
+      # 签名/公证凭据三件套齐备才导出（缺一整套跳过）——
+      # secret 未配置时是空串，直接进 env 会让 electron-builder 误判"已配置证书"
+      - name: Build & package ${{ matrix.platform }} installer
+        shell: bash
+        env:
+          ORIG_CSC_LINK: ${{ secrets.CSC_LINK }}
+          ORIG_CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          ORIG_APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          ORIG_APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          ORIG_APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          ORIG_APPLE_ID: ${{ secrets.APPLE_ID }}
+          ORIG_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          ORIG_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "${ORIG_CSC_LINK:-}" ]; then
+            export CSC_LINK="$ORIG_CSC_LINK"
+            export CSC_KEY_PASSWORD="$ORIG_CSC_KEY_PASSWORD"
+          fi
+          if [ -n "${ORIG_APPLE_API_KEY:-}" ] && [ -n "${ORIG_APPLE_API_KEY_ID:-}" ] && [ -n "${ORIG_APPLE_API_ISSUER:-}" ]; then
+            export APPLE_API_KEY="$ORIG_APPLE_API_KEY"
+            export APPLE_API_KEY_ID="$ORIG_APPLE_API_KEY_ID"
+            export APPLE_API_ISSUER="$ORIG_APPLE_API_ISSUER"
+            echo "公证：使用 App Store Connect API Key"
+          elif [ -n "${ORIG_APPLE_ID:-}" ] && [ -n "${ORIG_APPLE_APP_SPECIFIC_PASSWORD:-}" ] && [ -n "${ORIG_APPLE_TEAM_ID:-}" ]; then
+            export APPLE_ID="$ORIG_APPLE_ID"
+            export APPLE_APP_SPECIFIC_PASSWORD="$ORIG_APPLE_APP_SPECIFIC_PASSWORD"
+            export APPLE_TEAM_ID="$ORIG_APPLE_TEAM_ID"
+            echo "公证：使用 Apple ID 模式"
+          else
+            echo "公证：未配置凭据，跳过（electron-builder 会 warn）"
+          fi
+          export CSC_IDENTITY_AUTO_DISCOVERY=false
+          ${{ matrix.build-cmd }}
+
+
+      # 打包后产物断言，任一失败即发版失败：原生模块架构 / smoke 启动
+      - name: Verify native module architecture
+        run: pnpm check:native-arch
+
+      - name: Install Playwright deps (ffmpeg only, no Chromium)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then pnpm exec playwright install-deps chromium; fi
+          pnpm exec playwright install ffmpeg
+
+      - name: Run production smoke tests
+        run: ${{ matrix.platform == 'Linux' && 'xvfb-run -a pnpm test:smoke' || 'pnpm test:smoke' }}
+
+      # artifact 名含 artifact-suffix（全局唯一）+ ref_name；merge/release job 按子目录取用
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.artifact-suffix }}-${{ github.ref_name }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+            release/*.AppImage
+            release/*.deb
+            release/*.rpm
+            release/latest*.yml
+            release/*.blockmap
+            release/sbom-*.cdx.json
+          retention-days: 30
+
+  merge:
+    # Windows/macOS 两个 build job 各产一份同名 latest*.yml，在此合成双架构一份
+    name: Merge update metadata (win/mac dual-arch)
+    needs: [gate, build]
+    if: needs.gate.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download build artifacts (keep subdirectories)
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+
+      # 下载竞态守卫：download-artifact 存在静默中断（部分 artifact 未落盘且无报错），
+      # 缺任一产物即失败——重跑本 job 即可，产物已持久在库
+      - name: Assert all artifact downloads landed
+        run: |
+          MISSING=0
+          for pair in "win-x64:latest.yml" "win-arm64:latest.yml" "mac-x64:latest-mac.yml" "mac-arm64:latest-mac.yml" "linux-x64:latest-linux.yml" "linux-arm64:latest-linux-arm64.yml"; do
+            SUFFIX="${pair%%:*}"
+            YML="${pair#*:}"
+            if ! ls artifacts/release-"$SUFFIX"-*/"$YML" >/dev/null 2>&1; then
+              echo "::error::artifact 未落盘：release-$SUFFIX-*/$YML（download-artifact 静默竞态——重跑本 job 即可，产物已持久在库）"
+              MISSING=1
+            fi
+          done
+          if [ "$MISSING" = "1" ]; then
+            echo "::error::6 个构建产物未全部落盘，禁止进入合并（防缺架构元数据的 Release 发出去）"
+          fi
+          exit $MISSING
+
+      - name: Merge dual-arch update metadata
+        run: pnpm exec tsx scripts/merge-update-metadata.ts
+
+      - name: Upload merged metadata
+        uses: actions/upload-artifact@v7
+        with:
+          name: merged-update-metadata
+          path: merged-meta/latest*.yml
+          retention-days: 30
+
+  release:
+    # 打 tag（钉 gate 的 release_sha）+ draft Release + 发布正文提取 + label 收尾
+    name: Create GitHub Release (tag + draft)
+    needs: [gate, build, merge]
+    if: needs.gate.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      # 运行时行为监控（audit 起步，39 号 spec §8）：release job 持 contents: write——
+      # 供应链后段的最高权限面。SHA 对应 step-security/harden-runner v2.22.1
+      - name: Harden Runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
+        with:
+          egress-policy: audit
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download all artifacts (keep subdirectories)
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+
+      # ① 先放 merge job 的双架构合并件（缺失即失败），② 再收其余资产——
+      # cp -n 不覆盖已存在文件，单架构 latest*.yml 不可能覆盖合并结果
+      - name: Collect release files
+        env:
+          ARTIFACT_BASE: ${{ needs.gate.outputs.artifact_base }}
+        run: |
+          mkdir -p release
+          if [ -d artifacts/merged-update-metadata ]; then
+            find artifacts/merged-update-metadata -type f -name "latest*.yml" -exec cp -n {} release/ \;
+          else
+            echo "::error::artifacts/merged-update-metadata 不存在——merge job 的产物缺失，无法保证元数据为双架构"
+            exit 1
+          fi
+          find artifacts -type f \( \
+            -name "${ARTIFACT_BASE}-Windows-*.exe" -o \
+            -name "${ARTIFACT_BASE}-macOS-*.dmg" -o \
+            -name "${ARTIFACT_BASE}-macOS-*.zip" -o \
+            -name "${ARTIFACT_BASE}-Linux-*.AppImage" -o \
+            -name "${ARTIFACT_BASE}-Linux-*.deb" -o \
+            -name "${ARTIFACT_BASE}-Linux-*.rpm" -o \
+            -name "latest-linux*.yml" -o \
+            -name "*.blockmap" -o \
+            -name "sbom-*.cdx.json" \
+          \) -exec cp -n {} release/ \;
+          ls -la release/
+
+      # 从 CHANGELOG 提取对应版本段作为发布正文；提取失败兜底为非空描述
+      - name: Extract release body from CHANGELOG
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ needs.gate.outputs.version }}
+        run: |
+          VERSION="$RELEASE_VERSION"
+          VERSION_ESCAPED=$(printf '%s' "$VERSION" | sed 's/\./\\./g')
+          awk -v v="$VERSION_ESCAPED" '
+            /^## / {
+              if ($0 ~ ("^## \\[" v "\\]") || $0 ~ ("^## " v " \\(")) { inbody = 1; next }
+              if (inbody) exit
+            }
+            inbody { print }
+          ' CHANGELOG.md > release-body.md
+          if [ ! -s release-body.md ]; then
+            echo "## Release $VERSION" > release-body.md
+          fi
+
+      - name: Create GitHub Release (tag + draft)
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ needs.gate.outputs.version }}
+          # target_commitish 必须显式给 release_sha：缺省取触发分支 tip，
+          # 重跑会把已发布的 tag 挪到新提交（release-please 会因此版本倒退）
+          target_commitish: ${{ needs.gate.outputs.release_sha }}
+          body_path: release-body.md
+          files: release/**
+          draft: true
+          prerelease: ${{ needs.gate.outputs.prerelease }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # pending→tagged 必须回写：不同步则 release-please 下次发版静默死锁（fail-closed）
+      - name: Mark release PR as tagged (release-please label handoff)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ needs.gate.outputs.version }}
+        run: |
+          VERSION="$RELEASE_VERSION"
+          PRS=$(gh pr list --state merged --label "autorelease: pending" \
+                  --search "release ${VERSION} in:title" \
+                  --json number --jq '.[].number' || true)
+          if [ -z "$PRS" ]; then
+            PRS=$(gh pr list --state merged --label "autorelease: pending" \
+                    --json number --jq '.[].number' || true)
+            if [ -n "$PRS" ]; then
+              echo "::warning::未按标题匹配到 version=${VERSION} 的 pending release PR，回退同步全部 pending"
+            fi
+          fi
+          if [ -z "$PRS" ]; then
+            echo "无 autorelease: pending 的已合并 release PR，label 已一致，无需回写"
+            exit 0
+          fi
+          for pr in $PRS; do
+            gh pr edit "$pr" \
+              --remove-label "autorelease: pending" \
+              --add-label "autorelease: tagged"
+            echo "release PR #${pr} -> autorelease: tagged"
+          done
+
+  publish:
+    # 资产断言（fail-closed）：更新元数据 4 件齐 + 双架构条目 + 12 组安装包 + 差分 blockmap，
+    # 全部通过才 draft=false 转正式；公告发帖失败不影响发版（continue-on-error）
+    name: Publish Release (assets verified)
+    needs: [gate, release]
+    if: needs.gate.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      discussions: write
+
+    steps:
+      - name: Verify all platform assets & promote draft to public
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ needs.gate.outputs.version }}
+          ARTIFACT_BASE: ${{ needs.gate.outputs.artifact_base }}
+        run: |
+          TAG="v$RELEASE_VERSION"
+          REPO="${{ github.repository }}"
+          RELEASE_ID=$(gh api "/repos/$REPO/releases?per_page=100" \
+            --jq ".[] | select(.tag_name == \"$TAG\") | .id" 2>/dev/null | head -n 1)
+          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
+            echo "::error::找不到 tag=$TAG 的 draft release（release job 是否成功创建？）"
+            exit 1
+          fi
+          ASSETS=$(gh api "/repos/$REPO/releases/$RELEASE_ID" --jq '.assets[].name')
+          echo "release #$RELEASE_ID assets:"; echo "$ASSETS"
+          MISSING=0
+          for req in "latest.yml" "latest-mac.yml" "latest-linux.yml" "latest-linux-arm64.yml"; do
+            if ! grep -qx "$req" <<<"$ASSETS"; then echo "::error::缺少更新元数据: $req"; MISSING=1; fi
+          done
+          for yml in "latest.yml" "latest-mac.yml"; do
+            YML_ID=$(gh api "/repos/$REPO/releases/$RELEASE_ID" \
+              --jq ".assets[] | select(.name == \"$yml\") | .id")
+            if [ -z "$YML_ID" ] || [ "$YML_ID" = "null" ]; then
+              continue
+            fi
+            YML_BODY=$(gh api "/repos/$REPO/releases/assets/$YML_ID" -H "Accept: application/octet-stream")
+            for arch in "x64" "arm64"; do
+            if ! grep -qE -- "-${arch}[-.]" <<<"$YML_BODY"; then
+              echo "::error::$yml 缺 $arch 条目（合并元数据未生效或取了单架构版本）"
+              echo "$YML_BODY" | head -20
+              MISSING=1
+            fi
+          done
+            PRIMARY=$(grep -m1 '^path:' <<<"$YML_BODY" | sed 's/^path:[[:space:]]*//')
+            if [ -n "$PRIMARY" ] && ! grep -qF "$PRIMARY" <<<"$(grep 'url:' <<<"$YML_BODY")"; then
+              echo "::error::$yml 的 path=\"$PRIMARY\" 不在 files 中（悬空引用）"
+              MISSING=1
+            fi
+          done
+          V="$RELEASE_VERSION"
+          # 安装包前缀来自 app.config.json（品牌真源），派生项目改名后无需再改本文件
+          B=$(printf '%s' "$ARTIFACT_BASE" | sed 's/\./\\./g')
+          require_asset() {
+            if ! grep -Eq "$1" <<<"$ASSETS"; then echo "::error::缺少 $2"; MISSING=1; fi
+          }
+          forbid_asset() {
+            if grep -Eq "$1" <<<"$ASSETS"; then echo "::error::出现不应存在的资产（$2）：$(grep -E "$1" <<<"$ASSETS")"; MISSING=1; fi
+          }
+          require_asset "${B}-Windows-x64-${V//./\\.}\\.exe$"    'Windows x64 安装包'
+          require_asset "${B}-Windows-arm64-${V//./\\.}\\.exe$"  'Windows arm64 安装包'
+          require_asset "${B}-macOS-x64-${V//./\\.}\\.dmg$"      'macOS x64 安装包'
+          require_asset "${B}-macOS-arm64-${V//./\\.}\\.dmg$"    'macOS arm64 安装包'
+          require_asset "${B}-macOS-x64-${V//./\\.}\\.zip$"      'macOS x64 更新包（zip）'
+          require_asset "${B}-macOS-arm64-${V//./\\.}\\.zip$"    'macOS arm64 更新包（zip）'
+          require_asset "${B}-Linux-x86_64-${V//./\\.}\\.AppImage$" 'Linux x64 AppImage'
+          require_asset "${B}-Linux-arm64-${V//./\\.}\\.AppImage$"  'Linux arm64 AppImage'
+          require_asset "${B}-Linux-amd64-${V//./\\.}\\.deb$"       'Linux x64 deb'
+          require_asset "${B}-Linux-arm64-${V//./\\.}\\.deb$"       'Linux arm64 deb'
+          require_asset "${B}-Linux-x86_64-${V//./\\.}\\.rpm$"      'Linux x64 rpm'
+          require_asset "${B}-Linux-aarch64-${V//./\\.}\\.rpm$"     'Linux arm64 rpm'
+          forbid_asset "${B}-Windows\\.exe"          '双架构通用安装包（应已由 buildUniversalInstaller:false 关闭）'
+          forbid_asset "${B}-Windows\\.exe\\.blockmap" '通用包的差分产物（孤儿资产）'
+          forbid_asset "${B}-macOS-[a-z0-9]+[^ ]*\\.dmg\\.blockmap" 'dmg 差分产物（永不被读取，应已由 dmg.writeUpdateInfo:false 关闭）'
+          forbid_asset "${B}-(Windows|macOS|Linux)-[a-z0-9_]+\.(exe|dmg|zip|deb|rpm|AppImage)$" '未带版本号的旧命名资产'
+          require_asset "${B}-Windows-x64-${V//./\\.}\\.exe\\.blockmap$"   'Windows x64 差分产物（缺失会静默退化为全量下载）'
+          require_asset "${B}-Windows-arm64-${V//./\\.}\\.exe\\.blockmap$" 'Windows arm64 差分产物（缺失会静默退化为全量下载）'
+          require_asset "${B}-macOS-x64-${V//./\\.}\\.zip\\.blockmap$"     'macOS x64 差分产物（缺失会静默退化为全量下载）'
+          require_asset "${B}-macOS-arm64-${V//./\\.}\\.zip\\.blockmap$"   'macOS arm64 差分产物（缺失会静默退化为全量下载）'
+          for yml in "latest-linux.yml" "latest-linux-arm64.yml"; do
+            YML_ID=$(gh api "/repos/$REPO/releases/$RELEASE_ID" \
+              --jq ".assets[] | select(.name == \"$yml\") | .id")
+            if [ -n "$YML_ID" ]; then
+              if ! gh api "/repos/$REPO/releases/assets/$YML_ID" \
+                -H "Accept: application/octet-stream" | grep -q "blockMapSize"; then
+                echo "::error::$yml 缺 blockMapSize（AppImage 差分更新会退化为全量）"
+                MISSING=1
+              fi
+            fi
+          done
+          if [ "$MISSING" = "1" ]; then
+            echo "::error::安装包未齐，保持草稿不发布。修复后 rerun 对应 build job 再重跑本 job。"
+            exit 1
+          fi
+          gh api -X PATCH "/repos/$REPO/releases/$RELEASE_ID" -f draft=false >/dev/null
+          gh api "/repos/$REPO/releases/$RELEASE_ID" \
+            --jq '"✅ 已正式发布: " + .html_url'
+
+      # 公告版块仅维护者可发帖（CD 以仓库身份发帖满足）；draft 态不发，故放 publish
+      - name: Post release announcement to Discussions (公告版块)
+        continue-on-error: true
+        uses: actions/github-script@v9
+        env:
+          RELEASE_VERSION: ${{ needs.gate.outputs.version }}
+          PRERELEASE: ${{ needs.gate.outputs.prerelease }}
+        with:
+          script: |
+            const version = process.env.RELEASE_VERSION;
+            const prerelease = process.env.PRERELEASE === 'true';
+            const repo = context.repo.repo;
+            const owner = context.repo.owner;
+
+            const repoData = await github.graphql(
+              `query($owner: String!, $repo: String!, $slug: String!) {
+                repository(owner: $owner, name: $repo) {
+                  id
+                  discussionCategory(slug: $slug) { id name }
+                }
+              }`,
+              { owner, repo, slug: '公告' },
+            );
+            const categoryId = repoData.repository.discussionCategory?.id;
+            if (!categoryId) {
+              core.warning('公告版块不存在，跳过公告发帖');
+              return;
+            }
+
+            const tag = `v${version}`;
+            const channel = prerelease ? 'Beta 测试通道' : '稳定通道';
+            const title = `🎉 ${context.repo.repo} ${tag} 发布`;
+            const body = [
+              `**${context.repo.repo} ${tag}** 已发布至 **${channel}**。`,
+              '',
+              `[⬇️ 前往 Release 页下载](https://github.com/${owner}/${repo}/releases/tag/${tag})`,
+              '',
+              '已安装用户：应用会通过内置更新器自动升级（设置 → 关于 可检查更新）。',
+              `问题反馈请走 [Issue](https://github.com/${owner}/${repo}/issues/new/choose)，使用问题可在 [Q&A 版块](https://github.com/${owner}/${repo}/discussions/categories/q-a) 提问。`,
+            ].join('\n');
+
+            await github.graphql(
+              `mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+                createDiscussion(input: {
+                  repositoryId: $repositoryId,
+                  categoryId: $categoryId,
+                  title: $title,
+                  body: $body
+                }) { discussion { number } }
+              }`,
+              {
+                repositoryId: repoData.repository.id,
+                categoryId,
+                title,
+                body,
+              },
+            );
+            core.info(`公告帖已发布：${title}`);

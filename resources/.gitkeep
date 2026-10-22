@@ -1,0 +1,12 @@
+# 此目录存放打包资源（electron-builder 引用）
+
+入库（git 跟踪）：
+- icons/：应用图标。icon.png 为 1024x1024 源图，electron-builder 自动派生 ico/icns；
+  tray*.png 为托盘图标（trayTemplate* 供 macOS，tray16/24/32 供 Win/Linux）
+- installer.nsh：NSIS 自定义安装脚本（electron-builder.yml 的 nsis.include 引用）
+- entitlements.mac.plist：macOS 公证 entitlements（electron-builder.yml 的 mac 配置引用）
+
+不入库（.gitignore 排除的构建产物）：
+- build-info.json：构建信息（scripts/generate-build-info.mjs 生成，打包时复制到 resources 根）
+
+图标更新后重跑 scripts/generate-tray-assets.py 生成托盘尺寸（依赖 Pillow；一次性工具）。

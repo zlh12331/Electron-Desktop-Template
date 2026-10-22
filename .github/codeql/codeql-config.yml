@@ -1,0 +1,21 @@
+# .github/codeql/codeql-config.yml
+# CodeQL 分析范围配置（advanced setup 专用，见 .github/workflows/codeql.yml）
+#
+# ── 这个文件做什么 ─────────────────────────────────────────────
+# 声明 CodeQL 分析时要排除的路径（paths-ignore）。模板当前没有 vendored 源码，
+# 列表为空；接入第三方只读源码（原样引入、永不修改）时在此登记，避免其告警
+# 污染本项目质量门禁——分析前排除比事后逐条 dismiss 更彻底。
+#
+# ── 为什么用 advanced setup 而不是 default setup 的属性 ───────────
+# default setup 不带 workflow 文件，给它加路径排除只有一条官方途径：给仓库设置
+# `github-codeql-config-file` 自定义属性。但**该属性是组织级功能**（官方文档：
+# "Organization owners ... at the organization level"），本仓库属个人账户
+# （owner.type = User），实测 API 返回 404 ⇒ 不可用。故改为 advanced setup，
+# 用 workflow 的 config-file 直接引用本文件。
+#
+# 判断依据同 AGENTS.md「已移除」一节。
+name: 'Code Agent Desktop CodeQL config'
+
+# 模板已移除 vendored 源码（记忆引擎 / 动效参考源），当前无需排除任何路径。
+# 接入第三方只读源码时在此登记，避免其告警污染本项目质量门禁。
+paths-ignore: []

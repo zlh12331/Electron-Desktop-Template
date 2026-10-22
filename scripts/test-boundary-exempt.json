@@ -1,0 +1,21 @@
+{
+  "$comment": "准集成测试登记表（测试边界门禁）：src/ 单测目录中真实 IO 信号的测试必须登记。模板版只保留现存文件对应的条目。",
+  "migrated_to_integration": [],
+  "entries": [
+    {
+      "file": "src/main/infra/storage/backup-store.test.ts",
+      "signals": ["better-sqlite3"],
+      "reason": "真实 DB 验证热备份/轮转/暂存恢复（37 号 B）；存储域单模块（非链路型，保留）"
+    },
+    {
+      "file": "src/main/infra/storage/settings-pref.test.ts",
+      "signals": ["better-sqlite3"],
+      "reason": "真实 DB 验证 app_settings 表读写；存储域单模块（非链路型，保留）"
+    },
+    {
+      "file": "src/main/diagnostics.test.ts",
+      "signals": ["better-sqlite3"],
+      "reason": "真实 DB 验证诊断包导出设置脱敏落包 + zip 组装；单模块（非链路型，保留）"
+    }
+  ]
+}

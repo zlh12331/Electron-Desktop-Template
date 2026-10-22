@@ -1,0 +1,14 @@
+{
+  "src/main/infra/storage/db.ts": {
+    "count": 1,
+    "max": 19
+  },
+  "src/main/infra/telemetry/memory-monitor.ts": {
+    "count": 1,
+    "max": 16
+  },
+  "src/main/utils/wrap.ts": {
+    "count": 1,
+    "max": 19
+  }
+}

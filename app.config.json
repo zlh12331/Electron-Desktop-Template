@@ -1,0 +1,15 @@
+{
+  "$comment": "应用品牌与身份的单一真源。改这里 → pnpm brand:sync 同步生成物 → pnpm check:brand 校验残留。派生到运行时的部分由 scripts/generate-brand.mjs 生成 packages/shared/src/constants/brand.ts（禁止手改）。electron-builder.yml / package.json 等 YAML/JSON 无法由代码 import，改真源后需按 check:brand 提示同步。",
+  "productName": "Electron Desktop Template",
+  "appId": "com.example.electron-template",
+  "executableName": "electron-desktop-template",
+  "protocol": "electron-template",
+  "storagePrefix": "electron-desktop-template",
+  "author": "zlh12331",
+  "description": "Electron Desktop Template - 生产级 Electron 桌面应用模板（Windows / macOS / Linux）",
+  "artifactBaseName": "Electron-Desktop-Template",
+  "repo": {
+    "owner": "zlh12331",
+    "name": "Electron-Desktop-Template"
+  }
+}

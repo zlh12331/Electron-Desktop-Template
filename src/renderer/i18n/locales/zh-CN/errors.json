@@ -1,0 +1,19 @@
+{
+  "$comment": "错误提示文案 · 中文（默认语言）· key 与 packages/shared 的 ErrorCode 一一对应",
+  "errors": {
+    "ALREADY_EXISTS": "目标已存在",
+    "FS_DISK_FULL": "磁盘空间不足",
+    "FS_READ_FAILED": "文件读取失败",
+    "FS_WRITE_FAILED": "文件写入失败",
+    "INTERNAL_ERROR": "内部错误",
+    "INVALID_INPUT": "输入参数有误",
+    "INVALID_RESPONSE": "响应数据不符合约定",
+    "IPC_CHANNEL_NOT_FOUND": "IPC 通道不存在",
+    "IPC_SENDER_INVALID": "IPC 调用来源无效",
+    "NOT_FOUND": "资源不存在",
+    "RATE_LIMITED": "操作过于频繁",
+    "BACKUP_INVALID": "备份文件无效或不存在",
+    "UNAUTHORIZED": "未授权",
+    "UNKNOWN": "未知错误"
+  }
+}

@@ -1,0 +1,301 @@
+# electron-builder.yml
+# Electron 应用打包配置（设计文档 §3 + §6.5 + §10.2，跨平台三平台版）
+#
+# 用途：将 main/preload/renderer 三入口产物打包成三平台安装包：
+#   - Windows：NSIS 安装器（x64）
+#   - macOS：DMG + ZIP（ZIP 供 electron-updater 自动更新）
+#   - Linux：AppImage + deb（x64）
+#
+# 命令：
+#   pnpm build:win    # Windows NSIS
+#   pnpm build:mac    # macOS（必须在 macOS runner 上执行，交叉编译不支持）
+#   pnpm build:linux  # Linux AppImage + deb
+#   pnpm build:all    # 当前平台构建
+#
+# 依赖：
+# - out/main/index.js、out/preload/index.cjs（electron-vite build 产物）
+# - out/renderer/（渲染层静态资源）
+# - resources/icons/icon.png（1024x1024 源图标，electron-builder 自动派生 ico/icns）
+# - package.json 中 author 字段（electron-builder 强制要求）
+#
+# 说明：原 PostgreSQL 便携版二进制打包（resources/pg/）已随数据库层一并删除。
+# safeStorage 三平台原生支持（Windows DPAPI / macOS Keychain / Linux libsecret）。
+
+# 应用唯一标识（注册到 Windows 注册表 / macOS 包标识 / Linux .desktop）
+appId: com.example.electron-template
+
+# 安装包显示名称（Windows「程序与功能」/ macOS 应用名 / Linux 桌面条目）
+productName: Electron Desktop Template
+
+# 打包输出目录（与 .gitignore 中 release/ 对齐）
+directories:
+  output: release
+  buildResources: resources
+
+# asar 打包（设计文档 §3 Electron 安全基线）
+# - asar: true 把源码打包成 app.asar，避免直接暴露 .js 源文件
+asar: true
+# asar 完整性校验（防篡改）：electron-builder 26.x 默认启用 asar 内容 SHA-256 校验，
+# 应用启动时 Electron 验证校验和，被篡改则拒绝启动（2026-09-04 供应链加固）。
+# 26.x 移除了顶层 asarIntegrity 键（schema 校验报 unknown property），默认即开启；
+# 显式声明 disableAsarIntegrity: false 防止未来版本翻转默认值后静默失效。
+disableAsarIntegrity: false
+
+# ── Electron fuses（烧入二进制的构建期安全开关，2026-09-13 启用）───────────────
+# 这些开关默认是"开发友好"的取值，打包发给用户后即成攻击面；fuses 在构建期
+# 把它们永久关闭（无法运行时改回）。全部取值与理由：
+#
+# - runAsNode: false
+#   关闭后 ELECTRON_RUN_AS_NODE 不再被尊重。不关的后果：签名过的应用二进制可被
+#   同机任意同权限进程当作**通用 Node 运行时**复用（LOLBin），且完全绕过 asar
+#   完整性校验（该路径根本不加载我们的应用）。攻击者无需篡改我们的包，借用即可。
+#   ⚠️ 前置条件：Electron 官方文档明确说明关闭该 fuse 会使 `process.fork` 失效，
+#   并推荐改用 utilityProcess（官方后台 Node 子进程 API）。模板不依赖 fork；
+#   接入需要子进程的业务时请改用 utilityProcess，勿复用本开关绕过。
+#
+# - onlyLoadAppFromAsar: true
+#   把 Electron 的代码查找顺序从 `app.asar → app → default_app.asar` 收敛为
+#   仅 `app.asar`，与 embeddedAsarIntegrityValidation 配合后，**无法加载未经
+#   校验的代码**（原顺序下安装目录可写者放一个 app/ 目录即可注入持久化代码）。
+#   disableAsarIntegrity: false 已在上方启用完整性校验，两者配套。
+#
+# - enableEmbeddedAsarIntegrityValidation: true
+#   显式开启 asar 内容完整性校验（Windows electron>=30 / macOS >=16 支持）。
+#
+# 其余 fuse 保持默认；如 evaluate（以下）逐项评估：
+#   - enableCookieEncryption：需评估现有 cookie 存储（单向迁移，开启后旧明文
+#     cookie 会在写入时加密；我们主要持久化在 SQLite，暂不启用以免影响既有用户）
+#   - enableNodeCliInspectArguments：主进程调试依赖 --inspect（dev 用 remote-debugging-port
+#     而非该开关），但为保留排障能力暂不关闭
+#   - enableNodeOptionsEnvironmentVariable：引擎子进程曾依赖 NODE_OPTIONS 置空，
+#     保持默认以兼容
+electronFuses:
+  runAsNode: false
+  onlyLoadAppFromAsar: true
+  enableEmbeddedAsarIntegrityValidation: true
+
+# 需要打入 asar 的文件白名单（out/ 是 electron-vite 构建产物）
+# 排除：测试文件、配置文件、源码、文档、缓存
+files:
+  - out/main/**
+  - out/preload/**
+  - out/renderer/**
+  - package.json
+  - "!**/.vitest"
+  - "!**/*.test.ts"
+  # tsx 测试与源码同目录（colocation），不再有 __tests__ 目录可兜底，必须显式排除
+  - "!**/*.test.tsx"
+  - "!**/*.spec.ts"
+  - "!**/__tests__/**"
+  - "!**/coverage/**"
+  - "!**/playwright-report/**"
+  - "!**/test-results/**"
+  # source map 不入包：electron.vite.config.ts 的 'hidden' 只是不写 sourceMappingURL 注释，
+  # .map 文件本身连同原始 TS 源码仍会被打成产物（实测 98.4MB / asar 总量 24.3%）。
+  # 运行时不读 asar 内的 map，整体排除（构建机 out/ 保留供本地排障；无云端符号上传，
+  # Sentry 已于 2026-09-13 移除）。
+  - "!**/*.map"
+
+# 额外资源（不打入 asar，部署到 process.resourcesPath）
+extraResources:
+  # 构建信息（scripts/generate-build-info.mjs 生成）：版本/渠道/提交/构建时间，
+  # 「关于」页数据源（app:getInfo 读取 process.resourcesPath/build-info.json）
+  - from: resources/build-info.json
+    to: build-info.json
+    filter:
+      - "**/*"
+  - from: resources/icons
+    to: icons
+    filter:
+      - "**/*"
+  # drizzle 迁移文件（schema.ts 单一真源的运行时迁移产物）
+  # 由 drizzle-kit generate 生成；db.ts initDb 在打包环境读取
+  # process.resourcesPath/drizzle（dev 环境读项目根 drizzle/）
+  - from: drizzle
+    to: drizzle
+    filter:
+      - "**/*"
+
+# ── Windows 平台配置 ──────────────────────────────────────────
+# 代码签名：证书通过环境变量提供（CSC_LINK/CSC_KEY_PASSWORD），
+# 未提供时 electron-builder 自动跳过签名（dev 阶段可空）
+# 默认签名哈希算法为 sha256（设计文档附录 A #7 Windows Authenticode）
+win:
+  # 图标：1024x1024 PNG 源（electron-builder 自动派生 .ico）
+  icon: resources/icons/icon.png
+  # 目标：NSIS 安装器。**不在此声明 arch**（2026-09-20 修复）——
+  # 已核实 electron-builder 的 arch 解析：CLI 的 --x64/--arm64 与配置的
+  # target[].arch 是**并集**（targetFactory.computeArchToTargetNamesMap：先取 CLI
+  # 的 raw keys 作 defaultArchs，再遍历配置 target 把其 arch 全部并入），
+  # 因此在配置里写 [x64, arm64] 会让 `--win --x64` 也构建出 arm64——而
+  # @electron/rebuild 在 x64 机器上为 arm64"编译"会静默复用 host 架构
+  # （实测耗时 0.4s vs 真实 9s，日志无错），产出的 arm64 包含 x64 原生模块。
+  # 现在架构完全由脚本的 CLI 标志决定（build:win 传 --x64 --arm64；
+  # 单架构脚本只传对应标志），`check:native-arch` 在打包后断言二进制真架构。
+  # arm64 在 CI 的 windows-latest 上交叉编译可行（镜像含 ARM64 MSVC 工具链）。
+  target:
+    - nsis
+  # 自定义协议（深度链接）：注册 `code-agent://` 为 Windows URL 协议
+  # （注册表 HKCR，卸载时自动清理）；与 src/main/deep-link.ts CODE_AGENT_PROTOCOL 一致
+  # 26.x 属性名由 protocol 改为 protocols
+  protocols:
+    - name: code-agent
+      schemes:
+        - electron-template
+
+# NSIS 安装器配置（设计文档 §3 NSIS）
+nsis:
+  # 一键安装：false 让用户自定义安装目录
+  oneClick: false
+  # 允许修改安装目录
+  allowToChangeInstallationDirectory: true
+  # 安装包文件名：产品名-平台-架构-版本（2026-09-20 命名规范化）——
+  # 连字符命名，避免 GitHub asset 名空格转点；版本号在末位便于用户在下载目录分辨。
+  # ⚠️ 架构串必须是字面量 ${arch}（x64 / arm64）：electron-updater 用
+  #    `name.includes(process.arch)` 从 latest.yml 的多架构条目里选包
+  #    （providers/Provider.js:80）——换成中文或其他写法会让 ARM 设备拿到 x64 包。
+  artifactName: Electron-Desktop-Template-Windows-${arch}-${version}.${ext}
+  # 每架构一个独立安装包（2026-09-20 新增）——
+  # 默认 true 会额外构建「双架构通用安装包」（一个 exe 同时支持 x64/arm64，约 690MB）：
+  #   · 它使 latest.yml 的 path/files[0] 指向该通用包；若发布门禁只收按架构资产
+  #     （白名单要求 `Windows-` 后有架构段），通用包被过滤 → 元数据出现悬空引用，
+  #     且其 .blockmap 会被 `*.blockmap` 通配符单独收进 release（孤儿资产）。
+  #   · 用户侧的取舍：通用包体积翻倍且与「一渠道一包」的分发策略不符。
+  # 关掉后 latest.yml 只含 x64/arm64 两条（均真实发布），无悬空引用。
+  buildUniversalInstaller: false
+  # 创建桌面快捷方式
+  createDesktopShortcut: true
+  # 创建开始菜单快捷方式
+  createStartMenuShortcut: true
+  # 显示卸载确认
+  perMachine: false
+  # NSIS 安装器图标：由 win.icon（icon.png）自动派生 .ico（NSIS 不接受 png）
+  # 安装完成后启动应用
+  runAfterFinish: true
+  # 自定义 NSIS 脚本：旧卸载器失败时不中断安装（见 resources/installer.nsh 头注释）
+  include: resources/installer.nsh
+
+# ── macOS 平台配置 ────────────────────────────────────────────
+# 注意：macOS 包只能在 macOS runner 上构建（electron-builder 不支持 Windows → macOS 交叉编译）
+# 签名/公证：未提供证书时 electron-builder 自动跳过（dev 阶段可空）；
+# 正式发布需 CSC_LINK + notarize（env 配置，见 CI release.yml）
+mac:
+  # 图标：1024x1024 PNG 源（electron-builder 在 macOS 上自动派生 .icns）
+  icon: resources/icons/icon.png
+  # mac 平台通用 artifactName：dmg 有自己的 dmg.artifactName 覆盖；zip（自动更新
+  # 制品）沿用 mac.artifactName（顶层独立 zip: 键在 electron-builder schema 中非法）
+  # ⚠️ 架构串必须是字面量 ${arch}（x64 / arm64）：latest-mac.yml 同时含两架构的 zip，
+  #    electron-updater 用 `name.includes(process.arch)` 选包——写成「Apple芯片」
+  #    「Intel芯片」会让 ARM Mac 匹配失败、回退取到 x64 包（providers/Provider.js:80）。
+  artifactName: Electron-Desktop-Template-macOS-${arch}-${version}.${ext}
+  # 目标：dmg（分发安装包）+ zip（electron-updater 自动更新必须，latest-mac.yml）。
+  # **不声明 arch**（同 win 段说明）：由脚本 CLI 标志决定——build:mac 传
+  # --x64 --arm64（macos-latest 为 arm64，Xcode 原生支持交叉编译出 x64，
+  # 且同 job 双架构会合并为一份含两组条目的 latest-mac.yml）。
+  target:
+    - dmg
+    - zip
+  # macOS 应用分类（App Store 元数据）
+  category: public.app-category.developer-tools
+  # 深色模式支持
+  darkModeSupport: true
+  # 自定义协议（深度链接）：electron-builder 映射 CFBundleURLTypes 到 Info.plist，
+  # macOS 协议唤起走 open-url 事件（见 src/main/index.ts）
+  # 26.x 属性名由 protocol 改为 protocols
+  protocols:
+    - name: code-agent
+      schemes:
+        - electron-template
+  # 应用商店分发：false = 直接分发（非 App Store）
+  #
+  # ── 签名与公证（2026-09-14 启用）──────────────────────────────
+  # notarize: true 表示"只要提供了公证凭据就执行公证"——**无凭据时 electron-builder
+  #   会 warn 并跳过**（实测 app-builder-lib 的 notarizeIfProvided：getNotarizeOptions
+  #   在无 APPLE_* 环境变量时返回 undefined → 仅记录 warn，不失败）。
+  #   因此本地/无证书 CI 构建照常通过，配好 Secrets 后自动生效，无需改配置。
+  # 公证凭据（三选一，CI 走 Secrets 注入，见 release.yml）：
+  #   1. APPLE_API_KEY + APPLE_API_KEY_ID + APPLE_API_ISSUER（推荐，App Store Connect API Key）
+  #   2. APPLE_ID + APPLE_APP_SPECIFIC_PASSWORD + APPLE_TEAM_ID
+  #   3. APPLE_KEYCHAIN + APPLE_KEYCHAIN_PROFILE
+  # hardenedRuntime：公证的前置条件（Apple 要求），开启后需要 entitlements 放行
+  #   Electron 运行时必需的几项能力（JIT / 未签名可执行内存 / 库校验豁免）。
+  #   未提供 entitlements 文件时 electron-builder 会用内置默认集（对 Electron 应用足够），
+  #   此处显式给出以便审阅与后续扩展。
+  notarize: true
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
+
+# DMG 安装包配置
+# 自动更新用 zip artifact（latest-mac.yml，zip 命名沿用 mac.artifactName），DMG 仅作首次安装分发
+dmg:
+  artifactName: Electron-Desktop-Template-macOS-${arch}-${version}.${ext}
+  # 不为 dmg 生成 blockmap（2026-09-20 新增，默认 true）——
+  # electron-updater 在 macOS 只下载 zip 做差分（MacUpdater.js:81：
+  # `findFile(files, "zip", ["pkg","dmg"])`，dmg 被显式排除），
+  # 故 `*.dmg.blockmap` 是一份永远不会被读取的资产（每个约 0.3MB）。
+  # 关闭后 latest-mac.yml 只含 zip 条目，dmg 仍是正常的分发安装包。
+  writeUpdateInfo: false
+
+# ── Linux 平台配置 ────────────────────────────────────────────
+linux:
+  # 图标：1024x1024 PNG 源（electron-builder 自动派生各尺寸）
+  icon: resources/icons/icon.png
+  # 目标：AppImage（单文件分发，electron-updater 支持）+ deb（Debian/Ubuntu）
+  # + rpm（Fedora/RHEL/openSUSE）。**不声明 arch**（同 win 段说明）：架构由脚本的
+  # CLI 标志决定，避免与 CLI 并集导致「单架构脚本产出双架构、其中一份是错误架构」。
+  # 发布形态：x64 与 arm64 分别在各自的原生 runner 上构建（ubuntu-latest /
+  # ubuntu-24.04-arm）——better-sqlite3 需本地编译，Linux 的架构无法在 x64 上
+  # 可靠交叉编译（无工具链时静默复用 host，见 check:native-arch）。
+  target:
+    - AppImage
+    - deb
+    - rpm
+  # 分类（Linux 桌面条目 Categories）
+  category: Development
+  # 可执行文件名
+  executableName: electron-desktop-template
+  # 桌面条目描述
+  synopsis: Electron Desktop Template
+  description: Production-grade Electron desktop application template
+  # 维护者（deb 必需字段）
+  # 此前是占位 `dev@code-agent.example.com`（example.com 是保留域，永远收不到信，
+  # 却会被写进 deb/rpm 包元数据与卸载信息，用户报障时得到死地址）。
+  # 本项目无公开邮箱，改用可用的报障入口：GitHub Issues 与安全公告页
+  # （deb 的 Maintainer 惯用邮箱格式，此处以 <URL> 形式给出有效联系方式）。
+  maintainer: zlh12331 <https://github.com/zlh12331/Electron-Desktop-Template/issues>
+
+# AppImage 配置
+appImage:
+  artifactName: Electron-Desktop-Template-Linux-${arch}-${version}.AppImage
+
+# deb 配置
+deb:
+  artifactName: Electron-Desktop-Template-Linux-${arch}-${version}.${ext}
+
+# rpm 配置（Fedora/RHEL/openSUSE；构建需 runner 装 rpm 与 xz，见 release.yml）
+rpm:
+  artifactName: Electron-Desktop-Template-Linux-${arch}-${version}.${ext}
+# 说明：Linux 的 ${arch} 由 electron-builder 按各包管理器惯例映射
+# （getArtifactArchName）：x64 → AppImage/rpm 为 `x86_64`、deb 为 `amd64`；
+# arm64 → rpm 为 `aarch64`、AppImage/deb 为 `arm64`。保留惯例串是刻意的：
+#   · 它们是各生态的标准标识（`dpkg --print-architecture` / `uname -m` 输出一致）
+#   · 更新选择不受影响——Linux 的元数据按架构分文件（latest-linux.yml /
+#     latest-linux-arm64.yml），每个文件里只有一个 AppImage，electron-updater
+#     无论按名字匹配还是回退取首个，都必然选中正确架构（已用真实 yml 实测验证）
+
+# 版本元数据（设计文档 §1.1 版本管理）
+# - Git tag v0.1.0 → 版本 0.1.0
+# - 通过 package.json version 字段自动同步，无需在此重复声明
+
+# 发布配置（设计文档 §3.5 electron-updater）
+# 发布到 GitHub Releases，electron-updater 会按平台拉取元数据：
+# - Windows: latest.yml（nsis）
+# - macOS: latest-mac.yml（zip）
+# - Linux: latest-linux.yml（AppImage）
+# provider: github 直接消费 GitHub Releases 资产（与 release.yml softprops 上传的 latest*.yml 配套）。
+# 注意：自动更新面向用户时仓库需为公开（私有仓库资产下载需认证 token，运行时注入不安全）。
+publish:
+  provider: github
+  channel: latest

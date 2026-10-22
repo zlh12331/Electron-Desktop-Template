@@ -1,0 +1,149 @@
+# AGENTS.md — Electron 桌面端模板
+
+跨平台桌面应用模板（Windows/macOS/Linux）：Electron 44 + React 19 + TypeScript + Vite 8。
+底座能力已就绪（IPC 契约体系、SQLite 设置持久化、三平台打包与自动更新），业务页面待接入。
+
+## 重要命令
+
+```bash
+pnpm dev                    # 启动 dev server + Electron 窗口
+pnpm dev:web                # 浏览器模式 dev（vite.web.config.ts，配合 src/renderer/dev/mock-api.ts）
+pnpm typecheck              # tsc --build + tsc -p scripts/tsconfig.json（不要用 --noEmit）
+pnpm lint                   # biome check .（含格式/import 排序）
+pnpm lint:fix               # 自动修复
+pnpm test                   # 全部测试链式：packages → main → renderer → integration → scripts
+
+# 单层测试
+pnpm --filter @code-agent/shared run test
+pnpm test:main
+pnpm test:renderer
+pnpm test:integration
+pnpm test:scripts
+
+# E2E（@playwright/test 升级后需 npx playwright install）
+pnpm test:e2e               # 浏览器模式
+pnpm test:e2e:electron      # Electron 真实窗口
+pnpm test:smoke             # 生产构建 smoke（需先 build:dist）
+
+# 质量门禁
+pnpm check:static           # 静态审计 16 项（见下）
+pnpm check:tokens           # 设计令牌：裸色/hex/字号/间距双写
+pnpm check:i18n             # i18n：缺失 + 双语一致 + 冗余（默认 --strict）
+pnpm check:brand            # 品牌一致性：app.config.json ↔ 生成物与构建配置
+pnpm check:schema-drift     # schema.ts ↔ drizzle/ 迁移漂移
+pnpm check:secrets-git      # gitleaks 扫 <远端 main>..HEAD（pre-push 与 CI 用）
+pnpm check:secrets          # gitleaks 扫工作区全量文件（手动排查用，含未提交改动）
+pnpm knip                   # 死代码 / 死依赖（CI 卡关）
+
+# 品牌
+pnpm brand:sync             # app.config.json → packages/shared/src/constants/brand.ts
+
+# 构建
+pnpm build                  # electron-vite 构建（out/）
+pnpm build:win:x64          # 构建 + 打包（示例；mac/linux 同理）
+pnpm analyze:bundle         # 包体积分析（ANALYZE_BUNDLE=1）
+
+# 文档
+pnpm docs:types             # TypeDoc 契约文档
+pnpm tokens:build           # Style Dictionary 生成 tokens.css
+```
+
+`check:static` 覆盖：tokens + i18n + comments（过期注释/失效文件引用）+ tsdoc（export 符号 TSDoc 棘轮）+ file-size（净行 ≤600）+ functions（形参 ≤4 / 函数体 ≤200）+ complexity（认知复杂度 ≤15）+ coverage-floors + docs + docs-scripts + test-boundary + csp-hash + css-vars + animations + ui-consistency + brand，全部棘轮只收紧。
+
+本地全量验证：`pnpm verify:local`（质量层）/ `pnpm verify:local:full`（追加构建与打包）。
+
+## 架构
+
+```
+src/main/        → 主进程（Node.js, sandbox: true）
+src/preload/     → 桥接（CJS, contextBridge）
+src/renderer/    → React 渲染层
+packages/shared/ → 跨进程共享：IPC 契约 / zod schema / 常量
+packages/tsconfig/→ base.json / node.json / web.json
+scripts/         → check-* 门禁与工具脚本
+tools/           → 独立 TS 子包（depcruise / typedoc）
+```
+
+- 主进程是 Service Container 模式（`service-container.ts`）：私有字段 + lazy accessor + `dispose()` 善后链。当前只有更新服务；新增服务按同一模式追加并登记 dispose 步骤。
+- 启动序列（`index.ts`）：logger → 遥测 → DB → i18n → 代理 → 错误兜底 → 崩溃恢复 → IPC 注册 → 更新 → CSP → 监控 → 窗口 → 托盘。
+- IPC 三层真源：`shared/ipc/meta.ts`（零依赖 channel）→ `shared/ipc/domains/*.ts`（schema 绑定）→ `definitions.ts`（聚合 + 编译期双向校验）。派生：`channels.ts` / `payloads.ts` / `api.ts`。
+- 通道命名：`{domain}:{action}` / `{domain}:event:{name}` / `{domain}:stream:{event}`。
+- 流式事件走 subscribe 回调，返回 unsubscribe。
+
+## 渲染层四层状态
+
+| 层 | 载体 | 用途 |
+|---|---|---|
+| L1 | `useState` | 组件内瞬态 |
+| L2 | Zustand `persistent/` | 跨重启（settings） |
+| L3 | TanStack Query | IPC invoke 请求-响应 |
+| L4 | IPC event → `transient/` | 主进程推送 |
+
+判断标准：invoke → Query；订阅推送 → Zustand；UI 交互态 → Zustand transient；组件独享 → useState。
+
+## 关键约束（易踩坑）
+
+- **preload 必须 CJS**（`sandbox: true`）：纯 ESM 包（如 zod）引入会静默失败导致 `window.api` 为 undefined。preload 只能经 `@code-agent/shared/preload` / `ipc/meta` / `ipc/channels` 子路径导入。
+- **组件不直连 `window.api`**：经 `hooks/` 或 `lib/` 桥接（`check:ui-consistency` 卡关）。
+- **响应一律 `unwrap()`**（`lib/ipc.ts`），禁手写 `'data' in resp`。
+- **useMutation 必须挂 `onError`** → `toast.error(unwrapErrorMessage(...))`。
+- **危险操作**用命令式 `confirm()`（`confirm-dialog-store`），禁内联 AlertDialog。
+- **exactOptionalPropertyTypes / noUncheckedIndexedAccess / isolatedDeclarations 已启用**：可选字段传 undefined 需条件展开；导出必须显式标注类型。
+- **React Compiler 已启用**（`oxc-transform-react`）：新代码默认不写 `useMemo`/`useCallback`。但 vitest 不跑 Compiler —— effect 依赖的函数身份稳定性必须用 ref 固定，不能依赖编译器。
+- **根级新增 `*.config.ts` 必须登记进 `tsconfig.configs.json`**，否则 typecheck 不覆盖。
+- **动效统一走 `src/renderer/lib/motion/`**，不散写 CSS transition。
+- **网页承载必须用 `WebContentsView`**（独立 session 分区），不能回渲染层 iframe（CSP/XFO 三层拦截）。
+- **dev 环境**：userData 重定向到 `.electron-user-data/`；开启 CDP 9222；`.env` 由 `process.loadEnvFile()` 加载。
+
+## 数据库
+
+- SQLite（better-sqlite3）+ Drizzle ORM；`src/main/infra/storage/schema.ts` 是唯一真源（当前仅 `app_settings`）。
+- 迁移：改 `schema.ts` → `pnpm exec drizzle-kit generate` → 提交 `drizzle/`；禁手写第二份 DDL。
+- 表定义在 `storage/tables/`：`core.ts` 为通用表；业务表按域新建文件并在 `schema.ts` 登记。
+- 启动期热备份轮转 + `quick_check` 损坏自愈（`db.ts`）。
+- 设置真源 = `app_settings`；渲染层内存态经 `settings:set` 写穿透，启动时 `settings:getAll` 拉快照。
+
+## 代码风格（Biome 非默认项）
+
+- `useNamingConvention` 默认 `strictCase`（注册表字段用小写驼峰）。
+- 禁止 `default export`（例外：renderer `*.tsx`、config 文件、scripts）。
+- 禁止 `console`（例外：集成测试 / E2E / scripts）。
+
+## 测试规范
+
+- 业务逻辑不 mock：测试真实实现（DI 注入 fake）；基础设施（electron / 原生模块）可 stub。
+- 测试与源码 colocation：`*.test.ts(x)`；集成测试在 `tests/integration/`。
+- 覆盖率下限真源 = `scripts/coverage-floors.json`（棘轮，只收紧）。
+- 纯函数适合用 fast-check 属性测试补强。
+
+## 扩展点速查
+
+| 要做的事 | 改哪里 |
+|---|---|
+| 改品牌（产品名/appId/协议） | `app.config.json` → `pnpm brand:sync` |
+| 加一个 IPC 方法 | `ipc/meta.ts` + `ipc/domains/<domain>.ts` + `main/ipc/<domain>.handler.ts` |
+| 加一个 IPC 域 | 新建 domain 文件 + `ipc/domains/index.ts` 登记 + main 侧 handler |
+| 加一个数据表 | `storage/tables/<domain>.ts` + `schema.ts` 登记 + `drizzle-kit generate` |
+| 加一个页面 | `lib/constants.ts` + `router.tsx` + `routes/<page>.tsx` |
+| 加一个设置分区 | `lib/settings-sections.ts` + `settings/sections/registry.tsx` + 分区组件 |
+| 加一个主进程服务 | `infra/<domain>/` + `service-container.ts`（accessor + dispose） |
+| 加一个桥接 hook | `hooks/` + `components/layout/bridges.ts` |
+
+## 外部服务 / 凭据
+
+- 凭据用 Electron `safeStorage` 加密（Windows DPAPI / macOS Keychain / Linux libsecret）。
+- 遥测为 OpenTelemetry 单通道：`OTEL_EXPORTER_OTLP_ENDPOINT` 未配置即不外发。
+- 报障走 GitHub Issue + 诊断包导出（无云端上报依赖）。
+
+## 构建产物 & Git
+
+- `out/` = electron-vite 产物；`release/` = electron-builder 产物；两者均不入仓。
+- 预提交：lint-staged（Biome 自动修复）。pre-push：gitleaks 密钥扫描（`SKIP_PREPUSH=1` 跳过）。
+- 提交信息：Conventional Commits（commitlint 校验）；`feat`/`fix`/`perf` 才计入升版。
+- 发版：release-please 开 Release PR → 合并 → CD 三平台构建 → 打 tag 发布。详见 `RELEASING.md`。
+- 动打包链路的 PR（`electron-builder.yml` / NSIS 相关）合并前须本地跑 `pnpm build:win:x64` → `check:native-arch` → `pnpm test:smoke`。
+
+## 已移除（相对上游完整产品）
+
+模板从完整 Code Agent 桌面应用派生，以下能力已剥离，需要时按「扩展点速查」重新接入：
+AI Agent 运行时与工具系统、会话/消息/回合数据、文件树与编辑器、终端、Git 面板、浏览器预览、MCP、记忆引擎、IM 渠道、远程控制、模型管理、技能系统。

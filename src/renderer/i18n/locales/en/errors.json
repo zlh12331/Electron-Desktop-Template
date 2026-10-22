@@ -1,0 +1,19 @@
+{
+  "$comment": "Error messages · English · keys match ErrorCode in packages/shared",
+  "errors": {
+    "ALREADY_EXISTS": "Target already exists",
+    "FS_DISK_FULL": "Disk space insufficient",
+    "FS_READ_FAILED": "Failed to read file",
+    "FS_WRITE_FAILED": "Failed to write file",
+    "INTERNAL_ERROR": "Internal error",
+    "INVALID_INPUT": "Invalid input",
+    "INVALID_RESPONSE": "Invalid response data",
+    "IPC_CHANNEL_NOT_FOUND": "IPC channel not found",
+    "IPC_SENDER_INVALID": "Invalid IPC sender",
+    "NOT_FOUND": "Resource not found",
+    "RATE_LIMITED": "Too many requests",
+    "BACKUP_INVALID": "Backup file is invalid or missing",
+    "UNAUTHORIZED": "Unauthorized",
+    "UNKNOWN": "Unknown error"
+  }
+}

@@ -1,0 +1,49 @@
+import { ErrorCode, type ErrorCode as ErrorCodeType } from '@code-agent/shared/renderer';
+
+/** 错误恢复动作类型 */
+export type ErrorAction = { readonly kind: 'open-settings' } | { readonly kind: 'retry' };
+
+/**
+ * 错误码 → 恢复动作映射
+ *
+ * 仅登记需要「默认重试之外」的业务动作；未登记的错误码由调用方展示默认重试按钮
+ * （瞬时故障由 TanStack Query 的自动重试兜底）。
+ *
+ * 模板默认：授权类与输入类错误引导用户去设置页检查配置。接入业务后按域追加。
+ */
+const ERROR_ACTION_MAP: Readonly<Partial<Record<ErrorCodeType, ErrorAction>>> = {
+  [ErrorCode.UNAUTHORIZED]: { kind: 'open-settings' },
+  [ErrorCode.INVALID_INPUT]: { kind: 'open-settings' },
+};
+
+/**
+ * 从 Error 解析错误码（约定错误格式 "[CODE] message"）
+ *
+ * 与 AsyncBoundary 的错误文案解析共用同一约定；非合法错误码返回 undefined。
+ *
+ * @param error 原始错误
+ * @returns 合法错误码，无法解析返回 undefined
+ */
+export function parseErrorCode(error: Error): ErrorCodeType | undefined {
+  const codeMatch = /^\[([A-Z_]+)\]/.exec(error.message);
+  if (codeMatch === null) {
+    return undefined;
+  }
+  const candidate = codeMatch[1] ?? '';
+  const validCodes: readonly string[] = Object.values(ErrorCode);
+  return validCodes.includes(candidate) ? (candidate as ErrorCodeType) : undefined;
+}
+
+/**
+ * 解析错误 → 恢复动作
+ *
+ * @param error 原始错误
+ * @returns 注册的恢复动作；未注册返回 undefined（调用方使用默认重试）
+ */
+export function resolveErrorAction(error: Error): ErrorAction | undefined {
+  const code = parseErrorCode(error);
+  if (code === undefined) {
+    return undefined;
+  }
+  return ERROR_ACTION_MAP[code];
+}

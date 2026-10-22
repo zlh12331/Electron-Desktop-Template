@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@code-agent/tsconfig/node.json",
+  "compilerOptions": {
+    "types": ["node", "vitest/globals"],
+    "isolatedDeclarations": false
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["vitest.config.ts"]
+}

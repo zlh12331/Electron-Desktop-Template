@@ -1,0 +1,246 @@
+/* ⚠️ 生成文件（Style Dictionary）——请勿手改；修改 tokens/aurora.json 后运行 pnpm tokens:build */
+:root {
+  /* 布局尺寸 — clamp() 实现响应式宽度约束 */
+  --sidebar-w: clamp(200px, 17vw, 280px);
+  --right-panel-w: clamp(260px, 22vw, 360px);
+  --resizer-w: 0px;
+  --topbar-h: 52px;
+  /* z-index 层级体系 — 从低到高（surface < popover < modal < boundary）；禁止裸 z-* 数字，新浮层一律引用令牌。toast 不设档：sonner 用库默认层级，气泡语义不参与应用内 stacking context 竞争 */
+  --z-base: 1;
+  /* 面板内容之上的行内浮层（进度条/斜杠建议面板等，同一 stacking context 内竞争） */
+  --z-surface: 2;
+  /* 悬浮于内容之上的粘性件（resizer 分隔线/scroll-to-bottom/jump-bar 等）——介于 surface(2) 与 popover(50) 之间 */
+  --z-raised: 10;
+  /* Radix 浮层统一档（dialog/sheet/dropdown/select/context-menu/tooltip） */
+  --z-popover: 50;
+  /* 强制顶层模态（AskDialog 等需压过一切浮层的场景） */
+  --z-modal: 100;
+  /* 层级边界值（skip-link 聚焦等不遮挡内容的最高层） */
+  --z-boundary: 999;
+  --sans: var(--font-sans);
+  --serif: var(--font-serif);
+  /* 字号阶梯 — 9 级（含 xl/2xl/3xl） */
+  --font-size-2xs: 10px;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-base: 13px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  /* 字号阶梯扩展（由旧档 fs-xl/2xl/3xl 升格，2.2=A 按值） */
+  --font-size-xl: 18px;
+  --font-size-2xl: 22px;
+  --font-size-3xl: 28px;
+  /* 圆角 — TraeWork 默认容器圆角 --radius-8 */
+  --radius: 8px;
+  /* 页面基底色 — TraeWork --bg-base-default */
+  --bg: #FFFFFF;
+  /* L1 侧栏 / 顶栏 / 卡片层 — TraeWork --bg-base-secondary */
+  --bg-elev: #F5F5F5;
+  /* L2 悬浮输入区 / 卡片区 / 悬停态 — TraeWork --bg-base-tertiary */
+  --bg-elev-2: #E5E5E5;
+  /* L3 激活态 / 强调容器 — TraeWork --brand-grey-300 */
+  --bg-elev-3: #D4D4D4;
+  /* shadcn 标准背景映射 */
+  --background: var(--bg);
+  --foreground: #171717;
+  --card: var(--bg-elev);
+  --card-foreground: #171717;
+  --popover: var(--bg-elev);
+  --popover-foreground: #171717;
+  /* 描边：两级 — TraeWork --border-neutral-l1 */
+  --border: rgba(115, 115, 115, 0.12);
+  /* TraeWork --border-neutral-l2 */
+  --border-strong: rgba(115, 115, 115, 0.18);
+  --input: var(--border);
+  /* 文字主色 — TraeWork --text-default */
+  --text: #171717;
+  /* TraeWork --text-secondary */
+  --text-secondary: #404040;
+  /* TraeWork --text-tertiary（亮色由 #737373 收紧至 #595959：原值对 --bg-elev/#F5F5F5 仅 4.35:1、对 --bg-elev-2/#E5E5E5 仅 3.76:1，均低于 AA；新值对各亮色底 ≥4.5，含 hover 底 --bg-elev-3/#D4D4D4 的 4.73） */
+  --text-tertiary: #595959;
+  /* TraeWork --text-disabled（dark 由 #737373 提亮至 #8A8A8A：原值对 #0A0A0A 仅 4.18:1 低于 AA 且常与 9-10px 小字组合，新值 5.64；仍暗于 --text-secondary/#A1A1A1 的层级关系保持） */
+  --text-faint: #A1A1A1;
+  /* shadcn muted-foreground — TraeWork --text-tertiary（亮色收紧理由同 text-tertiary：原 #737373 在浮起底色上低于 AA 4.5；暗色 #A1A1A1 实测已达标不动） */
+  --muted-foreground: #595959;
+  /* 品牌色上的前景色 — TraeWork --text-onbrand */
+  --on-accent: #FFFFFF;
+  /* 品牌主色（图形/边框/选中/图标；作文字色用 --accent-text，作实底按钮走 --primary）；暗色保持 TraeWork 官方亮档以保图形可见性 */
+  --accent: #4B3FE3;
+  /* 品牌强调文本紫（亮色复用基色即达 AA；暗色提亮至对 #171717 卡片底 CR≥4.5） */
+  --accent-text: var(--accent);
+  /* TraeWork --bg-brand-active */
+  --accent-dim: #3F31C6;
+  /* 辅助色 — TraeWork --accent-blue（作文字色用 --accent-2-text） */
+  --accent-2: #3F85FF;
+  /* accent-2 作文字色专用层：基色 #3F85FF 对白底仅 3.49:1，文字场景不达 AA——收紧后白底 4.70 */
+  --accent-2-text: #2E6FE0;
+  --primary-foreground: var(--on-accent);
+  --ring: var(--accent);
+  --secondary: var(--bg-elev-2);
+  --secondary-foreground: var(--text);
+  --muted: var(--bg-elev-2);
+  /* accent 底上的前景色 — 对齐 shadcn 语义（配套 focus:bg-accent 使用）。原派生自 --muted-foreground 属误定义：文字色落在深紫底(--accent #4B3FE3)上实测仅 1.42:1（远低于 AA），改指 --on-accent 后 6.73:1 */
+  --accent-foreground: var(--on-accent);
+  /* 品牌色氛围色（柔和、无发光 — TraeWork quiet by default） */
+  --accent-glow: rgba(75, 63, 227, 0.08);
+  --accent-soft: rgba(75, 63, 227, 0.04);
+  --accent-2-glow: rgba(63, 133, 255, 0.08);
+  --accent-2-soft: rgba(63, 133, 255, 0.04);
+  --info-blue: rgba(63, 133, 255, 0.08);
+  --info-amber: rgba(226, 121, 0, 0.10);
+  --error-bg: rgba(232, 70, 58, 0.08);
+  /* 柔和阴影（TraeWork 中性 elevation；旧名 glow-sm，2.5=A 改名） */
+  --shadow-soft: 0 1px 3px rgba(115, 115, 115, 0.08);
+  --shadow-raise: 0 4px 12px rgba(115, 115, 115, 0.06), 0 0 0 1px rgba(115, 115, 115, 0.04);
+  /* 背景纹理：TraeWork 无装饰背景，纹理关闭 */
+  --grid-line: transparent;
+  /* 语义色 — TraeWork --status-warning-default */
+  --amber: #E27900;
+  /* TraeWork --status-warning-active */
+  --amber-dim: #C46F11;
+  --amber-glow: rgba(226, 121, 0, 0.10);
+  --warning: var(--amber);
+  /* 警告文本橙（亮色加深保 4.5:1；暗色对黑底复用基色即达标） */
+  --warn-text: #A85C00;
+  /* TraeWork --status-error-default（基色：图形/边框/氛围；文字用 --error-text，实底+白字用 --error-emphasis） */
+  --error: #E8463A;
+  /* 错误强调红（实底+白字场景专属，双主题同值：白色前景 CR=4.57 达 AA） */
+  --error-emphasis: #D93A2F;
+  /* 错误文本红（亮色加深保 4.5:1；暗色对黑底直接复用基色即达标） */
+  --error-text: #C93A2F;
+  /* shadcn destructive 语义 = 实底强调红（bg-destructive+白字场景）；原弱红迁移见 error/error-text */
+  --destructive: var(--error-emphasis);
+  --destructive-foreground: #FFFFFF;
+  /* TraeWork --accent-violet */
+  --magenta: #9570FF;
+  /* 文学棕（::selection 墨水印迹 / blockquote 底色等文学风效果层基色；效果层用 color-mix(var(--ink-brown) N%, transparent) 引用，alpha 留在使用处） */
+  --ink-brown: #8B4513;
+  /* TraeWork --status-success-default（基色：图形/边框/氛围；实底+白字用 --success-emphasis） */
+  --success: #15A877;
+  /* 成功强调绿（实底+白字场景专属，双主题同值：白色前景 CR=5.55 达 AA；原基色仅 3.04） */
+  --success-emphasis: #047857;
+  /* 成功文本绿（亮色用深档保 4.5:1；暗色对黑底复用基色即达标） */
+  --success-text: #047857;
+  /* 遮罩 / 玻璃 */
+  --overlay-bg: rgba(0, 0, 0, 0.25);
+  /* 命令/代码块深色背景（双主题一致，终端风格） */
+  --code-block-bg: #070A0E;
+  --overlay-blur: 8px;
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  /* 滚动条令牌 */
+  --scrollbar-thumb: rgba(115, 115, 115, 0.15);
+  --scrollbar-thumb-hover: rgba(115, 115, 115, 0.25);
+  /* 侧边栏（与 L1 同色） */
+  --sidebar: var(--bg-elev);
+  --sidebar-foreground: var(--text);
+  --sidebar-primary: var(--accent);
+  --sidebar-primary-foreground: var(--on-accent);
+  --sidebar-accent: var(--bg-elev-2);
+  --sidebar-accent-foreground: var(--text);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--accent);
+  /* 字体族 — TraeWork --font-family-default；栈内显式含 Windows CJK 兜底（YaHei）——sans-serif 隐式回退平台相关，显式声明消除非确定性（2026-10-09） */
+  --font-sans: "SF Pro Text", "PingFang SC", system-ui, -apple-system, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+  /* TraeWork --font-family-heading（用于标题）；同 sans 栈显式 CJK 兜底 */
+  --font-serif: "SF Pro", "PingFang SC", system-ui, -apple-system, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+  /* TraeWork --font-family-mono；栈内必须含 CJK 回退（Noto Sans SC webfont + YaHei 离线兜底）——无回退时中文掉到 Windows monospace 兜底宋体，11px 小字 ClearType 下发灰发绿（2026-10-09 实测） */
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, "Noto Sans SC", "Microsoft YaHei", monospace;
+  /* 阴影体系 — TraeWork 中性阴影 */
+  --shadow-modal: 0 16px 48px rgba(115, 115, 115, 0.12), 0 0 0 1px rgba(115, 115, 115, 0.06);
+  --shadow-dropdown: 0 8px 24px rgba(115, 115, 115, 0.1);
+  /* 扩展阴影（兼容已有组件） */
+  --shadow-pop: var(--shadow-dropdown);
+  --shadow-card: 0 2px 10px rgba(115, 115, 115, 0.06);
+  --shadow-card-hover: 0 12px 32px rgba(115, 115, 115, 0.1), 0 0 0 1px rgba(115, 115, 115, 0.04);
+  /* 动效缓动函数 — TraeWork 120ms hover / 200ms state / 300ms reveal */
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-paper: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* 动效时长 — hover/微交互（收敛散写的 0.1s/0.12s/0.15s） */
+  --duration-fast: 120ms;
+  /* 动效时长 — 状态切换（收敛散写的 0.2s/0.25s） */
+  --duration-state: 200ms;
+  /* 动效时长 — 内容显现（收敛散写的 0.3s/0.42s） */
+  --duration-reveal: 300ms;
+  /* 主按钮实底（bg-primary+白字场景）：暗色取深档保白字 CR≥4.5；与 --accent（图形/文本）职责分离 */
+  --primary: var(--accent);
+}
+
+.dark {
+  /* 页面基底色 — TraeWork --bg-base-default */
+  --bg: #0A0A0A;
+  /* L1 侧栏 / 顶栏 / 卡片层 — TraeWork --bg-base-secondary */
+  --bg-elev: #171717;
+  /* L2 悬浮输入区 / 卡片区 / 悬停态 — TraeWork --bg-base-tertiary */
+  --bg-elev-2: #262626;
+  /* L3 激活态 / 强调容器 — TraeWork --brand-grey-300 */
+  --bg-elev-3: #404040;
+  --foreground: #F5F5F5;
+  --card-foreground: #F5F5F5;
+  --popover-foreground: #F5F5F5;
+  /* 描边：两级 — TraeWork --border-neutral-l1 */
+  --border: rgba(255, 255, 255, 0.12);
+  /* TraeWork --border-neutral-l2 */
+  --border-strong: rgba(255, 255, 255, 0.18);
+  /* 文字主色 — TraeWork --text-default */
+  --text: #F5F5F5;
+  /* TraeWork --text-secondary */
+  --text-secondary: #D4D4D4;
+  /* TraeWork --text-tertiary（亮色由 #737373 收紧至 #595959：原值对 --bg-elev/#F5F5F5 仅 4.35:1、对 --bg-elev-2/#E5E5E5 仅 3.76:1，均低于 AA；新值对各亮色底 ≥4.5，含 hover 底 --bg-elev-3/#D4D4D4 的 4.73） */
+  --text-tertiary: #A1A1A1;
+  /* TraeWork --text-disabled（dark 由 #737373 提亮至 #8A8A8A：原值对 #0A0A0A 仅 4.18:1 低于 AA 且常与 9-10px 小字组合，新值 5.64；仍暗于 --text-secondary/#A1A1A1 的层级关系保持） */
+  --text-faint: #8A8A8A;
+  /* shadcn muted-foreground — TraeWork --text-tertiary（亮色收紧理由同 text-tertiary：原 #737373 在浮起底色上低于 AA 4.5；暗色 #A1A1A1 实测已达标不动） */
+  --muted-foreground: #A1A1A1;
+  /* 品牌主色（图形/边框/选中/图标；作文字色用 --accent-text，作实底按钮走 --primary）；暗色保持 TraeWork 官方亮档以保图形可见性 */
+  --accent: #6A6FFF;
+  /* 品牌强调文本紫（亮色复用基色即达 AA；暗色提亮至对 #171717 卡片底 CR≥4.5） */
+  --accent-text: #9B9EFF;
+  /* TraeWork --bg-brand-active */
+  --accent-dim: #4B3FE3;
+  /* 辅助色 — TraeWork --accent-blue（作文字色用 --accent-2-text） */
+  --accent-2: #4C88FF;
+  /* accent-2 作文字色专用层：基色 #3F85FF 对白底仅 3.49:1，文字场景不达 AA——收紧后白底 4.70 */
+  --accent-2-text: #8FB3FF;
+  /* 品牌色氛围色（柔和、无发光 — TraeWork quiet by default） */
+  --accent-glow: rgba(93, 98, 255, 0.12);
+  --accent-soft: rgba(93, 98, 255, 0.06);
+  --accent-2-glow: rgba(76, 136, 255, 0.12);
+  --accent-2-soft: rgba(76, 136, 255, 0.06);
+  --info-blue: rgba(76, 136, 255, 0.12);
+  --info-amber: rgba(243, 154, 53, 0.12);
+  --error-bg: rgba(234, 87, 76, 0.10);
+  /* 柔和阴影（TraeWork 中性 elevation；旧名 glow-sm，2.5=A 改名） */
+  --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-raise: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.02);
+  /* 语义色 — TraeWork --status-warning-default */
+  --amber: #F39A35;
+  /* TraeWork --status-warning-active */
+  --amber-dim: #E27900;
+  --amber-glow: rgba(243, 154, 53, 0.12);
+  /* 警告文本橙（亮色加深保 4.5:1；暗色对黑底复用基色即达标） */
+  --warn-text: var(--amber);
+  /* TraeWork --status-error-default（基色：图形/边框/氛围；文字用 --error-text，实底+白字用 --error-emphasis） */
+  --error: #EA574C;
+  /* 错误文本红（亮色加深保 4.5:1；暗色对黑底直接复用基色即达标） */
+  --error-text: var(--error);
+  /* TraeWork --accent-violet */
+  --magenta: #B655FC;
+  /* 文学棕（::selection 墨水印迹 / blockquote 底色等文学风效果层基色；效果层用 color-mix(var(--ink-brown) N%, transparent) 引用，alpha 留在使用处） */
+  --ink-brown: #D4A574;
+  /* 成功文本绿（亮色用深档保 4.5:1；暗色对黑底复用基色即达标） */
+  --success-text: var(--success);
+  /* 遮罩 / 玻璃 */
+  --overlay-bg: rgba(0, 0, 0, 0.5);
+  --glass-bg: rgba(23, 23, 23, 0.85);
+  /* 滚动条令牌 */
+  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
+  /* 阴影体系 — TraeWork 中性阴影 */
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.02);
+  --shadow-dropdown: 0 12px 36px rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  /* 主按钮实底（bg-primary+白字场景）：暗色取深档保白字 CR≥4.5；与 --accent（图形/文本）职责分离 */
+  --primary: #5D62FF;
+}

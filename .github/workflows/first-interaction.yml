@@ -1,0 +1,59 @@
+# 首次 issue / PR 自动欢迎（actions/first-interaction）
+# 目标：引导补充诊断信息（降 needs-info 率）+ 说明验证要求
+# 权限：issues: write + pull-requests: write（发评论）
+# 安全：action pin 到 commit SHA；欢迎语为固定文案，不引用 issue 内容
+#
+# ⚠️ 为什么 PR 用 pull_request_target 而非 pull_request（2026-10-07 收口）：
+# pull_request 事件下 fork PR 的 GITHUB_TOKEN 一律只读（GitHub 官方文档原话：
+# "The GITHUB_TOKEN has read-only permissions in pull requests from forked
+# repositories"），permissions 块提不了权 ⇒ 外部贡献者的 fork PR（恰是本
+# workflow 的目标人群）发评论必 403、job 必红。pull_request_target 在 base
+# 仓库上下文运行、令牌可写——与 labeler.yml 的选型一致。
+# 接受的残余面（评审通过，而非疏漏）：
+# ① checkout 不发生（本 workflow 无 actions/checkout），不会以高权限执行 fork
+#   代码；action 自身按 issue/PR 号调 REST API 发固定文案，不取仓库内容。
+# ② 欢迎语为仓内固定字面量（with: 输入），fork PR 不可控其内容。
+# ③ gate 类型修改（synchronize/编辑标题等）不触发——只监听 opened，重放面
+#   最小；误触发最坏后果 = 多一条欢迎评论。
+
+name: First Interaction
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # SHA 对应 actions/first-interaction v3.1.0（1c4688942c71f71d4f5502a26ea67c331730fa4d）
+      # ⚠️ v1→v3 输入名 breaking 变更：repo-token/issue-message/pr-message（kebab）
+      # 已改名 repo_token/issue_message/pr_message（snake）——用旧键静默不生效（2026-10-09 升级时核对）
+      - uses: actions/first-interaction@1c4688942c71f71d4f5502a26ea67c331730fa4d
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_message: |
+            欢迎来到本仓库！🎉 感谢提交 issue。
+
+            如果是**报障**，补充以下信息能大幅加快定位：
+            - 应用版本（设置 → 关于）
+            - 复现步骤与截图
+            - 诊断包：设置 → 诊断 → **导出诊断包**（脱敏日志，拖拽上传即可）
+
+            我们会尽快处理。
+          pr_message: |
+            欢迎提交 PR！🎉
+
+            请确认：
+            - 描述写明了**改动内容与原因**
+            - 本地验证已通过（`pnpm typecheck && pnpm lint && pnpm test`）
+            - 涉及打包链路（electron-builder / scripts/prepare-*）时已跑本地完整打包验证
+
+            维护者会尽快 review。

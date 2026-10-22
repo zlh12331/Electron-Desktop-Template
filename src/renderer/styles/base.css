@@ -1,0 +1,142 @@
+@theme inline {
+  --text-2xs: var(--font-size-2xs);
+  --text-xs: var(--font-size-xs);
+  --text-sm: var(--font-size-sm);
+  --text-base: var(--font-size-base);
+  --text-md: var(--font-size-md);
+  --text-lg: var(--font-size-lg);
+  --text-xl: var(--font-size-xl);
+  --text-2xl: var(--font-size-2xl);
+  --text-3xl: var(--font-size-3xl);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-error-emphasis: var(--error-emphasis);
+  --color-error-text: var(--error-text);
+  --color-success-emphasis: var(--success-emphasis);
+  --color-success-text: var(--success-text);
+  --color-warn-text: var(--warn-text);
+  --color-accent-text: var(--accent-text);
+  --color-accent-2-text: var(--accent-2-text);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-amber: var(--amber);
+  --color-info-blue: var(--info-blue);
+  --color-magenta: var(--magenta);
+  --color-error-bg: var(--error-bg);
+  --color-accent-2-soft: var(--accent-2-soft);
+  --color-overlay-bg: var(--overlay-bg);
+  --color-accent-dim: var(--accent-dim);
+  --color-code-block-bg: var(--code-block-bg);
+  --color-bg-elev: var(--bg-elev);
+  --color-bg-elev-2: var(--bg-elev-2);
+  --color-bg-elev-3: var(--bg-elev-3);
+  --color-text-faint: var(--text-faint);
+  --color-accent-2: var(--accent-2);
+  --color-accent-glow: var(--accent-glow);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+}
+
+@utility z-popover {
+  z-index: var(--z-popover);
+}
+
+/* 跳过导航链接用：必须压过页内一切内容（z-boundary 是层级边界值） */
+@utility z-boundary {
+  z-index: var(--z-boundary);
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-md);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+  background-color: var(--background);
+  color: var(--foreground);
+  position: relative;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: calc(var(--radius) - 4px);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--ink-brown) 15%, transparent);
+  color: var(--foreground);
+}
+
+.dark ::selection {
+  background: color-mix(in srgb, var(--ink-brown) 20%, transparent);
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s var(--ease-soft) infinite;
+}
+
+.paper-texture {
+  position: relative;
+}

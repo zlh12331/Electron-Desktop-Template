@@ -1,0 +1,90 @@
+import { AlertTriangle, RefreshCw } from 'lucide-react';
+import type { ReactElement, ReactNode } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
+
+import { Button } from '@/components/ui/button';
+import { i18n } from '@/i18n';
+import { reportError } from '@/lib/error-report';
+
+/**
+ * 区块级 fallback：内联小卡片（不占全屏），保留重试入口
+ *
+ * 设计约束：fallback 不依赖任何 hook/context（错误边界 fallback 必须零依赖——
+ * 若错误源恰是 Provider/context，fallback 复用它会二次失败；
+ * 且 React 19 的 render 阶段错误恢复对 fallback 内 hook 调用有限制）。
+ * 文案经 i18next 全局单例 i18n.t() 取（纯数据访问，非 React hook/context，
+ * 不破坏 fallback 零依赖约束），并随当前语言自动切换、无需双份硬编码。
+ *
+ * ⚠️ 必须以 `FallbackComponent`（而非 `fallbackRender`）挂载（2026-09-28）：
+ * react-error-boundary 的 fallbackRender 是**直接函数调用**（dist 内 `i = t(u)`），
+ * 而 React Compiler 会把本函数编译成带 memo 缓存的形态（`_c()` = useMemoCache）；
+ * 类组件 render 路径不设置 hooks dispatcher ⇒ 直接调用即抛
+ * 「Invalid hook call」⇒ 区块内的局部错误被升级为整路由/整应用崩溃
+ * （实测：任一区块报错都让 RootErrorBoundary 接管整页，兜底形同虚设）。
+ * FallbackComponent 走 createElement（真正的组件渲染），hooks 宿主正常。
+ * 与 AppErrorBoundary 的 fallback 同源同修——两者都曾被该缺陷击穿。
+ */
+function SectionFallback({
+  error,
+  resetErrorBoundary,
+}: {
+  error: unknown;
+  resetErrorBoundary: () => void;
+}): ReactElement {
+  const message = error instanceof Error ? error.message : String(error);
+
+  return (
+    <div
+      role="alert"
+      data-testid="section-error-boundary"
+      className="bg-error/5 border-error/20 text-error-text flex flex-col items-center gap-2 rounded-md border px-4 py-6"
+    >
+      <AlertTriangle className="size-5" strokeWidth={1.5} />
+      <p className="text-xs leading-relaxed">{i18n.t('common.sectionLoadFailed')}</p>
+      <p className="text-muted-foreground max-w-full truncate font-mono text-2xs" title={message}>
+        {message}
+      </p>
+      <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
+        <RefreshCw className="size-3" strokeWidth={1.5} />
+        {i18n.t('common.retry')}
+      </Button>
+    </div>
+  );
+}
+
+/** SectionErrorBoundary props */
+export interface SectionErrorBoundaryProps {
+  /** 需要隔离的区块内容 */
+  readonly children: ReactNode;
+  /** 错误标识前缀（上报 tag 区分区块） */
+  readonly name?: string;
+  /**
+   * 重置键：任一元素变化时自动清除错误状态并重渲染 children
+   * （对齐参考项目 ErrorBoundary 的 resetKey 语义——切换 tab/会话后不残留上个区块的错误）
+   */
+  readonly resetKeys?: readonly unknown[];
+}
+
+/**
+ * 组件级错误边界：区块内错误局部降级，不拖垮整个 App
+ */
+export function SectionErrorBoundary({
+  children,
+  name,
+  resetKeys,
+}: SectionErrorBoundaryProps): ReactElement {
+  return (
+    <ErrorBoundary
+      FallbackComponent={SectionFallback}
+      {...(resetKeys !== undefined ? { resetKeys: resetKeys as unknown[] } : {})}
+      onError={(error: unknown, info: { componentStack?: string | null }) => {
+        reportError(error, {
+          tags: { boundary: 'SectionErrorBoundary', section: name ?? 'unknown' },
+          ...(info.componentStack != null ? { componentStack: info.componentStack } : {}),
+        });
+      }}
+    >
+      {children}
+    </ErrorBoundary>
+  );
+}

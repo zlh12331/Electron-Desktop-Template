@@ -1,0 +1,165 @@
+import type { ReactElement, ReactNode } from 'react';
+import { Switch } from '@/components/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { cn } from '@/lib/utils';
+
+/** 分区小标题 props */
+export interface SectionTitleProps {
+  readonly children: ReactNode;
+  readonly className?: string;
+}
+
+/**
+ * 分区小标题
+ *
+ * uppercase + tracking 拉开与正文的层级；首项 mt-0 避免顶部多余间距。
+ */
+export function SectionTitle({ children, className }: SectionTitleProps): ReactElement {
+  return (
+    <h4
+      className={cn(
+        'text-muted-foreground mt-[18px] mb-2.5 text-xs font-semibold tracking-[0.12em] uppercase first:mt-0',
+        className,
+      )}
+    >
+      {children}
+    </h4>
+  );
+}
+
+/** 水平设置行 props */
+export interface SettingRowProps {
+  /** 行标签（左侧主文字） */
+  readonly label: string;
+  /** 可选描述（label 下方，次级色） */
+  readonly description?: string;
+  /** 右侧控件 */
+  readonly children: ReactNode;
+  readonly className?: string;
+}
+
+/**
+ * 水平设置行
+ *
+ * 左 label + 可选 description（flex-1），右控件（shrink-0）。
+ * 卡片视觉：圆角 + 边框 + 浅底色（对齐原型 .setting-row）。
+ */
+export function SettingRow({
+  label,
+  description,
+  children,
+  className,
+}: SettingRowProps): ReactElement {
+  return (
+    <div
+      className={cn('bg-card flex items-center gap-2.5 rounded-lg border px-3 py-2.5', className)}
+    >
+      <div className="min-w-0 flex-1">
+        <div className="text-foreground text-sm">{label}</div>
+        {description !== undefined && (
+          <p className="text-muted-foreground mt-0.5 text-xs leading-[1.5]">{description}</p>
+        )}
+      </div>
+      <div className="min-w-0 shrink">{children}</div>
+    </div>
+  );
+}
+
+/** 开关行 props */
+export interface ToggleRowProps {
+  /** 开关名称（行 label） */
+  readonly name: string;
+  /** 可选描述 */
+  readonly description?: string;
+  /** 开关状态 */
+  readonly checked: boolean;
+  /** 切换回调 */
+  readonly onChange: (checked: boolean) => void;
+  /** 禁用（如当前环境不支持该开关；配合 description 说明原因） */
+  readonly disabled?: boolean;
+  readonly className?: string;
+}
+
+/**
+ * 开关行（右侧 Switch，对齐原型 .toggle-row）
+ */
+export function ToggleRow({
+  name,
+  description,
+  checked,
+  onChange,
+  disabled,
+  className,
+}: ToggleRowProps): ReactElement {
+  return (
+    <SettingRow
+      label={name}
+      {...(description !== undefined ? { description } : {})}
+      className={cn('py-[11px]', className)}
+    >
+      <Switch
+        checked={checked}
+        onCheckedChange={onChange}
+        aria-label={name}
+        {...(disabled === true ? { disabled: true } : {})}
+      />
+    </SettingRow>
+  );
+}
+
+/** 分段选项 */
+interface SegOption {
+  /** 选项值（存储用） */
+  readonly value: string;
+  /** 选项显示文本 */
+  readonly label: string;
+}
+
+/** 分段控件 props */
+export interface SegControlProps {
+  /** 当前选中值 */
+  readonly value: string;
+  /** 可选选项 */
+  readonly options: readonly SegOption[];
+  /** 变更回调 */
+  readonly onChange: (value: string) => void;
+  readonly className?: string;
+}
+
+/**
+ * 分段控件（互斥选项，对齐原型 .seg-control）
+ *
+ * 选中项 accent 底 + 深色文字，未选中浅底 + 次级文字。
+ * 2026-09 迁移到 Radix ToggleGroup：获得方向键切换/roving tabindex/
+ * ARIA toggle 语义（此前手写 aria-pressed 无 roving 导航）。
+ *
+ * **空串过滤（2026-09 审计修复）**：Radix `type="single"` 在点击**已选中**项时
+ * 会触发 `onItemDeactivate → setValue("")`，把空串透传给 onChange。各调用点收到
+ * "" 后普遍做 `Number(value)`，得到 `0` 并写库——曾导致
+ * - 文件树「默认展开层级」被写成 0 → 默认展开链彻底失效（无报错）
+ * - 编辑器「字号」被写成 0
+ * 且受控 value 变成 "0" 后无选项匹配，控件显示为「什么都没选」。
+ * 互斥语义下「取消选中」本就无意义（必须有且仅有一个值），故在此统一吞掉空串，
+ * 调用方无需各自防御。
+ */
+export function SegControl({ value, options, onChange, className }: SegControlProps): ReactElement {
+  return (
+    <ToggleGroup
+      type="single"
+      value={value}
+      onValueChange={(next) => {
+        if (next !== '') onChange(next);
+      }}
+      className={cn(
+        'flex min-w-0 flex-wrap gap-0 overflow-hidden rounded-md border border-border',
+        className,
+      )}
+    >
+      {options.map((opt) => (
+        <ToggleGroupItem key={opt.value} value={opt.value} className="shrink px-[11px] py-1">
+          {opt.label}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  );
+}

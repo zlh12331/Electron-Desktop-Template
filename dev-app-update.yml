@@ -1,0 +1,27 @@
+# 开发模式更新调试配置（仅本地使用，不进安装包）
+# ──────────────────────────────────────────────────────────────
+# electron-updater 在未打包时读 app.getAppPath()/dev-app-update.yml（打包版读
+# process.resourcesPath/app-update.yml，由 electron-builder 生成）。
+#
+# 启用方式（默认关闭：dev 不发起任何更新请求）：
+#   Git Bash      CODE_AGENT_DEV_UPDATE=1 pnpm dev
+#   PowerShell    $env:CODE_AGENT_DEV_UPDATE='1'; pnpm dev
+#
+# ⚠️ 启用后会真实访问 GitHub Releases：
+# - 发现新版会真实下载安装包（Windows 全量约 328MB；已有缓存时走差分）
+# - 缓存写入独立目录 code-agent-desktop-dev-updater，不污染正式版缓存
+#   （正式版为 code-agent-desktop-updater）
+# - 与 release 的 publish 配置（electron-builder.yml）保持同一 provider/channel
+#
+# ⚠️ dev 下 app.getVersion() 返回 Electron 运行时版本（如 44.2.0）而非应用版本
+# （主进程入口在 out/main，无 package.json），远端 latest 版本号低于该值时
+# 表现为「已是最新」；需演示「发现新版/下载」须让远端 latest.yml 的 version
+# 高于 Electron 版本。本文件由 electron.vite.config.ts 的 copyDevAppUpdateYml
+# 插件在构建时同步到 out/main（electron-updater 从 app.getAppPath() 读取）。
+# dev 更新链路回归测试：e2e/electron-update-dev.spec.ts
+# ──────────────────────────────────────────────────────────────
+provider: github
+owner: zlh12331
+repo: Electron-Desktop-Template
+channel: latest
+updaterCacheDirName: electron-desktop-template-dev-updater

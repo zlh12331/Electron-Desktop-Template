@@ -1,0 +1,394 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!**/third_party",
+      "!**/packages/memory-engine/MemoryCore",
+      "!**/release",
+      "!**/coverage*",
+      "!**/node_modules",
+      "!**/out",
+      "!**/dist",
+      "!**/stats",
+      "!**/drizzle",
+      "!**/.codegraph",
+      "!**/playwright-report",
+      "!**/playwright-report-electron",
+      "!**/playwright-report-smoke",
+      "!**/test-results",
+      "!**/styles/tokens.css",
+      "!**/tokens",
+      "!**/playwright/.cache",
+      "!**/docs/design",
+      "!**/docs/参考项目",
+      "!**/prototype-v2.html",
+      "!**/codex-desktop-prototype.design",
+      "!**/.design",
+      "!**/.electron-user-data",
+      "!**/.electron-user-data-*",
+      "!**/.e2e-user-data",
+      "!**/.e2e-user-data-*",
+      "!**/.tmp",
+      "!**/.mimosa",
+      "!**/.trae",
+      "!**/.workbuddy-ai",
+      "!**/resources/memory-hub",
+      "!**/resources/codegraph",
+      "!**/resources/codegraph-x64",
+      "!**/resources/codegraph-arm64",
+      "!_template"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "a11y": {
+        "noAccessKey": "error",
+        "noAriaHiddenOnFocusable": "error",
+        "noAriaUnsupportedElements": "error",
+        "noAutofocus": "error",
+        "noDistractingElements": "error",
+        "noHeaderScope": "error",
+        "noInteractiveElementToNoninteractiveRole": "error",
+        "noLabelWithoutControl": "error",
+        "noNoninteractiveElementToInteractiveRole": "error",
+        "noNoninteractiveTabindex": "error",
+        "noPositiveTabindex": "error",
+        "noRedundantAlt": "error",
+        "noRedundantRoles": "error",
+        "noStaticElementInteractions": "error",
+        "noSvgWithoutTitle": "error",
+        "useAltText": "error",
+        "useAnchorContent": "error",
+        "useAriaActivedescendantWithTabindex": "error",
+        "useAriaPropsForRole": "error",
+        "useAriaPropsSupportedByRole": "error",
+        "useButtonType": "error",
+        "useFocusableInteractive": "error",
+        "useHeadingContent": "error",
+        "useHtmlLang": "error",
+        "useIframeTitle": "error",
+        "useKeyWithClickEvents": "error",
+        "useKeyWithMouseEvents": "error",
+        "useMediaCaption": "error",
+        "useSemanticElements": "error",
+        "useValidAnchor": "error",
+        "useValidAriaProps": "error",
+        "useValidAutocomplete": "error",
+        "useValidAriaValues": "error"
+      },
+      "correctness": {
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error",
+        "useExhaustiveDependencies": "warn",
+        "noUndeclaredVariables": "error",
+        "noUnusedPrivateClassMembers": "error",
+        "noChildrenProp": "error",
+        "noRenderReturnValue": "error",
+        "noNestedComponentDefinitions": "error"
+      },
+      "security": {
+        "noBlankTarget": "error",
+        "noDangerouslySetInnerHtml": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noConsole": "error",
+        "noDeprecatedImports": "error",
+        "noThenProperty": "error"
+      },
+      "style": {
+        "useImportType": "error",
+        "useNamingConvention": "error",
+        "useConst": "error",
+        "noDefaultExport": "error",
+        "noNonNullAssertion": "error",
+        "noParameterAssign": "error",
+        "useFilenamingConvention": {
+          "level": "error",
+          "options": {
+            "filenameCases": ["kebab-case", "export"]
+          }
+        }
+      },
+      "complexity": {
+        "useLiteralKeys": "off",
+        "noUselessReturn": "error",
+        "noUselessCatchBinding": "error",
+        "noExcessiveLinesPerFunction": {
+          "level": "off",
+          "options": {
+            "maxLines": 200,
+            "skipBlankLines": true
+          }
+        }
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always"
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["src/renderer/**", "!**/*.config.ts"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noNodejsModules": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/*.test.ts", "**/*.test.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useFilenamingConvention": {
+              "level": "error",
+              "options": {
+                "filenameCases": ["kebab-case", "PascalCase", "export"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/src/renderer/**/*.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDefaultExport": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/commitlint.config.js"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDefaultExport": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "**/scripts/check-release-anchor.ts",
+        "**/packages/shared/src/constants/errors.ts",
+        "**/packages/shared/src/ipc/channels.ts",
+        "**/src/renderer/lib/constants.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/drizzle.config.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDefaultExport": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/i18next.config.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDefaultExport": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/packages/shared/src/ipc/response.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": {
+              "level": "error",
+              "options": {
+                "strictCase": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/packages/shared/src/ipc/payloads.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConfusingVoidType": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/src/main/**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": {
+              "level": "error",
+              "options": {
+                "strictCase": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "**/src/main/service-container.ts",
+        "**/src/main/infra/storage/db.ts",
+        "**/src/main/infra/storage/schema.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": {
+              "level": "error",
+              "options": {
+                "strictCase": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/src/renderer/i18n/config.ts", "**/src/renderer/i18n/use-translation.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": {
+              "level": "error",
+              "options": {
+                "strictCase": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/tests/integration/**/*.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/e2e/**/*.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          },
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "**/e2e/playwright.config.ts",
+        "**/e2e/playwright.electron.config.ts",
+        "**/e2e/playwright.smoke.config.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDefaultExport": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/.github/workflows/*.yml"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/.nsprc"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDefaultExport": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/scripts/**/*.ts", "**/scripts/**/*.mjs", "**/scripts/**/*.cjs"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          },
+          "style": {
+            "noDefaultExport": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/src/renderer/index.html"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noInnerDeclarations": "off"
+          },
+          "complexity": {
+            "useArrowFunction": "off"
+          }
+        }
+      }
+    }
+  ]
+}

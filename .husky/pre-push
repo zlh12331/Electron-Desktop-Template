@@ -1,0 +1,50 @@
+#!/usr/bin/env sh
+# .husky/pre-push
+# 推送前钩子：**仅密钥扫描**（2026-09-22 精简，原先 7 步）
+#
+# ── 为什么只剩这一项 ─────────────────────────────────────────────────
+# 原 7 步（gitleaks / typecheck / lint / check:static / depcruise /
+# drizzle 漂移 / test:scripts）中，后 6 步与 ci.yml 的 quality job **完全重复**，
+# 改由 CI 权威把关；本地全量验证改走聚合命令：
+#   pnpm verify:local       质量层（typecheck/lint/check:static/knip/depcruise/audit/全部单测）
+#   pnpm verify:local:full  再叠加产物层（build/bundle/compiler/E2E/打包/引擎与架构断言/smoke）
+#
+# 保留密钥扫描的理由：**唯一不可逆的失效**。类型错误、死代码、架构越界都能在
+# 下一个提交里修；密钥一旦推上远端，即使 force-push 也已被缓存/镜像抓取，
+# 只能作废重签。故必须在出口拦住，不外包给 CI。
+#
+# ── 为什么用 `gitleaks git` 而不是 `gitleaks dir .`（2026-09-22 实测）──────
+#   gitleaks dir .                        扫 3.21 GB / 191 秒（含 .pnpm-store、
+#                                         .electron-user-data 等非版本库目录）
+#   gitleaks git --log-opts=<待推送区间>     1.4 秒，语义上正好对应「这次要推的东西」
+# 两者规则集相同（同读 .gitleaks.toml），差异只在扫描范围，故改用后者。
+#
+# ── 跳过 ────────────────────────────────────────────────────────────
+# SKIP_PREPUSH=1 git push 完全跳过（紧急推送用，有痕可追溯）。
+# gitleaks 未安装时**失败**而非静默跳过——静默放行等于这道闸门不存在。
+
+if [ "$SKIP_PREPUSH" = "1" ]; then
+  echo "[pre-push] SKIP_PREPUSH=1，跳过密钥扫描"
+  exit 0
+fi
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "[pre-push] ❌ gitleaks 未安装——密钥扫描无法执行。"
+  echo "[pre-push]    安装：https://github.com/gitleaks/gitleaks#installing"
+  echo "[pre-push]    或显式跳过：SKIP_PREPUSH=1 git push"
+  exit 1
+fi
+
+# 待推送区间：以远端主分支为基线，只扫本次真正要推上去的提交。
+# 基线缺失时（首次推送、未 fetch 过远端 main）回退全历史扫描——慢但不会漏，
+# 属 fail-closed 取舍。
+REMOTE="${1:-origin}"
+if BASE=$(git rev-parse --verify --quiet "refs/remotes/${REMOTE}/main"); then
+  echo "[pre-push] 密钥扫描（gitleaks git ${BASE}..HEAD）..."
+  gitleaks git . --log-opts="${BASE}..HEAD" --config .gitleaks.toml --redact --no-banner || exit 1
+else
+  echo "[pre-push] 密钥扫描（未找到 refs/remotes/${REMOTE}/main，回退全历史，较慢）..."
+  gitleaks git . --config .gitleaks.toml --redact --no-banner || exit 1
+fi
+
+echo "[pre-push] 密钥扫描通过 ✓（其余门禁见 pnpm verify:local）"

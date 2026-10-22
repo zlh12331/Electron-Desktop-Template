@@ -1,0 +1,564 @@
+# .github/workflows/ci.yml
+# CI 流水线：PR / merge_group（队列）触发，跑质量门禁 + 测试矩阵（六平台）
+#
+# 设计（2026-09-20 六平台改造后）：
+# - quality job：ubuntu ×1，快速反馈 typecheck/lint/gitleaks/静态审计/门禁自测/audit
+#   + CHANGELOG 润色门禁（仅 Release PR 分支）
+# - unit job：**6 平台矩阵**，各平台跑自己的原生单测；覆盖率阈值只在 ubuntu 把关
+# - unit-summary job：汇总 unit 矩阵（ruleset 引用此稳定名，见下）
+# - integration-tests job：集成测试（tests/integration，仅 ubuntu）
+# - e2e-browser job：浏览器模式 E2E（唯一需要 Chromium 的 job，仅 ubuntu）
+# - e2e-electron job：**6 平台矩阵**，跑真实 Electron E2E
+# - e2e-electron-summary job：汇总 e2e-electron 矩阵（ruleset 引用此稳定名）
+# - （smoke-prod job 已移除：生产产物 smoke 统一交给 CD，见文件末尾说明）
+# - （原 package job 已移除：打包验证交给 CD，见文件末尾说明）
+#
+# ⚠️ ruleset 必需检查（5 项，云端配置，改 workflow 时须同步）：
+#   1. Typecheck / Lint / Unit Test / Audit   ← quality
+#   2. Unit Tests (all platforms)             ← unit-summary
+#   3. Integration Tests                      ← integration-tests
+#   4. E2E (Browser Mode)                     ← e2e-browser
+#   5. E2E (Electron, all platforms)          ← e2e-electron-summary
+#   多平台作业一律经 summary job 暴露稳定名：平台 label 换代时只改 workflow、
+#   不改云端 ruleset（"改漏 → 检查永不 report → PR 永久卡 pending"已发生过两次）。
+#   summary job 的 `name:` 必须逐字等于上述字符串，且必须带 `if: always()`。
+#
+# 触发策略（2026-09-10 方案二：CI on PR, CD on main）：
+# - **pull_request + merge_group 触发，不再 push: main**（2026-10-07 接入 merge queue，
+#   见下文 merge_group 节）。仓库 ruleset 强制「main 所有提交必须走 PR」
+#   且 bypass_actors 为空（管理员亦不可绕过）、strict_required_status_checks_policy=true
+#   （PR 必须含 main 最新提交）、required_linear_history（只允许 squash/rebase，树不变）
+#   ⇒ 必需检查在合并前已对**完全相同的内容**跑过，push 阶段重复验证无信息增益。
+#   release 发布路径的构建/校验由 release.yml 独立负责（已不再轮询本 workflow）。
+# - 合并后 main 仍有安全侧检查：CodeQL（2026-09-14 起为 advanced setup，见 codeql.yml——
+#   从 default setup 切换，以支持排除 vendored 第三方源码路径）与 secret scanning 照常在 push 时运行。
+# - ⚠️ 不要给本 workflow 加 workflow 级 paths/paths-ignore 过滤：必需状态检查一旦因路径被
+#   跳过就永不 report，PR 会卡在 pending 无法合并。要省纯文档 PR 的开销请用 job 级 if。
+# - workflow_dispatch 保留（便于手动调试全矩阵）。
+#
+# ⚠️ Release PR（release-please-- 前缀分支）跳过重矩阵（2026-10-01）：
+#   Release PR 的内容 = 来源 PR 已全绿验证的代码 + 版本号 + CHANGELOG——零新增
+#   可测面，全矩阵在其上重跑是纯重复（同一内容实测被跑 2-3 遍：feature PR 一遍、
+#   Release PR 创建一遍、CHANGELOG 润色推送再一遍）。故 unit / integration-tests /
+#   e2e-browser / e2e-electron 四个重 job 在该前缀分支上跳过（job 级 if——被跳过
+#   的必需检查按 GitHub 语义视为成功，区别于 workflow 级 paths 过滤的"永不 report"）；
+#   quality 不跳——CHANGELOG 润色门禁正是在它里面（Release PR 上唯一真正需要
+#   验证的东西），release.yml 的 gate 打 tag 前另有兜底。summary job 保留 always()
+#   并显式放行 skipped（防"矩阵失败时 summary 被跳过 → 失败信号丢失"）。
+#   残余风险（有界）：Release PR 合并前 main 若再进其他 PR，多份已测变更的组合树
+#   不做整树重测——各组成 PR 均各自全绿，CD 六平台打包 + smoke 兜底。
+#
+# 参考项目 electron-shadcn-main/.github/workflows/testing.yaml 的 job 分层模式
+#
+# ⚠️ merge queue 支持（2026-10-07）：
+#   ruleset 启用 merge_queue 后，必需检查改在 merge_group 事件上把关——队列对
+#   「本 PR + 排在它前面的所有变更」的假想合并树跑检查，那才是合并时的真实树。
+#   本 workflow 必须监听 merge_group: [checks_requested]：漏了 = 队列里必需检查
+#   永不 report = 所有 PR 卡死在队列（「永不 report」事故本项目已发生两次）。
+#
+#   队列上下文的语义差异（merge_group 事件下 github.head_ref 为空串）：
+#   - 各 job 的 `!startsWith(github.head_ref, 'release-please--')` 判空后为 true
+#     ⇒ **队列条目跑全矩阵、零 skip**。Release PR 瘦身只存在于 PR 事件（快速反馈）；
+#     队列合并时全矩阵是权威把关——假想树上没有任何测试被跳过，#90「携带代码
+#     跳过测试」的形态被结构性排除。
+#   - 两个 `startsWith(github.head_ref, 'release-please--')` 步骤（润色门禁 /
+#     scope+anchor 闸门）在队列里跳过（head_ref 为空 ⇒ 条件为假）——权威兜底在
+#     release.yml gate（changelog-polish 与 post-merge anchor 均已存在，打 tag 前
+#     fail-closed）。
+#
+#   ⚠️ 顺序约束：本触发器合入 main 之后才能开 ruleset 的 merge_queue 规则；
+#   反过来先开规则 = 队列里没有检查会 report = 所有 PR（含 Release PR）当场死锁。
+#
+#   成本注记：每 PR 双跑（PR 事件全矩阵 + 队列条目全矩阵）。公开仓库 runner
+#   免费，代价只有时间；2026-10-06 已拍板不为 runner 时间缩编。
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  merge_group:
+    types: [checks_requested]
+  workflow_dispatch: # 允许手动触发（便于调试）
+
+# 显式收窄 GITHUB_TOKEN 权限（CodeQL actions/missing-workflow-permissions 修复，2026-09-14）。
+# 此前全 workflow 无 permissions 块 → 每个 job 继承仓库默认的 read-all（写权限虽未开，
+# 但「显式声明」才是最小权限实践；该规则只检查 permissions 块是否存在）。
+#
+# 取值依据（按各 job 真实用到的能力，逐项核对）：
+# - contents: read      —— actions/checkout 取代码；gitleaks 读 PR 的 commit 列表
+# - pull-requests: read —— gitleaks-action 调 GET /pulls/{n}/commits（实证：同类项目
+#                          生成器对 gitleaks@v2 用的正是 contents+pull-requests 均为 read）
+# 不放 write：本项目所有 job 都不需要写（gitleaks 的「泄漏时发评论」需要写权限，
+# 但那本来在 read-all 下也不可用；泄漏时该 action 以非零退出让检查红，信号已足够）。
+# upload-artifact 走 ACTIONS_RUNTIME_TOKEN，不受此块影响。
+permissions:
+  contents: read
+  pull-requests: read
+
+# 同分支并行时取消旧 run（节省 CI 时间）
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Job 1: 质量门禁（快速反馈）────────────────────────────
+  quality:
+    name: Typecheck / Lint / Unit Test / Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        # gitleaks 扫描 base^..head 区间：浅克隆会让区间无提交 → "0 leaks" 假绿
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ── 质量检查段（Release PR 全跳，2026-10-05 瘦身）────────────────────
+      # Release PR 的内容 = 来源 PR 已全绿验证的代码 + 版本号 + CHANGELOG——
+      # 代码零新增可测面，重复全套是纯耗时（每次发版固定多等 ~4 分钟）。
+      # 全跳后 Release PR 的 CI 只剩 CHANGELOG 润色门禁（实测 1m26s）。
+      # ⚠️ 每个 step 都要带 if：GitHub Actions 没有 step 组；漏一个 = 该检查在
+      # Release PR 上照跑（不破坏正确性，只是没省到）。
+      - name: Typecheck
+        if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+        run: pnpm typecheck
+
+      - name: Lint
+        if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+        run: pnpm lint
+
+      - name: Secret scanning (gitleaks)
+        # 只在 PR 事件跑：gitleaks-action 按 PR diff 区间扫描，merge_group 的队列树
+        # 没有对应的 PR 区间（行为未知且无增量信息——队列树上的每个 commit 都来自
+        # 已各自扫过的 PR）。
+        # Release PR 的 commit 均为 release-please 生成的（版本号+CHANGELOG，无代码），
+        # 且来源 PR 已跑过同一扫描——跳过安全。
+        if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-please--') }}
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 制品存储配额耗尽时 SARIF 报告上传失败会让本步红（扫描本身已通过）。
+          # 仓库转公开后此限制消失，届时可重新开启上传存档。
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'false'
+
+      - name: Static checks (tokens + i18n)
+        if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+        run: pnpm check:static
+
+      - name: Token consistency (Style Dictionary)
+        if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+        run: pnpm tokens:check
+
+      - name: Dead code check (knip)
+        if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+        run: pnpm knip
+
+      - name: Dependency direction (depcruise)
+        if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+        run: pnpm depcruise
+
+      - name: Schema drift check (drizzle-kit)
+        # 防 schema.ts 与 drizzle/ 迁移快照漂移（数据层单一真源一致性）。
+        # 2026-09-08：此前只跑 `drizzle-kit check`，实测它只校验迁移快照链自身
+        # （版本/父子 id），**从不读 schema.ts**——改了 schema 忘 generate 时
+        # CI 依旧全绿。改用 generate 做真实漂移检测。
+        # 2026-09-22：逻辑抽到 scripts/check-schema-drift.ts，与本地 verify:local
+        # 共用同一实现（原内联 `git diff --quiet -- drizzle/` 有两个缺陷：
+        # ① 只看已跟踪文件，漏检新增的迁移 .sql / meta 快照——CI 上靠
+        #    meta/_journal.json 被改动才侥幸生效；② 判据依赖提交状态，
+        #    在本地会把「已 generate 未提交」误判为失败，故无法复用到本地）。
+        if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+        run: pnpm check:schema-drift
+
+      # ── 单测 + 覆盖率已移出（2026-09-20 六平台改造）──────────────────────
+      # 原步骤 `pnpm test:coverage` 在此只跑 ubuntu 一套（shared/main/renderer），
+      # Windows/macOS 的原生单测没有任何环节覆盖。现移交下方的 `unit` job：
+      # 6 个平台各自跑自己的单测，覆盖率阈值仍只在 ubuntu 把关（原因见 unit job 注释）。
+      # 本 job 保留 test:scripts：门禁脚本自身与平台无关，单次执行即可。
+
+      - name: Gate scripts self-test
+        # 守卫门禁自身的测试（棘轮/覆盖率真源/文件度量等 9 个文件）——
+        # 此前只在本地 pre-push 跑，CI 不跑等于门禁自己没人看（2026-09-06 审计修复）
+        if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+        run: pnpm test:scripts
+
+      - name: Dependency audit
+        # audit-ci + .nsprc 白名单（2026-08-30 收紧为卡关；本地已验证 0 命中）
+        if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+        run: pnpm run audit
+
+      - name: CHANGELOG polish check (Release PR only)
+        # ── 为什么在这里 ──────────────────────────────────────────────
+        # release-please 以 commit 为粒度产出 CHANGELOG，项目走 squash 合并 ⇒ 一个
+        # 含几十个修复的 PR 在 CHANGELOG 里只剩一行 PR 标题。RELEASING.md 要求合并
+        # Release PR 前人工润色，但该步骤此前无任何机制看守（2026-09-17 实测漏做
+        # v1.1.1，用户可见修复在 Release 页面全部不可见）。
+        # 放进本 job 而非新开 job：quality 已是 ruleset 必需检查，挂在此处即自动获得
+        # 合并阻塞力（无需改云端 ruleset 清单）。条件限定 release-please-- 前缀分支
+        # ⇒ 只对 Release PR 生效，其他 PR 零开销。release.yml 的 gate job 另有同一步
+        # 兜底（打 tag 前再校验一次）。
+        if: startsWith(github.head_ref, 'release-please--')
+        run: pnpm check:changelog-polish
+
+      - name: Release PR gates (scope + anchor)
+        # ── 为什么在这里 ──────────────────────────────────────────────
+        # Release PR 的瘦身 if 只看分支名不看 diff——#90（2026-10-05）曾作为
+        # Release PR 携带 276 行脚本进 main（恰逢 #93 空 squash，全跳 CI）。
+        # 本步骤把「Release PR 只含版本号 + CHANGELOG」与「锚点三态自洽」两个
+        # 不变量变成闸门：scope 检查拉取 PR files 断言白名单（护栏 C），
+        # anchor 检查核验已收尾 Release PR 的 tag 存在性 + 待合并版本方向
+        # （护栏 B 的自动化——此前仅挂 RELEASING.md 人工步骤）。
+        # GITHUB_TOKEN 必配：匿名限流 60/h，CI 上必然撞顶。
+        # 检查 3 找到的 open PR 即本 PR 自己——正是「合并前校验」的设计场景。
+        # ⚠️ head_ref 是 PR 作者可控的分支名（fork PR 同样触发本事件），直接内插进
+        # run 块是 GitHub 安全加固文档记载的脚本注入向量——必须经 env 中转变量传递，
+        # 由 shell 双引号展开（GitHub 官方缓解模式，2026-10-07 收口）。
+        if: startsWith(github.head_ref, 'release-please--')
+        run: |
+          pnpm check:release-pr-scope --branch "$HEAD_REF"
+          pnpm check:release-anchor
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_REF: ${{ github.head_ref }}
+
+  # ── Job 2: 单测（6 平台原生各跑一份）──────────────────────────
+  # 为什么扩到 6 平台：单测是最易暴露平台差异的一层（路径分隔符、原生模块
+  # better-sqlite3、safeStorage 的 DPAPI/Keychain/libsecret 分支）。
+  # 此前只在 ubuntu 跑，Windows/macOS 的原生单测失败要到**发版**才暴露（那时
+  # 代码已合并，只能回滚或热修）。本 job 让失败在 PR 阶段红。
+  #
+  # 覆盖率阈值只在这里的 ubuntu 实例把关（其余 5 个平台跑不带阈值的同套用例）：
+  # 平台专属代码（process.platform 分支、原生模块封装）在各平台被执行到的比例
+  # 不同，多平台都卡阈值会出现「这个平台过、那个平台不过」的怪象。
+  #
+  # test:scripts 不在本 job：门禁脚本自测与平台无关，留在 quality 单次执行，
+  # 避免 6 倍重复。集成测试同理（Windows 上原生模块 + vitest fork worker
+  # 会崩 0xC0000005，故只保留 ubuntu 的 integration-tests job）。
+  unit:
+    name: Unit Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    # Release PR 跳过（内容已在来源 PR 验证，见文件头 2026-10-01 条目）
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            coverage: false
+          - os: windows-11-arm
+            coverage: false
+          - os: ubuntu-latest
+            coverage: true # 覆盖率阈值唯一把关点
+          - os: ubuntu-24.04-arm
+            coverage: false
+          - os: macos-latest
+            coverage: false
+          - os: macos-26-intel
+            coverage: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ── Electron 二进制兜底（2026-09-21 实测的 Windows 竞态）──────────────
+      # 症状：windows-latest 上 pnpm install 的 electron postinstall 偶发解压竞态
+      # ——"failed to create directory '…/electron/dist/locales': Cannot create a
+      # file when that file already exists (os error 183)"，install 步骤仍以 0 退出，
+      # 但 dist 不完整 ⇒ 单测 import electron 时抛
+      # "Electron failed to install correctly"，整个测试文件被跳过（157 passed / 1 failed suite）。
+      # 为什么单测依赖 electron：main 层的模块加载期就 import electron（如
+      # llm-client 走 Electron 的 net 模块），vitest 需要 electron 包能解析出路径。
+      # 修法：安装后校验 path.txt（electron/install.js 在解压完成后才写它）——
+      # 缺失即判定为竞态，重跑官方安装脚本修复。校验本身是毫秒级的文件存在性检查。
+      - name: Ensure Electron binary (repair install race)
+        shell: bash
+        run: |
+          if [ ! -f node_modules/electron/path.txt ]; then
+            echo "::warning::electron 未正确安装（postinstall 解压竞态），重新安装"
+            node node_modules/electron/install.js
+          fi
+          test -f node_modules/electron/path.txt || { echo "::error::electron 仍不可用"; exit 1; }
+
+      - name: Unit tests (main + renderer)
+        if: matrix.coverage != true
+        # Windows 只跑 main/renderer：原生模块与 vitest fork worker 并发会崩
+        # （0xC0000005 ACCESS_VIOLATION），该集成层不在 Windows 覆盖范围。
+        # 注：packages/shared 的单测只在 ubuntu 实例跑（见下一步的 test:coverage）——
+        # 它是纯类型/schema/常量契约层，无平台分支代码，无需 6 份重复。
+        run: pnpm test:main && pnpm test:renderer
+
+      - name: Unit tests + coverage gate (shared + main + renderer)
+        if: matrix.coverage == true
+        run: pnpm test:coverage
+
+      - name: Upload coverage
+        if: matrix.coverage == true
+        uses: actions/upload-artifact@v7
+        continue-on-error: true # 制品配额耗尽时报告上传失败不阻断 CI 结论
+        with:
+          name: coverage-${{ github.run_id }}
+          path: |
+            packages/shared/coverage/
+            src/main/coverage/
+            src/renderer/coverage/
+          retention-days: 7
+
+  # ── Job 3: unit 汇总（ruleset 引用它，而非 6 个平台名）──────────
+  # 存在的唯一目的是让 ruleset 引用**稳定名称**：若把 6 个平台 job 名写进 ruleset，
+  # 平台 label 换代（如 macos-latest 指向新 OS）就要改云端 ruleset，而"改漏 = 该检查
+  # 永不 report = 所有 PR 永久卡 pending"（本项目已有两次同类事故）。
+  # ⚠️ name 必须逐字等于 ruleset 里的 context 字符串；if: always() 必需（依赖失败时
+  # 也要跑，否则被跳过的必需检查等于永不 report，PR 会卡 pending 而非显示红）。
+  unit-summary:
+    name: Unit Tests (all platforms)
+    needs: [unit]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check matrix result
+        run: |
+          if [ "${{ needs.unit.result }}" = "success" ]; then
+            echo "✅ 6 平台单测全部通过"
+          elif [ "${{ needs.unit.result }}" = "skipped" ]; then
+            echo "⏭️ Release PR：单测矩阵跳过——同一内容已在来源 PR 全绿验证，本 PR 仅新增版本号与 CHANGELOG"
+          else
+            echo "::error::unit 矩阵未全部通过：${{ needs.unit.result }}"
+            exit 1
+          fi
+
+  # ── Job 2: 集成测试（慢速分层门控，不阻塞单测高频反馈）──
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Release PR 跳过（同 unit，见文件头 2026-10-01 条目）
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Integration tests (tests/integration)
+        run: pnpm test:integration
+
+  # ── Job 3: 浏览器 E2E（dev server，轻量级）─────────────────
+  e2e-browser:
+    name: E2E (Browser Mode)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Release PR 跳过（同 unit，见文件头 2026-10-01 条目）
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 本 job 是唯一真正需要 Chromium 的（journey/visual/a11y 走浏览器模式）。
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run browser E2E tests (journey 套件偶发 flaky 用 retries 吸收)
+        run: pnpm exec playwright test --config e2e/playwright.config.ts --retries=2
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        continue-on-error: true # 制品配额耗尽时报告上传失败不阻断 CI 结论
+        with:
+          name: playwright-report-browser-${{ github.run_id }}
+          path: playwright-report/
+          retention-days: 7
+
+  # ── Job 3: Electron E2E（真实窗口，三平台矩阵）─────────────
+  e2e-electron:
+    name: E2E (Electron Mode, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    # Release PR 跳过（同 unit，见文件头 2026-10-01 条目）
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # 六平台真实 Electron 窗口验证（2026-09-20 从 3 平台扩到 6）——
+        # macOS 验证 mac 专属路径、Linux 验证 libsecret 降级路径、ARM64 验证
+        # 原生模块在 ARM 上的构建与加载（此前 arm64 只由 CD 的打包覆盖）。
+        os: [windows-latest, windows-11-arm, ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-26-intel]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Electron binary
+        run: node node_modules/electron/install.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 不下载 Chromium（2026-09-10 优化）：本 job 走 _electron.launch 驱动仓库自身的
+      # Electron 二进制，Playwright 无需自带 Chromium——实测该步从 207s 降到数秒。
+      # 仍需 ffmpeg：配置里 video:'retain-on-failure' 靠它录像。
+      # Linux 另需系统依赖（Electron 的 GTK/NSS 等），install-deps 只装 apt 包、不下载浏览器。
+      - name: Install Playwright deps (ffmpeg only, no Chromium)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then pnpm exec playwright install-deps chromium; fi
+          pnpm exec playwright install ffmpeg
+
+      - name: Build dev artifacts
+        run: pnpm build
+
+      - name: Bundle size gate
+        run: pnpm check:bundle
+
+      - name: React Compiler gate
+        # 防静默失效：oxc-transform-react（可选 peerDep）缺失时 compiler 选项无效且无报错
+        run: pnpm check:compiler
+
+      - name: Devtools zero-residue gate
+        # 防回归：dev 调试面板必须整体游离于生产产物图（dev 门 + 动态 import 的 DCE 链，
+        # 判据与排查顺序见 scripts/check-devtools.ts 头注释）
+        run: pnpm check:devtools
+
+      - name: Run Electron E2E tests
+        # Linux 无头环境需要 xvfb（GitHub ubuntu runner 预装 Xvfb）——此前缺失致 Missing X server 启动失败
+        # retries=2：吸收共享 runner 抖动——perf-electron 真实 IPC 基准（invoke RTT median<20ms、
+        # 事件吞吐 ≥500/s）在 macOS 共享 runner 上偶发超阈值（2026-09-10 连续两 run 复现），
+        # 与业务代码无关；与浏览器模式 testRunner 的 --retries=2 对齐。
+        run: ${{ runner.os == 'Linux' && 'xvfb-run -a pnpm exec playwright test --config e2e/playwright.electron.config.ts --retries=2' || 'pnpm exec playwright test --config e2e/playwright.electron.config.ts --retries=2' }}
+        env:
+          # macOS 沙箱冲突时允许开发模式启动（测试专用）
+          ELECTRON_DISABLE_SANDBOX: ${{ runner.os == 'Linux' && '1' || '' }}
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        continue-on-error: true # 制品配额耗尽时报告上传失败不阻断 CI 结论
+        with:
+          name: playwright-report-electron-${{ matrix.os }}-${{ github.run_id }}
+          path: playwright-report-electron/
+          retention-days: 7
+
+  # ── Job 7: e2e-electron 汇总（ruleset 引用它，而非 6 个平台名）────────
+  # 与 unit-summary 同理：让 ruleset 引用稳定名称，平台增减不改云端配置。
+  # ⚠️ name 必须逐字等于 ruleset 的 context 字符串；if: always() 必需。
+  e2e-electron-summary:
+    name: E2E (Electron, all platforms)
+    needs: [e2e-electron]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check matrix result
+        run: |
+          if [ "${{ needs.e2e-electron.result }}" = "success" ]; then
+            echo "✅ 6 平台 Electron E2E 全部通过"
+          elif [ "${{ needs.e2e-electron.result }}" = "skipped" ]; then
+            echo "⏭️ Release PR：Electron E2E 矩阵跳过——同一内容已在来源 PR 全绿验证，本 PR 仅新增版本号与 CHANGELOG"
+          else
+            echo "::error::e2e-electron 矩阵未全部通过：${{ needs.e2e-electron.result }}"
+            exit 1
+          fi
+
+  # ── Job 4「生产构建 Smoke 测试」已移除（2026-09-20）─────────────────
+  # 原 smoke-prod job（windows + ubuntu 矩阵：打包 → check:native-arch → test:smoke）
+  # 已删除，生产产物验证统一交给 CD（release.yml 的 build job 各自跑 test:smoke）。
+  # 成本与覆盖对比、代价、以及 ruleset 连带变更见文件末尾「Job 5」注释块。
+
+  # ── Job 5「三平台打包验证」已移除（2026-09-10 方案二）───────────────
+  # 原 package job（三平台 electron-builder 打包验证，各约 5 分钟）与 release.yml 的
+  # build job **执行完全相同的命令**（pnpm build:win/mac/linux），
+  # 只是在 PR 阶段提前跑一遍。按用户决定「打包验证交给 CD」删除，以消除：
+  #   - 每个 PR 多耗约 15 分钟 runner 时间（三平台各约 5 分钟）
+  #   - 同一次发版的安装包被构建 2 遍（Release PR 一次 + CD 一次）
+  # 打包正确性由 release.yml 的 build job 保证——它是发版必经关卡，且失败不占号
+  # （无 tag 无 Release，可直接重试）。
+  # ⚠️ 必需同步：ruleset「protect-release-branches」的 required_status_checks 已移除
+  # Package (windows/ubuntu/macos-latest) 三项。若只删本 job 而不改 ruleset，这三项
+  # 检查永不 report，所有 PR 会卡在 pending 无法合并（strict policy 下）。
+  #
+  # ── Job 6「生产构建 Smoke 测试」已移除（2026-09-20，同一原则）──────────
+  # 原 smoke-prod job（windows + ubuntu 矩阵）做的事是：真实打包（build:*:x64）
+  # → check:native-arch → test:smoke（用 _electron.launch 启动打包产物并断言
+  # 能渲染 / preload 注入 / SQLite 可查 / 无控制台错误）。删除理由：
+  #   1. 成本不对称：CI 里必须从零打包才有产物可启动，实测每 PR 约 20 分钟
+  #      （Windows 9m20s + Ubuntu 10m19s）；CD 的同一套 smoke 夹在本来就要跑的
+  #      build job 内，增量仅 1–3 分钟。
+  #   2. 覆盖面反而更全：CD 覆盖全部四个变体（Windows x64+arm64 / macOS x64+arm64 /
+  #      Linux x64 原生 / Linux arm64 原生），CI 只能跑 x64 的 win+ubuntu——
+  #      macOS 打包在 PR 阶段本就无法验证（原注释声称"由 package job 覆盖"，
+  #      而该 job 已于 2026-09-10 删除，属过期注释）。
+  #      〔2026-09-20 更新：CD 已进一步拆为 **6 个单架构 job**（Windows/macOS 各自
+  #      拆 x64 + arm64），每个在原生 runner 上打包并跑 smoke ⇒ 覆盖 6/6 产物，
+  #      原先"单 job 兼双架构"时 win-arm64 与 mac-x64 无 smoke 的缺口已消除。〕
+  #   3. 风险由 CD 的 fail-closed 兜底：build job 失败即不打 tag、不占版本号，
+  #      修复后重跑同一 workflow 即可。
+  # ⚠️ 连带变更（已同步）：required_status_checks 移除
+  # Smoke (Production Build, windows-latest) 与 Smoke (Production Build, ubuntu-latest)
+  # ⇒ 当时必需检查从 8 项降为 6 项。只删 job 不改 ruleset 会让这两项永不 report，
+  # 所有 PR 卡在 pending（与上面 package job 同一个坑）。
+  # 2026-09-20 六平台改造后已是 **5 项**（见文件头清单）——smoke 覆盖改由 CD 的
+  # 6 个 build job 各自承担（每个平台验证自己的产物，含此前缺的 win-arm64 / mac-x64）。
+  # 代价（如实记录）：打包层回归——preload 被误打成 ESM、原生模块 ABI/架构错配、
+  # extraResources 漏文件、安装路径超长等——不再有 PR 阶段的早反馈，要到发版跑 CD
+  # 才暴露。这类问题在本项目历史上出现过多次；若日后发现"发版时才炸"过于昂贵，
+  # 恢复路径是加一个用 `electron-builder --dir` 打包的轻量 job（跳过安装器生成，
+  # 约省一半时间）——smoke 启动的是 unpacked 目录里的可执行文件，本不需要安装器。
+

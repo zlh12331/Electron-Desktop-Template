@@ -1,0 +1,91 @@
+# .gitignore
+
+# 依赖
+node_modules/
+# pnpm 本地内容寻址存储（沙箱/无全局 store 环境安装时生成）
+.pnpm-store/
+
+# 构建产物
+dist/
+out/
+release/
+*.tsbuildinfo
+# SBOM 生成产物（cdxgen 输出到根目录，release 归档副本在 release/ 已忽略）
+bom.json
+
+# electron-vite 临时
+.vite/
+
+# IDE
+.vscode/
+.idea/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# 日志
+*.log
+logs/
+
+# CodeGraph 索引由 .codegraph/.gitignore 自管
+
+# 测试覆盖率
+coverage/
+
+# 包体积分析产物（pnpm analyze:bundle 生成，按需分析不入仓）
+stats/
+
+# TypeDoc 生成的 API 文档（pnpm docs:types 按需生成，不入仓）
+docs/api/
+
+# Playwright 测试产物（trace / report / 截图 / 视频）
+playwright-report/
+playwright-report-electron/
+playwright-report-smoke/
+playwright/.cache/
+test-results/
+
+# Electron 二进制下载缓存（dev 环境用，避免 TRAE 沙箱拦截系统 %LOCALAPPDATA%）
+.electron-cache/
+# Electron userData 目录（dev 环境重定向到此，避免 TRAE 沙箱拦截系统 %APPDATA%）
+.electron-user-data/
+# E2E Electron 测试专用 userData（多实例隔离）
+.e2e-user-data/
+# dev 更新链路 E2E 专用 userData（electron-update-dev.spec.ts）
+.e2e-user-data-update/
+# 静默启动 E2E 专用 userData（electron-hidden-start.spec.ts）
+.e2e-user-data-hidden/
+
+# Electron 打包
+*.exe
+*.appx
+*.msi
+
+# 临时目录（脚本运行的中间产物，zip / 解压目录等，盘符内同盘移动避免 EXDEV）
+.tmp/
+
+# 构建信息（scripts/generate-build-info.mjs 生成，随安装包分发；构建产物不入仓）
+resources/build-info.json
+
+# electron-builder 打包产物（NSIS 安装包、latest.yml 等）
+release/
+
+# Qoder 工具缓存（repowiki 索引等，运行时自动生成，不入仓）
+.qoder/
+
+
+# AI 会话生成的临时图片素材（不入仓）
+/vibe_images/
+
+.worktrees/
+
+
+# 工具运行时状态（钩子会话锁等机器生成文件，任何目录下的 .mimosa/ 都不入仓）
+.mimosa/

@@ -1,0 +1,174 @@
+// scripts/lib/animations.test.ts
+// 动画引用完整性单测：守「引用不存在的 keyframes」类静默失效——浏览器丢弃整条
+// animation 声明，而 lint/typecheck/组件测试全绿
+
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import {
+  type AnimationRef,
+  extractAnimationNamesFromValue,
+  extractArbitraryAnimateNames,
+  extractCssAnimationRefs,
+  extractCssAnimationRefsWithLines,
+  extractKeyframeNames,
+  findMissingAnimations,
+} from './animations';
+
+const REPO_ROOT = join(import.meta.dirname, '../..');
+
+describe('extractAnimationNamesFromValue', () => {
+  it('正向：名字在前段（后跟时长/缓动/迭代）', () => {
+    expect(extractAnimationNamesFromValue('pulse-soft 2s var(--ease-soft) infinite')).toEqual([
+      'pulse-soft',
+    ]);
+    expect(extractAnimationNamesFromValue('blink 1s steps(2) infinite')).toEqual(['blink']);
+  });
+
+  it('正向：逗号分隔多条动画各取一个名字', () => {
+    expect(extractAnimationNamesFromValue('fadein 0.2s, spin 1s linear')).toEqual([
+      'fadein',
+      'spin',
+    ]);
+  });
+
+  it('边界：none / 纯关键字值不产生名字', () => {
+    expect(extractAnimationNamesFromValue('none')).toEqual([]);
+    expect(extractAnimationNamesFromValue('')).toEqual([]);
+    expect(extractAnimationNamesFromValue('   ')).toEqual([]);
+  });
+
+  it('边界：var() 与缓动函数不会被误当名字', () => {
+    expect(extractAnimationNamesFromValue('var(--anim) 1s')).toEqual([]);
+    expect(extractAnimationNamesFromValue('cubic-bezier(0.34, 1.56, 0.64, 1) 1s')).toEqual([]);
+  });
+
+  it('边界：值尾带分号仍能取出名字', () => {
+    expect(extractAnimationNamesFromValue('runningBar 1.5s ease-in-out infinite;')).toEqual([
+      'runningBar',
+    ]);
+  });
+});
+
+describe('extractArbitraryAnimateNames', () => {
+  it('正向：animate-[name_1s_ease-in-out_infinite]', () => {
+    expect(
+      extractArbitraryAnimateNames(
+        'className="bg-primary h-0.5 animate-[browser-loading-bar_1.5s_ease-in-out_infinite]"',
+      ),
+    ).toEqual(['browser-loading-bar']);
+  });
+
+  it('边界：无任意值动画 → 空数组', () => {
+    expect(extractArbitraryAnimateNames('className="animate-spin animate-in"')).toEqual([]);
+  });
+
+  it('边界：shadow-* 任意值不误检（只认 animate-[）', () => {
+    expect(extractArbitraryAnimateNames('shadow-[0_0_8px_var(--accent-glow)]')).toEqual([]);
+  });
+});
+
+describe('extractKeyframeNames', () => {
+  it('收集全部 @keyframes 名（含大小写混合与连字符）', () => {
+    const css = `
+      @keyframes blink { 50% { opacity: 0 } }
+      @keyframes browser-loading-bar { from { opacity: 0 } }
+      @keyframes runningBar { to { opacity: 1 } }
+    `;
+    expect(extractKeyframeNames(css).sort()).toEqual([
+      'blink',
+      'browser-loading-bar',
+      'runningBar',
+    ]);
+  });
+});
+
+describe('extractCssAnimationRefs', () => {
+  it('正向：animation 简写与 animation-name 都能取名字', () => {
+    const css = '.a { animation: fadein 0.15s ease; }\n.b { animation-name: modalin; }';
+    expect(extractCssAnimationRefs(css).sort()).toEqual(['fadein', 'modalin']);
+  });
+
+  it('边界：注释行里的举例不算引用', () => {
+    const css = '// 注意：animation: nonexistent 1s 只是举例\n.a { animation: blink 1s; }';
+    expect(extractCssAnimationRefs(css)).toEqual(['blink']);
+  });
+
+  it('边界：animation: none 不产生引用', () => {
+    expect(extractCssAnimationRefs('.a { animation: none; }')).toEqual([]);
+  });
+
+  it('边界：跨行块注释里讨论动画不算引用（无 * 前缀续行，biome 风格）', () => {
+    const css = [
+      '/* reduced-motion 说明：动画被禁用会让 jump-bar 永久隐形，',
+      '   animation:none 不可用，改为零时长瞬时到达终态 */',
+      '.a { animation: blink 1s; }',
+    ].join('\n');
+    expect(extractCssAnimationRefs(css)).toEqual(['blink']);
+  });
+
+  it('边界：行内注释片段剔除，未闭合行内注释之后的内容不算引用', () => {
+    const css = '.a { animation: blink 1s; } /* animation: ghost 2s */\n.b { color: red; /* 注释';
+    expect(extractCssAnimationRefs(css)).toEqual(['blink']);
+  });
+});
+
+describe('extractCssAnimationRefsWithLines', () => {
+  it('行号准确（报错信息可点击跳转）', () => {
+    const css = [
+      '.a {',
+      '  animation: fadein 0.15s;',
+      '}',
+      '.b {',
+      '  animation-name: modalin;',
+      '}',
+    ].join('\n');
+    expect(extractCssAnimationRefsWithLines(css)).toEqual([
+      { name: 'fadein', line: 2 },
+      { name: 'modalin', line: 5 },
+    ]);
+  });
+
+  it('边界：同一行多条动画都带同一行号', () => {
+    const css = '.a { animation: one 1s, two 2s; }';
+    expect(extractCssAnimationRefsWithLines(css)).toEqual([
+      { name: 'one', line: 1 },
+      { name: 'two', line: 1 },
+    ]);
+  });
+});
+
+describe('findMissingAnimations', () => {
+  it('正向：未定义的名字被挑出，已定义的保留', () => {
+    const refs: AnimationRef[] = [
+      { name: 'blink', file: 'a.css', line: 1 },
+      { name: 'ghost', file: 'b.css', line: 2 },
+    ];
+    const missing = findMissingAnimations(refs, new Set(['blink']));
+    expect(missing).toEqual([{ name: 'ghost', file: 'b.css', line: 2 }]);
+  });
+
+  it('边界：全部有定义 → 空', () => {
+    const refs: AnimationRef[] = [{ name: 'blink', file: 'a.css', line: 1 }];
+    expect(findMissingAnimations(refs, new Set(['blink']))).toEqual([]);
+  });
+});
+
+describe('仓库现状（styles/* + renderer components）', () => {
+  /** 从磁盘枚举样式文件（而非硬编码列表：文件增删时列表会与真实目录脱节） */
+  const Styles = readdirSync(join(REPO_ROOT, 'src/renderer/styles'))
+    .filter((f) => f.endsWith('.css'))
+    .map((f) => `src/renderer/styles/${f}`);
+
+  function readAll(paths: readonly string[]): string {
+    return paths.map((p) => readFileSync(join(REPO_ROOT, p), 'utf8')).join('\n');
+  }
+
+  it('styles/ 各域 css 的 animation 引用全部有 @keyframes 定义', () => {
+    const css = readAll(Styles);
+    const defined = new Set(extractKeyframeNames(css));
+    const refs = extractCssAnimationRefs(css).map(
+      (name, i): AnimationRef => ({ name, file: 'styles/*', line: i }),
+    );
+    expect(findMissingAnimations(refs, defined)).toEqual([]);
+  });
+});

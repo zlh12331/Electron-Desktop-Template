@@ -1,0 +1,66 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+
+import { MAIN_DICTIONARIES } from './dictionaries';
+import { DEFAULT_MAIN_LANGUAGE, getMainLanguage, initMainI18n, setMainLanguage, t } from './index';
+
+describe('词典完整性', () => {
+  it('zh-CN 与 en key 集合完全一致（双向无缺失）', () => {
+    const zhKeys = Object.keys(MAIN_DICTIONARIES['zh-CN'] ?? {}).sort();
+    const enKeys = Object.keys(MAIN_DICTIONARIES.en ?? {}).sort();
+    expect(enKeys).toEqual(zhKeys);
+  });
+
+  it('所有词条为非空字符串且不含换行', () => {
+    for (const dict of Object.values(MAIN_DICTIONARIES)) {
+      for (const [key, value] of Object.entries(dict)) {
+        expect(value.length, `${key} 为空`).toBeGreaterThan(0);
+        expect(value, `${key} 含换行`).not.toMatch(/\r|\n/);
+      }
+    }
+  });
+
+  it('en 词条插值占位与 zh 对齐（同 key 占位集合一致）', () => {
+    const zh = MAIN_DICTIONARIES['zh-CN'] ?? {};
+    const en = MAIN_DICTIONARIES.en ?? {};
+    const placeholders = (s: string): string[] =>
+      [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1] ?? '');
+    for (const [key, zhValue] of Object.entries(zh)) {
+      const enValue = en[key];
+      expect(enValue, `${key} 缺失于 en`).toBeDefined();
+      expect(placeholders(enValue ?? '').sort(), `${key} 占位不一致`).toEqual(
+        placeholders(zhValue ?? '').sort(),
+      );
+    }
+  });
+});
+
+describe('语言态与 t()', () => {
+  beforeEach(() => {
+    initMainI18n(undefined);
+  });
+
+  it('未初始化/非法值 → 默认 zh-CN', () => {
+    expect(getMainLanguage()).toBe('zh-CN');
+    expect(t('tray.quit')).toBe('退出');
+    setMainLanguage('fr-FR');
+    expect(getMainLanguage()).toBe('zh-CN');
+  });
+
+  it('initMainI18n 接受 settings 原始值（合法/未设置/损坏）', () => {
+    initMainI18n('en');
+    expect(t('dialog.exportSettings')).toBe('Export settings');
+    initMainI18n(undefined);
+    expect(t('dialog.exportSettings')).toBe('导出设置');
+    initMainI18n(null);
+    expect(getMainLanguage()).toBe('zh-CN');
+  });
+
+  it('en 下缺 key 回退 zh-CN 词典，双缺返回 key 本身', () => {
+    setMainLanguage('en');
+    expect(t('totally.missing.key')).toBe('totally.missing.key');
+  });
+
+  it('默认语言常量导出与词典语言一致', () => {
+    expect(DEFAULT_MAIN_LANGUAGE).toBe('zh-CN');
+  });
+});

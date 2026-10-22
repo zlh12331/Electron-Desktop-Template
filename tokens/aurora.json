@@ -1,0 +1,429 @@
+{
+  "$comment": "历史文件名 aurora.json · 内容为 TraeWork Design Tokens（1.3=A 不改文件名）",
+  "sidebar-w": {
+    "value": "clamp(200px, 17vw, 280px)",
+    "comment": "布局尺寸 — clamp() 实现响应式宽度约束"
+  },
+  "right-panel-w": {
+    "value": "clamp(260px, 22vw, 360px)"
+  },
+  "resizer-w": {
+    "value": "0px"
+  },
+  "topbar-h": {
+    "value": "52px"
+  },
+  "z-base": {
+    "value": "1",
+    "comment": "z-index 层级体系 — 从低到高（surface < popover < modal < boundary）；禁止裸 z-* 数字，新浮层一律引用令牌。toast 不设档：sonner 用库默认层级，气泡语义不参与应用内 stacking context 竞争"
+  },
+  "z-surface": {
+    "value": "2",
+    "comment": "面板内容之上的行内浮层（进度条/斜杠建议面板等，同一 stacking context 内竞争）"
+  },
+  "z-raised": {
+    "value": "10",
+    "comment": "悬浮于内容之上的粘性件（resizer 分隔线/scroll-to-bottom/jump-bar 等）——介于 surface(2) 与 popover(50) 之间"
+  },
+  "z-popover": {
+    "value": "50",
+    "comment": "Radix 浮层统一档（dialog/sheet/dropdown/select/context-menu/tooltip）"
+  },
+  "z-modal": {
+    "value": "100",
+    "comment": "强制顶层模态（AskDialog 等需压过一切浮层的场景）"
+  },
+  "z-boundary": {
+    "value": "999",
+    "comment": "层级边界值（skip-link 聚焦等不遮挡内容的最高层）"
+  },
+  "sans": {
+    "value": "var(--font-sans)"
+  },
+  "serif": {
+    "value": "var(--font-serif)"
+  },
+  "font-size-2xs": {
+    "value": "10px",
+    "comment": "字号阶梯 — 9 级（含 xl/2xl/3xl）"
+  },
+  "font-size-xs": {
+    "value": "11px"
+  },
+  "font-size-sm": {
+    "value": "12px"
+  },
+  "font-size-base": {
+    "value": "13px"
+  },
+  "font-size-md": {
+    "value": "14px"
+  },
+  "font-size-lg": {
+    "value": "16px"
+  },
+  "font-size-xl": {
+    "value": "18px",
+    "comment": "字号阶梯扩展（由旧档 fs-xl/2xl/3xl 升格，2.2=A 按值）"
+  },
+  "font-size-2xl": {
+    "value": "22px"
+  },
+  "font-size-3xl": {
+    "value": "28px"
+  },
+  "radius": {
+    "value": "8px",
+    "comment": "圆角 — TraeWork 默认容器圆角 --radius-8"
+  },
+  "bg": {
+    "value": "#FFFFFF",
+    "comment": "页面基底色 — TraeWork --bg-base-default",
+    "dark": "#0A0A0A"
+  },
+  "bg-elev": {
+    "value": "#F5F5F5",
+    "comment": "L1 侧栏 / 顶栏 / 卡片层 — TraeWork --bg-base-secondary",
+    "dark": "#171717"
+  },
+  "bg-elev-2": {
+    "value": "#E5E5E5",
+    "comment": "L2 悬浮输入区 / 卡片区 / 悬停态 — TraeWork --bg-base-tertiary",
+    "dark": "#262626"
+  },
+  "bg-elev-3": {
+    "value": "#D4D4D4",
+    "comment": "L3 激活态 / 强调容器 — TraeWork --brand-grey-300",
+    "dark": "#404040"
+  },
+  "background": {
+    "value": "var(--bg)",
+    "comment": "shadcn 标准背景映射"
+  },
+  "foreground": {
+    "value": "#171717",
+    "dark": "#F5F5F5"
+  },
+  "card": {
+    "value": "var(--bg-elev)"
+  },
+  "card-foreground": {
+    "value": "#171717",
+    "dark": "#F5F5F5"
+  },
+  "popover": {
+    "value": "var(--bg-elev)"
+  },
+  "popover-foreground": {
+    "value": "#171717",
+    "dark": "#F5F5F5"
+  },
+  "border": {
+    "value": "rgba(115, 115, 115, 0.12)",
+    "comment": "描边：两级 — TraeWork --border-neutral-l1",
+    "dark": "rgba(255, 255, 255, 0.12)"
+  },
+  "border-strong": {
+    "value": "rgba(115, 115, 115, 0.18)",
+    "comment": "TraeWork --border-neutral-l2",
+    "dark": "rgba(255, 255, 255, 0.18)"
+  },
+  "input": {
+    "value": "var(--border)"
+  },
+  "text": {
+    "value": "#171717",
+    "comment": "文字主色 — TraeWork --text-default",
+    "dark": "#F5F5F5"
+  },
+  "text-secondary": {
+    "value": "#404040",
+    "comment": "TraeWork --text-secondary",
+    "dark": "#D4D4D4"
+  },
+  "text-tertiary": {
+    "value": "#595959",
+    "comment": "TraeWork --text-tertiary（亮色由 #737373 收紧至 #595959：原值对 --bg-elev/#F5F5F5 仅 4.35:1、对 --bg-elev-2/#E5E5E5 仅 3.76:1，均低于 AA；新值对各亮色底 ≥4.5，含 hover 底 --bg-elev-3/#D4D4D4 的 4.73）",
+    "dark": "#A1A1A1"
+  },
+  "text-faint": {
+    "value": "#A1A1A1",
+    "comment": "TraeWork --text-disabled（dark 由 #737373 提亮至 #8A8A8A：原值对 #0A0A0A 仅 4.18:1 低于 AA 且常与 9-10px 小字组合，新值 5.64；仍暗于 --text-secondary/#A1A1A1 的层级关系保持）",
+    "dark": "#8A8A8A"
+  },
+  "muted-foreground": {
+    "value": "#595959",
+    "comment": "shadcn muted-foreground — TraeWork --text-tertiary（亮色收紧理由同 text-tertiary：原 #737373 在浮起底色上低于 AA 4.5；暗色 #A1A1A1 实测已达标不动）",
+    "dark": "#A1A1A1"
+  },
+  "on-accent": {
+    "value": "#FFFFFF",
+    "comment": "品牌色上的前景色 — TraeWork --text-onbrand",
+    "dark": "#FFFFFF"
+  },
+  "accent": {
+    "value": "#4B3FE3",
+    "comment": "品牌主色（图形/边框/选中/图标；作文字色用 --accent-text，作实底按钮走 --primary）；暗色保持 TraeWork 官方亮档以保图形可见性",
+    "dark": "#6A6FFF"
+  },
+  "accent-text": {
+    "value": "var(--accent)",
+    "comment": "品牌强调文本紫（亮色复用基色即达 AA；暗色提亮至对 #171717 卡片底 CR≥4.5）",
+    "dark": "#9B9EFF"
+  },
+  "accent-dim": {
+    "value": "#3F31C6",
+    "comment": "TraeWork --bg-brand-active",
+    "dark": "#4B3FE3"
+  },
+  "accent-2": {
+    "value": "#3F85FF",
+    "comment": "辅助色 — TraeWork --accent-blue（作文字色用 --accent-2-text）",
+    "dark": "#4C88FF"
+  },
+  "accent-2-text": {
+    "value": "#2E6FE0",
+    "comment": "accent-2 作文字色专用层：基色 #3F85FF 对白底仅 3.49:1，文字场景不达 AA——收紧后白底 4.70",
+    "dark": "#8FB3FF"
+  },
+  "primary-foreground": {
+    "value": "var(--on-accent)"
+  },
+  "ring": {
+    "value": "var(--accent)"
+  },
+  "secondary": {
+    "value": "var(--bg-elev-2)"
+  },
+  "secondary-foreground": {
+    "value": "var(--text)"
+  },
+  "muted": {
+    "value": "var(--bg-elev-2)"
+  },
+  "accent-foreground": {
+    "value": "var(--on-accent)",
+    "comment": "accent 底上的前景色 — 对齐 shadcn 语义（配套 focus:bg-accent 使用）。原派生自 --muted-foreground 属误定义：文字色落在深紫底(--accent #4B3FE3)上实测仅 1.42:1（远低于 AA），改指 --on-accent 后 6.73:1",
+    "dark": "var(--on-accent)"
+  },
+  "accent-glow": {
+    "value": "rgba(75, 63, 227, 0.08)",
+    "comment": "品牌色氛围色（柔和、无发光 — TraeWork quiet by default）",
+    "dark": "rgba(93, 98, 255, 0.12)"
+  },
+  "accent-soft": {
+    "value": "rgba(75, 63, 227, 0.04)",
+    "dark": "rgba(93, 98, 255, 0.06)"
+  },
+  "accent-2-glow": {
+    "value": "rgba(63, 133, 255, 0.08)",
+    "dark": "rgba(76, 136, 255, 0.12)"
+  },
+  "accent-2-soft": {
+    "value": "rgba(63, 133, 255, 0.04)",
+    "dark": "rgba(76, 136, 255, 0.06)"
+  },
+  "info-blue": {
+    "value": "rgba(63, 133, 255, 0.08)",
+    "dark": "rgba(76, 136, 255, 0.12)"
+  },
+  "info-amber": {
+    "value": "rgba(226, 121, 0, 0.10)",
+    "dark": "rgba(243, 154, 53, 0.12)"
+  },
+  "error-bg": {
+    "value": "rgba(232, 70, 58, 0.08)",
+    "dark": "rgba(234, 87, 76, 0.10)"
+  },
+  "shadow-soft": {
+    "value": "0 1px 3px rgba(115, 115, 115, 0.08)",
+    "comment": "柔和阴影（TraeWork 中性 elevation；旧名 glow-sm，2.5=A 改名）",
+    "dark": "0 1px 3px rgba(0, 0, 0, 0.2)"
+  },
+  "shadow-raise": {
+    "value": "0 4px 12px rgba(115, 115, 115, 0.06), 0 0 0 1px rgba(115, 115, 115, 0.04)",
+    "dark": "0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.02)"
+  },
+  "grid-line": {
+    "value": "transparent",
+    "comment": "背景纹理：TraeWork 无装饰背景，纹理关闭",
+    "dark": "transparent"
+  },
+  "amber": {
+    "value": "#E27900",
+    "comment": "语义色 — TraeWork --status-warning-default",
+    "dark": "#F39A35"
+  },
+  "amber-dim": {
+    "value": "#C46F11",
+    "comment": "TraeWork --status-warning-active",
+    "dark": "#E27900"
+  },
+  "amber-glow": {
+    "value": "rgba(226, 121, 0, 0.10)",
+    "dark": "rgba(243, 154, 53, 0.12)"
+  },
+  "warning": {
+    "value": "var(--amber)"
+  },
+  "warn-text": {
+    "value": "#A85C00",
+    "comment": "警告文本橙（亮色加深保 4.5:1；暗色对黑底复用基色即达标）",
+    "dark": "var(--amber)"
+  },
+  "error": {
+    "value": "#E8463A",
+    "comment": "TraeWork --status-error-default（基色：图形/边框/氛围；文字用 --error-text，实底+白字用 --error-emphasis）",
+    "dark": "#EA574C"
+  },
+  "error-emphasis": {
+    "value": "#D93A2F",
+    "comment": "错误强调红（实底+白字场景专属，双主题同值：白色前景 CR=4.57 达 AA）"
+  },
+  "error-text": {
+    "value": "#C93A2F",
+    "comment": "错误文本红（亮色加深保 4.5:1；暗色对黑底直接复用基色即达标）",
+    "dark": "var(--error)"
+  },
+  "destructive": {
+    "value": "var(--error-emphasis)",
+    "comment": "shadcn destructive 语义 = 实底强调红（bg-destructive+白字场景）；原弱红迁移见 error/error-text"
+  },
+  "destructive-foreground": {
+    "value": "#FFFFFF"
+  },
+  "magenta": {
+    "value": "#9570FF",
+    "comment": "TraeWork --accent-violet",
+    "dark": "#B655FC"
+  },
+  "ink-brown": {
+    "value": "#8B4513",
+    "comment": "文学棕（::selection 墨水印迹 / blockquote 底色等文学风效果层基色；效果层用 color-mix(var(--ink-brown) N%, transparent) 引用，alpha 留在使用处）",
+    "dark": "#D4A574"
+  },
+  "success": {
+    "value": "#15A877",
+    "comment": "TraeWork --status-success-default（基色：图形/边框/氛围；实底+白字用 --success-emphasis）"
+  },
+  "success-emphasis": {
+    "value": "#047857",
+    "comment": "成功强调绿（实底+白字场景专属，双主题同值：白色前景 CR=5.55 达 AA；原基色仅 3.04）"
+  },
+  "success-text": {
+    "value": "#047857",
+    "comment": "成功文本绿（亮色用深档保 4.5:1；暗色对黑底复用基色即达标）",
+    "dark": "var(--success)"
+  },
+  "overlay-bg": {
+    "value": "rgba(0, 0, 0, 0.25)",
+    "comment": "遮罩 / 玻璃",
+    "dark": "rgba(0, 0, 0, 0.5)"
+  },
+  "code-block-bg": {
+    "value": "#070A0E",
+    "comment": "命令/代码块深色背景（双主题一致，终端风格）",
+    "dark": "#070A0E"
+  },
+  "overlay-blur": {
+    "value": "8px"
+  },
+  "glass-bg": {
+    "value": "rgba(255, 255, 255, 0.85)",
+    "dark": "rgba(23, 23, 23, 0.85)"
+  },
+  "scrollbar-thumb": {
+    "value": "rgba(115, 115, 115, 0.15)",
+    "comment": "滚动条令牌",
+    "dark": "rgba(255, 255, 255, 0.1)"
+  },
+  "scrollbar-thumb-hover": {
+    "value": "rgba(115, 115, 115, 0.25)",
+    "dark": "rgba(255, 255, 255, 0.2)"
+  },
+  "sidebar": {
+    "value": "var(--bg-elev)",
+    "comment": "侧边栏（与 L1 同色）"
+  },
+  "sidebar-foreground": {
+    "value": "var(--text)"
+  },
+  "sidebar-primary": {
+    "value": "var(--accent)"
+  },
+  "sidebar-primary-foreground": {
+    "value": "var(--on-accent)"
+  },
+  "sidebar-accent": {
+    "value": "var(--bg-elev-2)"
+  },
+  "sidebar-accent-foreground": {
+    "value": "var(--text)"
+  },
+  "sidebar-border": {
+    "value": "var(--border)"
+  },
+  "sidebar-ring": {
+    "value": "var(--accent)"
+  },
+  "font-sans": {
+    "value": "\"SF Pro Text\", \"PingFang SC\", system-ui, -apple-system, \"Segoe UI\", Roboto, \"Microsoft YaHei\", sans-serif",
+    "comment": "字体族 — TraeWork --font-family-default；栈内显式含 Windows CJK 兜底（YaHei）——sans-serif 隐式回退平台相关，显式声明消除非确定性（2026-10-09）"
+  },
+  "font-serif": {
+    "value": "\"SF Pro\", \"PingFang SC\", system-ui, -apple-system, \"Segoe UI\", Roboto, \"Microsoft YaHei\", sans-serif",
+    "comment": "TraeWork --font-family-heading（用于标题）；同 sans 栈显式 CJK 兜底"
+  },
+  "font-mono": {
+    "value": "\"JetBrains Mono\", ui-monospace, \"SF Mono\", Menlo, Consolas, \"Noto Sans SC\", \"Microsoft YaHei\", monospace",
+    "comment": "TraeWork --font-family-mono；栈内必须含 CJK 回退（Noto Sans SC webfont + YaHei 离线兜底）——无回退时中文掉到 Windows monospace 兜底宋体，11px 小字 ClearType 下发灰发绿（2026-10-09 实测）"
+  },
+  "shadow-modal": {
+    "value": "0 16px 48px rgba(115, 115, 115, 0.12), 0 0 0 1px rgba(115, 115, 115, 0.06)",
+    "comment": "阴影体系 — TraeWork 中性阴影",
+    "dark": "0 24px 64px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.02)"
+  },
+  "shadow-dropdown": {
+    "value": "0 8px 24px rgba(115, 115, 115, 0.1)",
+    "dark": "0 12px 36px rgba(0, 0, 0, 0.5)"
+  },
+  "shadow-pop": {
+    "value": "var(--shadow-dropdown)",
+    "comment": "扩展阴影（兼容已有组件）"
+  },
+  "shadow-card": {
+    "value": "0 2px 10px rgba(115, 115, 115, 0.06)",
+    "dark": "0 2px 10px rgba(0, 0, 0, 0.3)"
+  },
+  "shadow-card-hover": {
+    "value": "0 12px 32px rgba(115, 115, 115, 0.1), 0 0 0 1px rgba(115, 115, 115, 0.04)",
+    "dark": "0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04)"
+  },
+  "ease-soft": {
+    "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+    "comment": "动效缓动函数 — TraeWork 120ms hover / 200ms state / 300ms reveal"
+  },
+  "ease-paper": {
+    "value": "cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+  },
+  "ease-out": {
+    "value": "cubic-bezier(0.2, 0.8, 0.2, 1)"
+  },
+  "duration-fast": {
+    "value": "120ms",
+    "comment": "动效时长 — hover/微交互（收敛散写的 0.1s/0.12s/0.15s）"
+  },
+  "duration-state": {
+    "value": "200ms",
+    "comment": "动效时长 — 状态切换（收敛散写的 0.2s/0.25s）"
+  },
+  "duration-reveal": {
+    "value": "300ms",
+    "comment": "动效时长 — 内容显现（收敛散写的 0.3s/0.42s）"
+  },
+  "primary": {
+    "value": "var(--accent)",
+    "comment": "主按钮实底（bg-primary+白字场景）：暗色取深档保白字 CR≥4.5；与 --accent（图形/文本）职责分离",
+    "dark": "#5D62FF"
+  }
+}

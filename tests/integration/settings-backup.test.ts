@@ -1,0 +1,93 @@
+// settings-backup.test.ts：模板底座集成链路——settings 写穿透往返 + 备份创建/列举
+// 真实协作：真实 SQLite（临时 userData）、真实 settings-pref/backup-store；
+// 仅 Electron SDK 由 setup.ts 替身（与其余集成用例同一边界）。
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import Database from 'better-sqlite3';
+import { describe, expect, it } from 'vitest';
+
+import { closeDb, getDbPath, initDb, resetDb } from '../../src/main/infra/storage/db';
+import { readSetting } from '../../src/main/infra/storage/settings-pref';
+import { backupHandlers } from '../../src/main/ipc/backup.handler';
+import { settingsHandlers } from '../../src/main/ipc/settings.handler';
+import { withTempUserData } from './helpers/with-db';
+
+/** handler 的第二参（traceId/sender）——本链路不推送事件，空对象即可 */
+const EMPTY_CTX = {} as never;
+
+describe('settings 域写入 → 读取往返（真实 SQLite）', () => {
+  it('set 后 getAll 返回同一份数据', async () => {
+    await withTempUserData(async () => {
+      await settingsHandlers.set({ key: 'theme', value: 'light' }, EMPTY_CTX);
+      await settingsHandlers.set({ key: 'window', value: { closeAction: 'quit' } }, EMPTY_CTX);
+
+      const { settings } = await settingsHandlers.getAll({}, EMPTY_CTX);
+      expect(settings['theme']).toBe('light');
+      expect(settings['window']).toEqual({ closeAction: 'quit' });
+    });
+  });
+
+  it('resetAll 清空白名单键，getAll 回落空快照', async () => {
+    await withTempUserData(async () => {
+      await settingsHandlers.set({ key: 'theme', value: 'light' }, EMPTY_CTX);
+      await settingsHandlers.resetAll({}, EMPTY_CTX);
+
+      const { settings } = await settingsHandlers.getAll({}, EMPTY_CTX);
+      expect(settings).toEqual({});
+    });
+  });
+});
+
+describe('backup 域：创建 → 列举', () => {
+  it('create 产出备份项，list 能读到且按时间倒序', async () => {
+    await withTempUserData(async () => {
+      const first = await backupHandlers.create(undefined, EMPTY_CTX);
+      const second = await backupHandlers.create(undefined, EMPTY_CTX);
+
+      const { backups } = await backupHandlers.list(undefined, EMPTY_CTX);
+      const names = backups.map((b) => b.name);
+      expect(names).toContain(first.name);
+      expect(names).toContain(second.name);
+      expect(backups.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+});
+
+describe('旧基线库兼容（迁移链重建后的启动路径）', () => {
+  it('既有库（旧迁移记录 + app_settings）启动不重复建表，且设置可读', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'code-agent-it-legacy-'));
+    // 必须改共享对象的属性（setup.ts 的 app.getPath 闭包持有同一引用），整体替换无效
+    const state = (globalThis as Record<string, unknown>)['__itState'] as { userData: string };
+    state.userData = dir;
+    try {
+      // 造一个「旧基线」库：表已建 + __drizzle_migrations 最后一条早于新基线
+      // 文件名取自 getDbPath()——写死会在品牌改名后造出一个初始化流程不会读的孤立库
+      const legacy = new Database(getDbPath());
+      legacy.exec(
+        'CREATE TABLE app_settings (key text PRIMARY KEY NOT NULL, value text NOT NULL, updated_at integer NOT NULL);',
+      );
+      legacy.exec(
+        'CREATE TABLE __drizzle_migrations (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at numeric);',
+      );
+      legacy
+        .prepare('INSERT INTO __drizzle_migrations ("hash", "created_at") VALUES (?, ?)')
+        .run('legacy-baseline', 1);
+      legacy
+        .prepare('INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)')
+        .run('theme', '"light"', Date.now());
+      legacy.close();
+
+      await closeDb();
+      resetDb();
+      initDb();
+
+      // 未被迁移链重建清空：旧值仍可读（说明基线被登记为已应用而非重复建表失败）
+      expect(readSetting('theme')).toBe('light');
+    } finally {
+      await closeDb();
+      resetDb();
+      rmSync(dir, { recursive: true, maxRetries: 5 });
+    }
+  });
+});

@@ -1,0 +1,115 @@
+# pnpm-workspace.yaml
+# pnpm 11 起所有非 auth/registry 配置统一在本文件声明（不再读 package.json#pnpm）
+# 参考 https://pnpm.io/settings
+
+packages:
+  - 'packages/*'
+  - 'tools/*'
+  # 排除下划线前缀的模板目录（如 tools/_ts6-template），不作为真实 workspace 包
+  - '!tools/_*'
+
+# ── 多架构安装（发布矩阵含 x64 + arm64）──────────────────────────────────────
+# 为什么需要：原生依赖（如 better-sqlite3 的预编译包）按平台/架构分发 optionalDependencies，
+# pnpm 默认只装 host 架构的那一个，交叉构建会打进错误架构的二进制。
+# os: [current] 只装当前系统的包（不跨 OS 膨胀），cpu 两个架构都装，便于交叉构建取用。
+supportedArchitectures:
+  os:
+    - current
+  cpu:
+    - x64
+    - arm64
+
+# ── 构建脚本决策（pnpm 11: allowBuilds 取代 onlyBuiltDependencies）────────────────
+# electron 的 postinstall 会下载平台二进制，必须放行，否则运行时报
+# "Electron failed to install correctly"；better-sqlite3 需原生编译；
+# esbuild 需 postinstall 安装平台二进制；electron-winstaller 用于 NSIS 打包。
+# 其余显式 false：@swc/core 是 electron-vite 的 peer（走平台可选包）、msw 的
+# postinstall 非运行必需。
+# pnpm 11 对未决策包报 ERR_PNPM_IGNORED_BUILDS 阻断 install，必须逐一表态——
+# 包括只作为 peer/传递依赖出现的包（实测 @swc/core 与 msw 即属此类）。
+allowBuilds:
+  better-sqlite3: true
+  electron: true
+  esbuild: true
+  '@swc/core': false
+  electron-winstaller: false
+  msw: false
+
+# ── peerDependencies 补丁（pnpm 11: packageExtensions）─────────────────────────
+packageExtensions:
+  dependency-cruiser:
+    peerDependencies:
+      typescript: '*'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
+# ── 依赖覆盖（pnpm 11: overrides）─────────────────────────────────────────────
+overrides:
+  # 2026-09-30 升级：10.5.1 → 10.7.1（GHSA 两条 moderate：isInSubnet/isHostInSubnet
+  # 子网比较错误、Address6 解析诊断信息泄漏，patched 10.7.1）
+  ip-address: 10.7.3
+  # 2026-09-09 升级：4.12.34 → 4.13.7（CVE-2026-84363/84364/84365 系列 query/parseBody DoS，patched 4.13.5）
+  'hono@>=4.0.0': 4.13.13
+  '@hono/node-server': 1.19.17
+  postcss: 8.5.29
+  # 2026-09-30 升级：3.1.7 → 3.1.8（GHSA-hrr3-gc8f-f4qj moderate：host case 不一致，
+  # patched 3.1.8；传递路径 ajv←MCP SDK / commitlint / cdxgen / electron-builder）
+  fast-uri: 3.1.8
+  nanoid: 3.3.20
+  tar: 7.5.22
+  # 2026-09-29 升级：7.29.0 → 7.29.1、6.28.0 → 6.28.1（GHSA 两条 moderate DoS，
+  # 双 major 线分别 patch；7.x 线 = AI SDK provider-utils 生产 fetch，6.x 线 =
+  # node-gyp 构建链 devDependencies）
+  # 2026-10-09 收窄到 7.x 线：主进程直接依赖（proxied-fetch.ts）升 8.11.2 后，
+  # 本 override 只继续负责传递链 7.x 的安全钉；不窄化会与直接依赖冲突
+  'undici@>=7.0.0 <8': 7.30.0
+  'undici@<7': 6.29.0
+  # 2026-09-09 升级：4.3.1 → 4.3.2（CVE-2026-84375 maxTotalMergeKeys 空合并源 CPU 耗尽，patched 4.3.2）
+  # 2026-10-09 收窄到 4.x 线：直接依赖（scripts/lib/update-metadata.ts）升 5.4.3 后，
+  # 本 override 只负责钉住传递链的 4.x（typedoc 工具链）——不窄化会与直接依赖冲突
+  'js-yaml@>=4.0.0 <5': 4.3.2
+  # 2026-10-09 升级：4.2.0 → 4.3.0（GHSA-ch52-4w7c-c8xp high：max-stale 跨用户缓存
+  # 响应泄露；补丁 4.3.0 已于 10-04 发布——此前无补丁时走 .nsprc 白名单放行（10-03
+  # 登记），补丁到位后改 override 升级并同步收回白名单条目，2026-10-09 体检发现；
+  # 传递链 electron-builder→@electron/get→got→cacheable-request，dev 构建链）
+  http-cache-semantics: 4.3.0
+  # 2026-10-21 升级：14.3.2 → 14.3.3（GHSA-gfr2-rv44-r23c / CVE-2026-111758 high：
+  # 多行链接引用定义未闭合时渲染呈二次复杂度，构造输入可阻塞 Node 进程；patched 14.3.3）。
+  # 传递链 tools/typedoc→typedoc→markdown-it，dev 文档工具链，不进运行时包
+  markdown-it: 14.3.3
+  # Dependabot GHSA-mh99-v99m-4gvg / GHSA-rgw5-rvv9-x895：DoS，仅命中 typedoc 工具链的 4.x 线；1.x/2.x 合法共存不动
+  # 2026-09-30 三线全升（6 条告警：4 high + 2 moderate + cdxgen 链 3 moderate）：
+  # 1.1.18→1.1.21 / 2.1.4→2.1.7 / 5.0.9→5.0.12（递归 DoS 与二次展开 DoS 全系修复）
+  'brace-expansion@<2': ^1.1.21
+  'brace-expansion@>=2.0.0 <3': ^2.1.7
+  'brace-expansion@>=4.0.0': ^5.0.12
+  # Dependabot GHSA-67mh-4wv8-2f99：dev server 请求伪造，命中 drizzle-kit→@esbuild-kit 的 0.18.x
+  'esbuild@<0.25.0': ^0.25.12
+
+# ── 供应链策略 ──────────────────────────────────────────────────────────────
+# 发布年龄闸（supply-chain age gate）：拒绝安装「发布不足 24h」的包版本。
+#
+# 2026-09-11 由 0 改回 1440（= pnpm 11 默认值）。此前关闭的理由是「当日新版本会被
+# 误拦，镜像 + lockfile 已受控」——该理由**不成立**：
+#   1. 本闸防的不是「新版本不稳定」，而是**依赖投毒**（恶意版本发布后数分钟内
+#      被 CI/开发者装走，是 npm 生态近年最主要的攻击面）；
+#   2. 「lockfile 锁定」防不住**新依赖首次加入**那一刻（pnpm add 必然取最新版）；
+#   3. 旧注释把风险性质写成了「稳定性」，掩盖了真实的安全含义。
+# 代价：新增/升级依赖时，若目标版本发布不足 24h 会被拦——这是**有意的**，
+# 通常等一天或改用已过期的版本即可。确需立即安装时按需临时豁免（见下）。
+#
+# 临时豁免（按报错形态选，2026-09-25 实测；都不要改本文件）：
+#   1) 版本过新（ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION + 可解析到发布时间）：
+#      `pnpm install --config.minimumReleaseAge=0`
+#   2) 版本不在当前 registry manifest（同上错误码，文案含
+#      "version not present in registry manifest"——典型是 npmmirror 漏同步某个
+#      平台可选包，如 better-sqlite3 的某架构预编译包）：
+#      改走官方源 `pnpm install --registry=https://registry.npmjs.org`
+#      （实测可过；`--config.minimumReleaseAge=0` 对这种「查不到年龄」无效）
+#   3) lockfile 已在可信环境校验过、只想跳过再校验：
+#      `pnpm install --trust-lockfile`（跳过整段供应链再校验，慎用）
+minimumReleaseAge: 1440
+
+# ── 存储与缓存：固定到项目内（TRAE 沙箱不允许写系统根目录 F:\.pnpm-store）───
+storeDir: .pnpm-store

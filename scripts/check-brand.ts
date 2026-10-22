@@ -1,0 +1,241 @@
+// scripts/check-brand.ts
+// 品牌一致性闸：app.config.json 是唯一真源，本脚本校验两类漂移——
+// ① 生成物 packages/shared/src/constants/brand.ts 与真源不同步（忘了 brand:sync）；
+// ② 无法 import 真源的位置（electron-builder.yml / package.json / dev-app-update.yml /
+//    index.html / i18n 文案）里写死的旧品牌字面量与真源不一致。
+// 运行：pnpm check:brand（CI 与 check:static 一并卡关）
+
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import {
+  BRAND_OUTPUT,
+  BRAND_SOURCE,
+  readBrandSource,
+  renderBrandModule,
+} from './generate-brand.mjs';
+
+/** 品牌真源形状（与 app.config.json 对齐；check 只读取这些字段） */
+interface BrandSource {
+  readonly productName: string;
+  readonly appId: string;
+  readonly executableName: string;
+  readonly protocol: string;
+  readonly storagePrefix: string;
+  readonly author: string;
+  readonly description: string;
+  readonly artifactBaseName: string;
+  readonly repo: { readonly owner: string; readonly name: string };
+}
+
+/** 仓库根 */
+const ROOT = join(import.meta.dirname, '..');
+
+/** 一处问题 */
+export interface BrandIssue {
+  readonly file: string;
+  readonly detail: string;
+}
+
+/** 读文本（不存在返回 null，供可选文件用） */
+function readIfExists(rel: string): string | null {
+  try {
+    return readFileSync(join(ROOT, rel), 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+/** 断言文本包含期望值 */
+function expectContains(
+  issues: BrandIssue[],
+  file: string,
+  text: string | null,
+  needle: string,
+  label: string,
+): void {
+  if (text === null) {
+    issues.push({ file, detail: `文件不存在，无法校验 ${label}` });
+    return;
+  }
+  if (!text.includes(needle)) {
+    issues.push({ file, detail: `${label} 应为 "${needle}"，实际未找到（真源 ${BRAND_SOURCE}）` });
+  }
+}
+
+/** 校验 electron-builder.yml 的 appId / productName / 协议 / 可执行名 / artifactName 前缀 */
+function checkElectronBuilder(issues: BrandIssue[], brand: BrandSource): void {
+  const file = 'electron-builder.yml';
+  const text = readIfExists(file);
+  expectContains(issues, file, text, `appId: ${brand.appId}`, 'appId');
+  expectContains(issues, file, text, `productName: ${brand.productName}`, 'productName');
+  expectContains(issues, file, text, `executableName: ${brand.executableName}`, 'executableName');
+  expectContains(issues, file, text, `schemes:\n        - ${brand.protocol}`, 'protocols.schemes');
+  expectContains(
+    issues,
+    file,
+    text,
+    `artifactName: ${brand.artifactBaseName}-Windows-`,
+    'nsis.artifactName',
+  );
+  expectContains(
+    issues,
+    file,
+    text,
+    `artifactName: ${brand.artifactBaseName}-macOS-`,
+    'mac.artifactName',
+  );
+  expectContains(
+    issues,
+    file,
+    text,
+    `artifactName: ${brand.artifactBaseName}-Linux-`,
+    'linux.artifactName',
+  );
+}
+
+/** 校验 package.json 的 name / description / author / repository */
+function checkPackageJson(issues: BrandIssue[], brand: BrandSource): void {
+  const raw = readIfExists('package.json');
+  if (raw === null) {
+    issues.push({ file: 'package.json', detail: '文件不存在' });
+    return;
+  }
+  const pkg = JSON.parse(raw) as Record<string, unknown>;
+  if (pkg['name'] !== brand.executableName) {
+    issues.push({
+      file: 'package.json',
+      detail: `name 应为 "${brand.executableName}"，实际 "${String(pkg['name'])}"`,
+    });
+  }
+  if (pkg['description'] !== brand.description) {
+    issues.push({
+      file: 'package.json',
+      detail: `description 应为 "${brand.description}"，实际 "${String(pkg['description'])}"`,
+    });
+  }
+  if (pkg['author'] !== brand.author) {
+    issues.push({
+      file: 'package.json',
+      detail: `author 应为 "${brand.author}"，实际 "${String(pkg['author'])}"`,
+    });
+  }
+  // repository 是 electron-builder 解析 GitHub provider 的兜底来源之一；缺失会让打包产物
+  // 不生成 app-update.yml（自动更新在打包版直接失效，且构建日志无报错）
+  const repository = pkg['repository'] as { url?: unknown } | undefined;
+  const expectedUrl = `https://github.com/${brand.repo.owner}/${brand.repo.name}.git`;
+  if (repository?.url !== expectedUrl) {
+    issues.push({
+      file: 'package.json',
+      detail: `repository.url 应为 "${expectedUrl}"，实际 "${String(repository?.url)}"`,
+    });
+  }
+}
+
+/** 校验 index.html 标题与首帧主题脚本里的存储键 */
+function checkIndexHtml(issues: BrandIssue[], brand: BrandSource): void {
+  const file = 'src/renderer/index.html';
+  const text = readIfExists(file);
+  expectContains(issues, file, text, `<title>${brand.productName}</title>`, 'title');
+  expectContains(
+    issues,
+    file,
+    text,
+    `localStorage.getItem('${brand.storagePrefix}:theme')`,
+    '首帧主题存储键',
+  );
+}
+
+/** 校验 dev-app-update.yml 的仓库坐标 */
+function checkDevAppUpdate(issues: BrandIssue[], brand: BrandSource): void {
+  const file = 'dev-app-update.yml';
+  const text = readIfExists(file);
+  expectContains(issues, file, text, `owner: ${brand.repo.owner}`, 'repo.owner');
+  expectContains(issues, file, text, `repo: ${brand.repo.name}`, 'repo.name');
+}
+
+/**
+ * 校验运行时脚本与 GitHub 自动化里没有写死本仓库坐标与产物名
+ *
+ * workflow 与 CI 脚本通过「Use this template」/ fork 分发后不再改写；任何写死的
+ * `owner/repo` 都会让派生项目去操作上游仓库（issue-metrics 会静默统计错仓库），
+ * 写死的产物名前缀则让资产断言在派生项目首次发布时全部失败。
+ * 两者都必须走运行时上下文（`${{ github.repository }}` / GITHUB_REPOSITORY /
+ * app.config.json），本检查防止回潮。
+ */
+function checkRuntimeCoords(issues: BrandIssue[], brand: BrandSource): void {
+  const repoSlug = `${brand.repo.owner}/${brand.repo.name}`;
+  for (const file of collectRuntimeFiles()) {
+    const text = readIfExists(file);
+    if (text === null) {
+      continue;
+    }
+    if (text.includes(repoSlug)) {
+      issues.push({
+        file,
+        detail: `写死了仓库坐标 "${repoSlug}"；改用 \${{ github.repository }} / GITHUB_REPOSITORY / resolveRepoSlug()`,
+      });
+    }
+    if (text.includes(brand.artifactBaseName)) {
+      issues.push({
+        file,
+        detail: `写死了产物前缀 "${brand.artifactBaseName}"；改从 ${BRAND_SOURCE} 读取`,
+      });
+    }
+  }
+}
+
+/** 需要扫描的运行时文件（workflow + 非测试脚本；测试里的固定桩不受品牌真源约束） */
+function collectRuntimeFiles(): string[] {
+  const files: string[] = [];
+  const workflows = join(ROOT, '.github', 'workflows');
+  if (existsSync(workflows)) {
+    for (const name of readdirSync(workflows)) {
+      if (/\.ya?ml$/.test(name)) {
+        files.push(`.github/workflows/${name}`);
+      }
+    }
+  }
+  const scripts = join(ROOT, 'scripts');
+  if (existsSync(scripts)) {
+    for (const name of readdirSync(scripts)) {
+      if (/\.ts$/.test(name) && !/\.test\.ts$/.test(name)) {
+        files.push(`scripts/${name}`);
+      }
+    }
+  }
+  return files;
+}
+
+/** 主流程 */
+function main(): void {
+  const brand = readBrandSource() as BrandSource;
+  const issues: BrandIssue[] = [];
+
+  const expected = renderBrandModule(brand);
+  const actual = readIfExists(BRAND_OUTPUT);
+  if (actual !== expected) {
+    issues.push({
+      file: BRAND_OUTPUT,
+      detail: `生成物与 ${BRAND_SOURCE} 不同步，执行 pnpm brand:sync 重新生成`,
+    });
+  }
+
+  checkElectronBuilder(issues, brand);
+  checkPackageJson(issues, brand);
+  checkIndexHtml(issues, brand);
+  checkDevAppUpdate(issues, brand);
+  checkRuntimeCoords(issues, brand);
+  if (issues.length === 0) {
+    console.log(`[check-brand] ✅ 品牌一致（${BRAND_SOURCE}）`);
+    return;
+  }
+
+  console.error(`[check-brand] ❌ 发现 ${issues.length} 处品牌漂移（真源 ${BRAND_SOURCE}）：`);
+  for (const issue of issues) {
+    console.error(`  - ${issue.file}: ${issue.detail}`);
+  }
+  process.exit(1);
+}
+
+main();

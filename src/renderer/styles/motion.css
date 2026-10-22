@@ -1,0 +1,75 @@
+/* motion.css：全局动画与降级
+ * 只保留仍在消费的规则：异步刷新进度条、命令面板开合、脉冲、终端光标闪烁。
+ * 消息入场 / 跳转导航 / 工具卡 / 推理块 / 文件查看器等业务动画已随业务剥离移除。 */
+
+/* ── 异步刷新进度条（AsyncBoundary refreshing 态） ── */
+.async-refreshing-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: var(--z-surface);
+}
+
+.async-refreshing-bar::before {
+  content: "";
+  display: block;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: refreshing-slide 1.2s var(--ease-soft) infinite;
+}
+
+@keyframes refreshing-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+/* ── 命令面板开合（palette.css 消费） ── */
+@keyframes fadein {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalin {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── 柔和脉冲（base.css 的 .animate-pulse-soft 消费） ── */
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* ── 无障碍：用户偏好减少动效时统一停用 ── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-soft,
+  .async-refreshing-bar::before,
+  .palette-overlay,
+  .palette {
+    animation: none;
+  }
+}

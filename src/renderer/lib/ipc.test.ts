@@ -1,0 +1,29 @@
+import { describe, expect, it } from 'vitest';
+
+import { unwrap } from './ipc';
+
+describe('unwrap', () => {
+  it('成功响应：返回 data', () => {
+    const result = unwrap<{ value: number }>({ data: { value: 42 } });
+    expect(result).toEqual({ value: 42 });
+  });
+
+  it('错误响应：抛 Error 且格式为 [CODE] message', () => {
+    expect(() => unwrap({ error: { code: 'INTERNAL_ERROR', message: '超时' } })).toThrow(
+      '[INTERNAL_ERROR] 超时',
+    );
+  });
+
+  it('data 为 falsy 值（0/空串）仍正常返回', () => {
+    expect(unwrap({ data: 0 })).toBe(0);
+    expect(unwrap({ data: '' })).toBe('');
+  });
+
+  it('既无 data 也无 error（协议异常）：抛 INVALID_RESPONSE', () => {
+    expect(() => unwrap({} as never)).toThrow('[INVALID_RESPONSE]');
+  });
+
+  it('data 为 undefined（协议异常）：抛 INVALID_RESPONSE', () => {
+    expect(() => unwrap({ data: undefined } as never)).toThrow('[INVALID_RESPONSE]');
+  });
+});

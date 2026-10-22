@@ -1,0 +1,36 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [
+        "src/renderer/index.html",
+        "src/renderer/dev/mock-api.ts",
+        "src/renderer/test/setup.ts",
+        "src/renderer/test/setup-lang.ts",
+        "src/**/*.test.{ts,tsx}",
+        "tests/**/*.test.{ts,tsx}",
+        "**/vitest.config.ts",
+        "scripts/**/*.ts",
+        "e2e/**/*.ts",
+        "*.config.{js,ts}",
+        ".husky/pre-commit",
+        ".husky/pre-push"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}",
+        "src/**/*.css",
+        "scripts/**/*.ts",
+        "e2e/**/*.ts",
+        "*.{ts,js}"
+      ],
+      "paths": {
+        "@/*": ["src/renderer/*"]
+      }
+    }
+  },
+  "ignoreBinaries": ["gitleaks"],
+  "ignoreDependencies": ["@electron/rebuild", "tslib"],
+  "ignoreIssues": {
+    "src/renderer/components/ui/**": ["exports"]
+  }
+}

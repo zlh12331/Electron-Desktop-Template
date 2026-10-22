@@ -1,0 +1,30 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Asia/Shanghai",
+  "schedule": ["every weekend"],
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 3,
+  "semanticCommits": "enabled",
+  "minimumReleaseAge": "1 day",
+  "packageRules": [
+    {
+      "description": "非 major 更新归一组，减少 PR 数量",
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "all non-major dependencies",
+      "groupSlug": "all-minor-patch"
+    },
+    {
+      "description": "electron major 需人工评审（主框架升级影响面大）",
+      "matchPackageNames": ["electron"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "react-query 与 devtools 对等口径：双包必须同 PR 同版本升级（devtools peer 绑定 react-query 主版本，错峰单独升级会破坏 peer 约束）",
+      "matchPackageNames": ["@tanstack/react-query", "@tanstack/react-query-devtools"],
+      "groupName": "tanstack react-query pair",
+      "groupSlug": "tanstack-react-query-pair"
+    }
+  ]
+}

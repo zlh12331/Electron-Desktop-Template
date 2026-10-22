@@ -1,0 +1,43 @@
+# 每周 Issue + Discussions 运营指标统计（github/issue-metrics 官方 action）
+# 输出到本 run 的 Job Summary（起步期不建看板）：
+#   - Issue：存量 / 首次响应时长 / 需要回复的 issue
+#   - Discussions：存量 / Time to Answer（Q&A 版块的回答时长）
+# 兼作 39 号 spec 观察期的定期回顾锚点（每周产出，人工查看）
+# 权限：issues: read（只读统计）
+#
+# Discussions 支持（2026-10-07 补）：官方 action 原生支持 type:discussions 查询
+# （含 Time to Answer 指标，适配 Q&A 版块）；LABELS_TO_MEASURE 与 discussions
+# 暂不兼容（本 workflow 未使用该配置，无影响）。两个 job 并行，各自查询互不干扰。
+
+name: Issue Metrics
+
+on:
+  schedule:
+    - cron: "23 2 * * 1" # 每周一 02:23 UTC（避开整点）
+  workflow_dispatch:
+
+permissions:
+  issues: read
+  pull-requests: read
+
+jobs:
+  issues:
+    name: Issues metrics
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # SHA 对应 github/issue-metrics v5.0.3（671528652402b9b8a33da44b5c693b3161bc090f）
+      - uses: github/issue-metrics@671528652402b9b8a33da44b5c693b3161bc090f
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SEARCH_QUERY: "repo:${{ github.repository }} is:issue state:open"
+
+  discussions:
+    name: Discussions metrics
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: github/issue-metrics@671528652402b9b8a33da44b5c693b3161bc090f
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SEARCH_QUERY: "repo:${{ github.repository }} type:discussions state:open"
