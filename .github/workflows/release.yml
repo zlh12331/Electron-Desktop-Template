@@ -210,6 +210,11 @@ jobs:
           ORIG_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           ORIG_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Sentry：DSN 构建期注入（运行时仍可被环境变量覆盖）；上传凭据缺失时脚本显式跳过
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
         run: |
           if [ -n "${ORIG_CSC_LINK:-}" ]; then
             export CSC_LINK="$ORIG_CSC_LINK"
@@ -231,6 +236,15 @@ jobs:
           export CSC_IDENTITY_AUTO_DISCOVERY=false
           ${{ matrix.build-cmd }}
 
+      # 原生调试符号（可选）：默认关闭；仓库变量 SENTRY_UPLOAD_DEBUG_FILES=1 时上传解包目录
+      - name: Upload native debug files (optional)
+        shell: bash
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_UPLOAD_DEBUG_FILES: ${{ vars.SENTRY_UPLOAD_DEBUG_FILES || '0' }}
+        run: pnpm sentry:debug-files
 
       # 打包后产物断言，任一失败即发版失败：原生模块架构 / smoke 启动
       - name: Verify native module architecture
