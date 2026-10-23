@@ -1,6 +1,7 @@
 # CI/CD 流水线（六平台质量验证 + 产物验证分层）
 
 > 状态：**现行流水线说明 + 2026-09 重构记录**。文中 `v1.3.x` 版本号与实跑数据是当时的证据；当前模板仓库为 `0.1.0` 基线、尚未发版，版本与发版口径以 [RELEASING.md](../../RELEASING.md) 为准。
+> 必需检查现为 **6 项**（2026-09 的 5 项 + 2026-10-09 新增的 `Lint PR Title`）；文中 §3.3 / §10 的「5 项」是当时记录。
 > 阅读提示：改 CI 先看 §3（目标架构）与 §5（关键设计决策）；「第 2 节」是改前基线、「第 10 节」是落地记录与实跑结果。
 > 关联：[27-auto-update-spec.md](../history/27-auto-update-spec.md)（更新机制与发布资产）、[RELEASING.md](../../RELEASING.md)（发版 runbook）、[template-acceptance.md](template-acceptance.md)（模板底座验收）
 

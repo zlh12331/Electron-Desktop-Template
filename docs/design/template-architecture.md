@@ -163,7 +163,7 @@ src/main/utils/wrap.ts            # sender 校验 + zod 双向校验 + traceId
 - **CI on PR, CD on main**：`ci.yml` 由 `pull_request` 与 `merge_group` 触发；`release.yml` 只处理发版
 - **必需检查用 summary job 暴露稳定名**：平台 label 换代只改 workflow，不改云端 ruleset；summary job 必须 `if: always()`（被跳过的必需检查 = 永不 report = PR 永久卡 pending）
 - **发版三护栏**：合并纪律（CD 全绿才人工合并）/ 锚点检查（tag ↔ Release PR ↔ 待合并版本三态自洽）/ 内容边界（Release PR 只允许版本号 + CHANGELOG）
-- **打包验证只在 CD**：`ci.yml` 不做三平台打包（与 `release.yml` 完全重复）；动打包链路的 PR 合并前本地跑 `pnpm build:win:x64` → `check:native-arch` → `pnpm test:smoke`
+- **打包验证只在 CD**：`ci.yml` 不做六架构打包（与 `release.yml` 完全重复）；动打包链路的 PR 合并前本地跑 `pnpm build:win:x64` → `check:native-arch` → `pnpm test:smoke`
 
 ---
 

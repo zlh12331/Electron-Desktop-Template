@@ -6,7 +6,7 @@
 
 | 领域 | 选型 | 说明 |
 |---|---|---|
-| 桌面容器 | Electron 44 | 主进程 Node 侧 + Chromium 渲染侧；三平台打包 |
+| 桌面容器 | Electron 44 | 主进程 Node 侧 + Chromium 渲染侧；三平台 × x64/arm64 打包 |
 | 渲染框架 | React 19 + React Compiler | 编译器经 `oxc-transform-react` 生效（`check:compiler` 断言产物痕迹） |
 | 构建 | electron-vite（Vite 8） | main / preload / renderer 三目标；preload 强制 CJS |
 | 语言 | TypeScript 7（严格模式） | `exactOptionalPropertyTypes` / `noUncheckedIndexedAccess` / `isolatedDeclarations` |
@@ -19,7 +19,7 @@
 |---|---|---|
 | 数据库 | better-sqlite3 + drizzle-orm | 同步 API；schema 单一真源，迁移由 drizzle-kit 派生 |
 | 日志 | electron-log | 落本地文件，traceId 贯穿；渲染层经 IPC 转发 |
-| 更新 | electron-updater | GitHub provider；三平台产物元数据由 release.yml 生成 |
+| 更新 | electron-updater | GitHub provider；六架构产物元数据由 release.yml 生成（Windows/macOS 各双架构合并） |
 | 遥测 | OpenTelemetry（OTLP/HTTP） | 未配置 endpoint 即不外发 |
 | 网络 | undici | 统一 fetch 实现，代理配置注入（`infra/network/proxied-fetch`） |
 | 压缩 | adm-zip | 诊断包导出 |

@@ -81,9 +81,9 @@ channels.ts / payloads.ts / api.ts（派生常量与类型）
 
 ## 8. 构建与发布
 
-- `electron-vite` 构建三份产物（main / preload / renderer），`electron-builder` 打三平台包。
+- `electron-vite` 构建三份产物（main / preload / renderer），`electron-builder` 打三平台 × x64/arm64 包（六架构）。
 - 品牌与身份真源：`app.config.json` → `pnpm brand:sync` 生成 `packages/shared/src/constants/brand.ts`，`check:brand` 校验构建配置漂移。
-- CI：PR 跑 typecheck / lint / 单测 / 集成 / E2E；CD 在 main 上三平台矩阵构建，全绿后打 tag 发布。
+- CI：PR 跑 typecheck / lint / 单测 / 集成 / E2E；CD 在 main 上六架构矩阵构建，全绿后打 tag 发布。
 - 版本与 CHANGELOG 由 release-please 接管（Conventional Commits + squash 合并）。
 
 ## 9. 已知取舍

@@ -6,11 +6,11 @@
 
 ```
 .
-├── .github/workflows/        # CI（PR 门禁）与 CD（三平台构建 + 发布）
+├── .github/workflows/        # CI（PR 门禁）与 CD（六架构构建 + 发布）
 ├── app.config.json           # 品牌与身份单一真源（改这里 → pnpm brand:sync）
 ├── docs/
 │   ├── design/               # 设计规范（长期有效）
-│   ├── guides/               # 操作指南（CI/CD、开源运维）
+│   ├── guides/               # 操作指南（CI/CD、派生验收、开源运维）
 │   └── history/              # 实施记录（一次性归档）
 ├── drizzle/                  # 数据库迁移（schema.ts 派生产物，禁止手写）
 ├── e2e/                      # Playwright：浏览器模式 / Electron / 生产 smoke
@@ -26,7 +26,7 @@
 ├── tests/integration/        # 集成测试（真实 SQLite + 临时 userData）
 ├── tools/                    # 独立 TS 子包：depcruise / typedoc
 ├── biome.json                # lint + format
-├── electron-builder.yml      # 打包（三平台）
+├── electron-builder.yml      # 打包（三平台 × x64/arm64）
 ├── electron.vite.config.ts   # 构建
 ├── knip.json                 # 死代码 / 死依赖
 ├── pnpm-workspace.yaml       # workspace + 构建脚本决策
