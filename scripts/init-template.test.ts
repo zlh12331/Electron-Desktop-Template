@@ -272,8 +272,16 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
     // bootstrap-sha 锚定模板仓自己的基线提交，派生项目里不存在，必须被清掉
     const releaseConfig = JSON.parse(
       readFileSync(join(dir, 'release-please-config.json'), 'utf8'),
-    ) as { packages: Record<string, Record<string, unknown>> };
-    expect(releaseConfig.packages['.']).not.toHaveProperty('bootstrap-sha');
+    ) as Record<string, unknown>;
+    expect(releaseConfig).not.toHaveProperty('bootstrap-sha');
+  });
+
+  it('模板配置的 bootstrap-sha 位于顶层（release-please 只读取顶层键）', () => {
+    const config = JSON.parse(
+      readFileSync(join(REPO_ROOT, 'release-please-config.json'), 'utf8'),
+    ) as Record<string, unknown> & { packages: Record<string, Record<string, unknown>> };
+    expect(typeof config['bootstrap-sha']).toBe('string');
+    expect(config.packages['.']).not.toHaveProperty('bootstrap-sha');
   });
 
   it('幂等：CHANGELOG 骨架重复执行不再变化', () => {

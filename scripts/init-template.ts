@@ -461,16 +461,12 @@ function resetReleaseState(root: string, dryRun: boolean): RewriteResult[] {
     dryRun,
   );
   // bootstrap-sha 锚定的是模板仓自己的基线提交——派生项目里该 SHA 不存在，
-  // 留着会让 release-please 无法定位历史起点，必须一并清掉
+  // 留着会让 release-please 无法定位历史起点，必须一并清掉（只读顶层键）
   const releaseConfig = rewriteJson(
     root,
     'release-please-config.json',
     (value) => {
-      const packages = value['packages'] as Record<string, Record<string, unknown>> | undefined;
-      const rootPackage = packages?.['.'];
-      if (rootPackage !== undefined) {
-        delete rootPackage['bootstrap-sha'];
-      }
+      delete value['bootstrap-sha'];
     },
     dryRun,
   );
