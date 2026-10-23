@@ -6,7 +6,7 @@ import { type IpcRendererEvent, ipcRenderer } from 'electron';
  *
  * 自动生成 traceId 并作为第三个参数传入主进程。
  * 主进程 wrap() 会优先使用渲染层传入的 traceId，否则自动生成
- * （见 src/main/utils/wrap.ts §4.7 traceId 贯穿）。
+ * （见 src/main/ipc/wrap.ts §4.7 traceId 贯穿）。
  *
  * traceId 贯穿链路：渲染层 → IPC → 主进程日志，
  * 用于关联一次完整请求的所有日志和错误堆栈，便于排查问题。

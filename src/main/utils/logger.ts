@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { app } from 'electron';
 import log from 'electron-log';
+import { flushTelemetryOnFatal } from './telemetry-flush';
 
 // 测试环境日志改写进系统临时目录，避免污染 userData / 触发打包路径断言
 const IS_TEST_ENV = process.env['VITEST'] !== undefined || process.env['NODE_ENV'] === 'test';
@@ -43,26 +44,53 @@ export interface Logger {
   debug(context: LogContext, message: string): void;
 }
 
+/** 日志级别（与 electron-log 对齐） */
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+/**
+ * 日志旁路 sink：telemetry 层注册后把日志导出到 OTel
+ *
+ * 放在 utils 侧反转依赖方向——logger 不认识 telemetry，infra/telemetry 依赖 logger。
+ */
+export type LogSink = (
+  level: LogLevel,
+  context: LogContext,
+  message: string,
+  error?: unknown,
+) => void;
+
+let logSink: LogSink | null = null;
+
+/** 注册/注销日志旁路（OTel 初始化时注册；未注册时日志只落 electron-log） */
+export function setLogSink(sink: LogSink | null): void {
+  logSink = sink;
+}
+
 /** 全局唯一 logger 实例（自定义包装而非直接暴露 electron-log：收口格式与错误序列化） */
 export const logger: Logger = {
   info(context: LogContext, message: string): void {
     log.info({ ...context, message });
+    logSink?.('info', context, message);
   },
 
   warn(context: LogContext, message: string): void {
     log.warn({ ...context, message });
+    logSink?.('warn', context, message);
   },
 
   error(context: LogContext, message: string, error?: unknown): void {
     if (error !== undefined) {
       log.error({ ...context, message, error: serializeError(error) });
+      logSink?.('error', context, message, error);
     } else {
       log.error({ ...context, message });
+      logSink?.('error', context, message);
     }
   },
 
   debug(context: LogContext, message: string): void {
     log.debug({ ...context, message });
+    logSink?.('debug', context, message);
   },
 };
 
@@ -116,13 +144,19 @@ export function registerGlobalErrorHandlers(): void {
     fatalErrorHandled = true;
     logger.error({}, '全局未捕获异常 uncaughtException', error);
     writeCrashMarker(error);
-    setTimeout(() => {
+    // Sentry 的 onUncaughtException 集成已同步发起捕获，这里等它把事件发出去再退出；
+    // 未启用 Sentry 时 300ms 快速退出，启用时给 1.5s flush + 2s 硬上限（遥测不能挂死进程）
+    const flush = flushTelemetryOnFatal(1_500);
+    const exit = (): void => {
       app.exit(1);
-    }, 300).unref();
-    const forceExit = setTimeout(() => {
-      app.exit(1);
-    }, 3_000);
-    forceExit.unref();
+    };
+    if (flush === null) {
+      setTimeout(exit, 300).unref();
+    } else {
+      void flush.then(exit, exit);
+      const forceExit = setTimeout(exit, 2_000);
+      forceExit.unref();
+    }
   });
 
   process.on('unhandledRejection', (reason: unknown) => {

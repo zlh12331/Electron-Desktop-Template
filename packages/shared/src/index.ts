@@ -24,6 +24,7 @@ export * from './schemas/dialog';
 export * from './schemas/invalidation';
 export * from './schemas/settings';
 export * from './schemas/system';
+export * from './schemas/telemetry';
 export * from './schemas/update';
 
 /**

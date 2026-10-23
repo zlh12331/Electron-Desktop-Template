@@ -4,7 +4,7 @@ import { t } from '../infra/i18n';
 import { proxiedFetch, setProxyFetchConfig } from '../infra/network/proxied-fetch';
 import { parseProxyConfig } from '../infra/network/proxy-resolver';
 import { readSetting } from '../infra/storage/settings-pref';
-import type { IpcHandlerContext } from '../utils/wrap';
+import type { IpcHandlerContext } from './wrap';
 
 // 探针 3 秒超时：测试交互不等慢代理；目标默认 gstatic 204 探针（轻量、全球可达、无业务含义）
 const PROBE_TIMEOUT_MS = 3_000;

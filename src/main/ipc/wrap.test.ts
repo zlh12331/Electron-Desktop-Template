@@ -7,7 +7,7 @@ const { mockFromWebContents, mockIpcMainHandle, mockReportError } = vi.hoisted((
   mockReportError: vi.fn(),
 }));
 
-vi.mock('./error-report', () => ({
+vi.mock('../utils/error-report', () => ({
   reportError: mockReportError,
 }));
 
@@ -21,13 +21,22 @@ vi.mock('electron', () => ({
   },
 }));
 
-vi.mock('./logger', () => ({
+vi.mock('../utils/logger', () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
     debug: vi.fn(),
   },
+}));
+
+vi.mock('../infra/telemetry/otel', () => ({
+  withSpan: async (_name: string, _attributes: unknown, fn: (span: unknown) => Promise<unknown>) =>
+    fn({}),
+}));
+
+vi.mock('../infra/telemetry/otel-metrics', () => ({
+  recordIpcRequest: vi.fn(),
 }));
 
 import { AppError, ErrorCode } from '@code-agent/shared/main';

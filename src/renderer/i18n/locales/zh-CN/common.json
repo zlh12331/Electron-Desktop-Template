@@ -86,7 +86,7 @@
     "title": "设置",
     "desc": "管理 API Key 等敏感数据。主进程通过系统钥匙串加密存储，重启后依然可用。",
     "telemetry": "遥测（OpenTelemetry）",
-    "telemetryHint": "控制 OpenTelemetry 遥测数据是否导出到自配的 OTLP 端点（默认未配置即不上报）。修改后需重启应用生效。",
+    "telemetryHint": "控制错误上报（Sentry，需配置 DSN）与链路/指标/日志导出（OpenTelemetry，需配置 OTLP 端点）。两者默认均不发送；修改后需重启应用生效。",
     "telOff": "关闭",
     "telOffDesc": "不上报",
     "telErrorOnly": "仅错误",

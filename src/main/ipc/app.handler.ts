@@ -17,7 +17,7 @@ import {
 } from '../infra/autostart/autostart';
 import { t } from '../infra/i18n';
 import { logger } from '../utils/logger';
-import type { IpcHandlerContext } from '../utils/wrap';
+import type { IpcHandlerContext } from './wrap';
 
 // 构建信息从打包时注入的 build-info.json 读（CI 产物）；读不到按 dev 兜底
 interface BuildInfo {

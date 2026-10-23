@@ -2,7 +2,7 @@
 import type { InferHandlers, IPC_DEFINITIONS, UpdateCacheInfo } from '@code-agent/shared/main';
 
 import type { IUpdateService } from '../infra/update/update-service';
-import type { IpcHandlerContext } from '../utils/wrap';
+import type { IpcHandlerContext } from './wrap';
 
 /** 缓存读写经 deps 注入（依赖 process.resourcesPath，便于测试替换） */
 export interface UpdateHandlerDeps {

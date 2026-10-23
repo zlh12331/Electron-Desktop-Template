@@ -13,8 +13,8 @@ import { readTelemetryLevelSync, writeTelemetryLevel } from '../infra/storage/te
 import { broadcastSettingChanged } from '../main-events';
 import { readJsonImportFile } from '../utils/json-file';
 import { logger } from '../utils/logger';
-import type { IpcHandlerContext } from '../utils/wrap';
 import { syncTitleBarOverlayFromTheme } from '../window-theme';
+import type { IpcHandlerContext } from './wrap';
 
 /** settings 域 handler（模板版：无 API Key / 运行时模型 / 审批模式等业务项） */
 export const settingsHandlers: InferHandlers<

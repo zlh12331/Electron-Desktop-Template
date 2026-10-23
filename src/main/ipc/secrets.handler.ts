@@ -8,7 +8,7 @@ import {
   maskSecret,
   setSecret,
 } from '../infra/storage/keychain';
-import type { IpcHandlerContext } from '../utils/wrap';
+import type { IpcHandlerContext } from './wrap';
 
 export const secretsHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContext>['secrets'] =
   {

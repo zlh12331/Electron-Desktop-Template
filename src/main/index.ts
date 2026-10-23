@@ -18,6 +18,12 @@ import { EventLoopLagMonitor } from './infra/telemetry/event-loop-lag';
 import { reportEventLoopLag } from './infra/telemetry/lag-alert';
 import { startMemoryMonitor } from './infra/telemetry/memory-monitor';
 import { initTelemetry, shutdownTelemetry } from './infra/telemetry/otel';
+import {
+  recordEventLoopDelay,
+  recordMemoryGrowth,
+  recordStartupPhase,
+} from './infra/telemetry/otel-metrics';
+import { closeSentry, initSentry } from './infra/telemetry/sentry';
 import { clearUpdateCache, readUpdateCacheInfo } from './infra/update/update-cache';
 import { appHandlers } from './ipc/app.handler';
 import { backupHandlers } from './ipc/backup.handler';
@@ -28,6 +34,7 @@ import { registerIpcHandlers } from './ipc/register';
 import { secretsHandlers } from './ipc/secrets.handler';
 import { settingsHandlers } from './ipc/settings.handler';
 import { logsHandlers, systemHandlers } from './ipc/system.handler';
+import { telemetryHandlers } from './ipc/telemetry.handler';
 import { createUpdateHandlers } from './ipc/update.handler';
 import { createWindowHandlers } from './ipc/window.handler';
 import { broadcastLoginItemChanged, broadcastSettingChanged } from './main-events';
@@ -75,6 +82,24 @@ if (!gotTheLock) {
 }
 
 registerDeepLinkProtocol();
+
+// 主进程模块求值即启动计时起点：包含 Sentry 初始化与等待 app ready 的时间
+// （SLO 口径见 docs/observability/README.md 的 app.startup.duration）
+const startupStartedAt = performance.now();
+
+// ───── 遥测前置：Sentry 必须在 app ready 前完成初始化（原生崩溃/早期异常才收得到）─────
+// 遥测级别只读一次（userData 已在 dev 重定向之后确定）；off 时 initSentry 完整 no-op
+const startupTelemetryLevel = readTelemetryLevelSync();
+const sentryInit = gotTheLock
+  ? initSentry(startupTelemetryLevel)
+  : {
+      enabled: false,
+      initialized: false,
+      reason: 'telemetry-off' as const,
+      release: null,
+      environment: null,
+    };
+
 // 冷启动深链暂存：窗口未创建时收到 open-url / argv 深链，等启动序列建窗后补广播
 let coldLaunchDeepLink: string | null = null;
 app.on('open-url', (event, url) => {
@@ -97,9 +122,16 @@ app
       return;
     }
     initLogger();
-    const otelTelemetryLevel = readTelemetryLevelSync();
-    if (otelTelemetryLevel !== 'off') {
-      initTelemetry();
+    if (sentryInit.enabled) {
+      logger.info(
+        { release: sentryInit.release, environment: sentryInit.environment },
+        'Sentry 已启用（错误聚合 / 原生崩溃 / 会话健康）',
+      );
+    } else {
+      logger.info({ reason: sentryInit.reason }, 'Sentry 未启用');
+    }
+    if (startupTelemetryLevel !== 'off') {
+      initTelemetry(startupTelemetryLevel);
     } else {
       logger.warn({}, '遥测已关闭（telemetry-pref.json: off），跳过 OpenTelemetry 初始化');
     }
@@ -117,6 +149,7 @@ app
       backup: backupHandlers,
       system: systemHandlers,
       logs: logsHandlers,
+      telemetry: telemetryHandlers,
       devtools: devtoolsHandlers,
       dialog: dialogHandlers,
       secrets: secretsHandlers,
@@ -146,9 +179,11 @@ app
     });
 
     logger.info({}, '应用启动');
+    recordStartupPhase('services', performance.now() - startupStartedAt);
 
     stopMemoryMonitor = startMemoryMonitor({
       onAlert: (report) => {
+        recordMemoryGrowth(report.growthMb, report.durationSec);
         reportMessage(
           `主进程内存疑似持续增长：${report.growthMb.toFixed(0)}MB / ${report.durationSec.toFixed(0)}s`,
           'warning',
@@ -161,7 +196,10 @@ app
     });
 
     lagMonitor = new EventLoopLagMonitor({
-      onLag: (sample) => reportEventLoopLag(sample, () => false),
+      onLag: (sample) => {
+        recordEventLoopDelay(sample.lagMs);
+        reportEventLoopLag(sample, () => false);
+      },
     });
     lagMonitor.start();
 
@@ -169,6 +207,7 @@ app
     coldLaunchDeepLink ??= extractProtocolUrl(process.argv);
 
     createWindow();
+    recordStartupPhase('window', performance.now() - startupStartedAt);
 
     createTray({
       getUpdateStatus: () => serviceContainer.getUpdateService().getStatus().snapshot,
@@ -255,6 +294,7 @@ app.on('before-quit', async (event) => {
     stopMemoryMonitor = null;
     await disposeServices();
     await shutdownTelemetry();
+    await closeSentry();
   } catch (err) {
     logger.error({ error: err }, '应用退出清理失败');
   }

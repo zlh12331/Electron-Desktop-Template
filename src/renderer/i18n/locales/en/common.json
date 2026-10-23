@@ -86,7 +86,7 @@
     "title": "Settings",
     "desc": "Manage sensitive data such as API Keys. The main process stores them encrypted via the OS keychain, available after restart.",
     "telemetry": "Telemetry (OpenTelemetry)",
-    "telemetryHint": "Controls whether OpenTelemetry data is exported to a self-configured OTLP endpoint (no reporting by default). Restart the app to apply changes.",
+    "telemetryHint": "Controls error reporting (Sentry, requires a DSN) and trace/metric/log export (OpenTelemetry, requires an OTLP endpoint). Both are disabled by default. Restart the app to apply changes.",
     "telOff": "Off",
     "telOffDesc": "No reports",
     "telErrorOnly": "Errors only",

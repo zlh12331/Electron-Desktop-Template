@@ -1,5 +1,5 @@
 // emit-event.ts：主进程 → 渲染层事件推送统一出口——webContents 销毁检查 + dev 环境契约抽样校验
-// 边界：请求-响应 IPC 不走这里（那是 utils/wrap.ts）；打包态校验零开销（只在 dev 生效）
+// 边界：请求-响应 IPC 不走这里（那是 ipc/wrap.ts）；打包态校验零开销（只在 dev 生效）
 import { app, type WebContents } from 'electron';
 import type { ZodType } from 'zod';
 import { logger } from './logger';

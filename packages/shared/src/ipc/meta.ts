@@ -102,6 +102,13 @@ export const IPC_META = {
     read: request('logs:read'),
   },
 
+  telemetry: {
+    // 渲染层错误转发：主进程统一落日志 + Sentry（无 IPC 桥的浏览器模式走本地 electron-log）
+    captureError: request('telemetry:captureError'),
+    // Web Vitals 批量上报：主进程转为 OTel histogram（遥测级别非 full 时丢弃）
+    reportWebVitals: request('telemetry:reportWebVitals'),
+  },
+
   devtools: {
     open: request('devtools:open'),
   },

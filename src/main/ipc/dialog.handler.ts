@@ -3,7 +3,7 @@ import type { InferHandlers, IPC_DEFINITIONS } from '@code-agent/shared/main';
 import { dialog } from 'electron';
 
 import { grantUserReadPaths } from '../infra/file/user-grants';
-import type { IpcHandlerContext } from '../utils/wrap';
+import type { IpcHandlerContext } from './wrap';
 
 export const dialogHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContext>['dialog'] = {
   pickDirectory: async () => {

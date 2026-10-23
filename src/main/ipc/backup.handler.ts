@@ -4,7 +4,7 @@ import { app } from 'electron';
 import { listBackups, stageRestore } from '../infra/storage/backup-store';
 import { createManualBackup, getDbPath } from '../infra/storage/db';
 import { logger } from '../utils/logger';
-import type { IpcHandlerContext } from '../utils/wrap';
+import type { IpcHandlerContext } from './wrap';
 
 /** 备份域 handler（无业务依赖：模板版没有「运行中回合」前置校验） */
 export const backupHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContext>['backup'] = {

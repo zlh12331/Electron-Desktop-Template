@@ -29,7 +29,7 @@
     }
   },
   "ignoreBinaries": ["gitleaks", "reg.exe"],
-  "ignoreDependencies": ["@electron/rebuild", "tslib"],
+  "ignoreDependencies": ["@electron/rebuild", "@sentry/cli", "tslib"],
   "ignoreIssues": {
     "src/renderer/components/ui/**": ["exports"]
   }

@@ -26,6 +26,10 @@ function createEmptyApi(): MockApi {
     dialog: {},
     devtools: {},
     logs: {},
+    telemetry: {
+      captureError: async () => ({ data: { accepted: true } }),
+      reportWebVitals: async () => ({ data: { accepted: 0 } }),
+    },
     backup: {},
     proxy: {},
     invalidation: {

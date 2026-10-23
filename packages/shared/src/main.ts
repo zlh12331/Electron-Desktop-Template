@@ -31,5 +31,6 @@ export * from './schemas/proxy';
 export * from './schemas/secrets';
 export * from './schemas/settings';
 export * from './schemas/system';
+export * from './schemas/telemetry';
 export * from './schemas/update';
 export * from './schemas/window';

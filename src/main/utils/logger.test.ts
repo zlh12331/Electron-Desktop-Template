@@ -22,7 +22,13 @@ vi.mock('electron', () => ({
   app: { isPackaged: false, getPath: vi.fn(() => '/tmp/test-userdata') },
 }));
 
-import { flushPendingLogs, initLogger, logger, registerGlobalErrorHandlers } from './logger';
+import {
+  flushPendingLogs,
+  initLogger,
+  logger,
+  registerGlobalErrorHandlers,
+  setLogSink,
+} from './logger';
 
 describe('logger', () => {
   beforeEach(() => {
@@ -52,6 +58,19 @@ describe('logger', () => {
     const err = new Error('测试错误');
     logger.error({ traceId: 't1' }, '操作失败', err);
     expect(mockLog.error).toHaveBeenCalled();
+  });
+
+  it('setLogSink：旁路收到级别/上下文/正文/原始错误，注销后不再回调', () => {
+    const sink = vi.fn();
+    setLogSink(sink);
+    logger.info({ traceId: 't1' }, 'hello');
+    const error = new Error('boom');
+    logger.error({ traceId: 't2' }, 'failed', error);
+    expect(sink).toHaveBeenNthCalledWith(1, 'info', { traceId: 't1' }, 'hello');
+    expect(sink).toHaveBeenNthCalledWith(2, 'error', { traceId: 't2' }, 'failed', error);
+    setLogSink(null);
+    logger.warn({}, 'after');
+    expect(sink).toHaveBeenCalledTimes(2);
   });
 
   it('registerGlobalErrorHandlers 注册 process 事件', () => {

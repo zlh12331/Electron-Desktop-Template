@@ -31,6 +31,8 @@ allowBuilds:
   better-sqlite3: true
   electron: true
   esbuild: true
+  '@sentry/node-native-stacktrace': true
+  '@sentry/cli': true
   '@swc/core': false
   electron-winstaller: false
   msw: false

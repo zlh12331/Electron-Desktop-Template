@@ -3,8 +3,10 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
 import { initRendererErrorHandlers } from '@/lib/error-report';
+import { initWebVitals } from '@/lib/web-vitals';
 
 initRendererErrorHandlers();
+initWebVitals();
 
 if (import.meta.env.MODE === 'web') {
   const { installMockApi } = await import('@/dev/mock-api');

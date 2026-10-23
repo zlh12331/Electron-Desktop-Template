@@ -3,9 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import AdmZip from 'adm-zip';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { exportDiagnosticsPackage, redactSensitive } from './diagnostics';
+import { exportDiagnosticsPackage } from './diagnostics';
 import { closeDb, initDb, resetDb } from './infra/storage/db';
 import { writeSetting } from './infra/storage/settings-pref';
+import { redactSensitive } from './infra/telemetry/redact';
 
 const mocks = vi.hoisted(() => ({
   mockGetPath: vi.fn(() => '/tmp/diagnostics-default'),
@@ -23,6 +24,27 @@ vi.mock('electron', () => ({
 
 vi.mock('./utils/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}));
+
+vi.mock('./infra/telemetry/sentry', () => ({
+  getSentryStatus: () => ({
+    enabled: false,
+    initialized: false,
+    reason: 'no-dsn',
+    release: null,
+    environment: null,
+  }),
+}));
+
+vi.mock('./infra/telemetry/otel', () => ({
+  getTelemetryRuntimeStatus: () => ({
+    level: 'full',
+    enabled: false,
+    tracing: false,
+    metrics: false,
+    logs: false,
+    endpointConfigured: false,
+  }),
 }));
 
 let tempUserData: string;

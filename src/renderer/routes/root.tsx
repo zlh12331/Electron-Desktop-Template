@@ -1,10 +1,11 @@
-import type { ReactElement } from 'react';
+import { type ReactElement, useEffect, useRef } from 'react';
 import { isRouteErrorResponse, Outlet, useRouteError } from 'react-router';
 
 import { AppShell } from '@/components/layout/AppShell';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useTranslation } from '@/i18n/use-translation';
+import { reportError } from '@/lib/error-report';
 
 /**
  * 根布局组件
@@ -45,6 +46,17 @@ export function RootHydrateFallback(): ReactElement {
 export function RootErrorBoundary(): ReactElement {
   const { t } = useTranslation();
   const error = useRouteError();
+  const reportedError = useRef<unknown>(null);
+
+  // 路由层此前只渲染兜底、不上报（App/Section 边界与 window.onerror 都会上报）；
+  // ref 去重避免 StrictMode 双执行把同一错误转发两次
+  useEffect(() => {
+    if (reportedError.current === error) {
+      return;
+    }
+    reportedError.current = error;
+    reportError(error, { tags: { boundary: 'RootErrorBoundary' } });
+  }, [error]);
 
   if (isRouteErrorResponse(error)) {
     return (

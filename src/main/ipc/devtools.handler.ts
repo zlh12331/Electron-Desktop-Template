@@ -3,7 +3,7 @@ import type { InferHandlers, IPC_DEFINITIONS } from '@code-agent/shared/main';
 import { BrowserWindow } from 'electron';
 
 import { logger } from '../utils/logger';
-import type { IpcHandlerContext } from '../utils/wrap';
+import type { IpcHandlerContext } from './wrap';
 
 // 独立窗口模式默认（detach）：不挤占应用布局
 const DEFAULT_MODE: 'detach' | 'right' | 'bottom' = 'detach';
