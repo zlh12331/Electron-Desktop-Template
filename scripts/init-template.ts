@@ -460,7 +460,7 @@ function resetReleaseState(root: string, dryRun: boolean): RewriteResult[] {
     },
     dryRun,
   );
-  // bootstrap-sha 锚定的是模板仓自己的初始提交——派生项目里该 SHA 不存在，
+  // bootstrap-sha 锚定的是模板仓自己的基线提交——派生项目里该 SHA 不存在，
   // 留着会让 release-please 无法定位历史起点，必须一并清掉
   const releaseConfig = rewriteJson(
     root,
