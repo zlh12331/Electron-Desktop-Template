@@ -26,6 +26,7 @@ function copyToTemp(): string {
     'LICENSE',
     'CHANGELOG.md',
     '.release-please-manifest.json',
+    'release-please-config.json',
     '.github',
     'src/renderer/index.html',
     'src/renderer/i18n/locales',
@@ -267,6 +268,12 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
       readFileSync(join(dir, '.release-please-manifest.json'), 'utf8'),
     ) as Record<string, string>;
     expect(manifest['.']).toBe('0.1.0');
+
+    // bootstrap-sha 锚定模板仓自己的初始提交，派生项目里不存在，必须被清掉
+    const releaseConfig = JSON.parse(
+      readFileSync(join(dir, 'release-please-config.json'), 'utf8'),
+    ) as { packages: Record<string, Record<string, unknown>> };
+    expect(releaseConfig.packages['.']).not.toHaveProperty('bootstrap-sha');
   });
 
   it('幂等：CHANGELOG 骨架重复执行不再变化', () => {

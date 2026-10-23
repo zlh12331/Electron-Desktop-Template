@@ -92,7 +92,10 @@ export async function collectAnchorChecks(
     ...(options.fetchFn !== undefined ? { fetchFn: options.fetchFn } : {}),
   });
 
-  let lastReleased: string | null = version;
+  // 已发布版本的基线：只能由「已收尾（autorelease: tagged）的 Release PR」推定。
+  // 不能用 manifestVersion——Release PR 分支上的 manifest 已被 release-please 改成
+  // 待发布版本，拿它当基线等于「PR 版本 > 自己」，首次发版必然误报（2026-10-23 实测）。
+  let lastReleased: string | null = null;
 
   const results: CheckResult[] = [];
 
@@ -227,12 +230,46 @@ export async function collectAnchorChecks(
       const openVersionRaw = m ? m[1] : null;
       const openVersion = openVersionRaw && SEMVER_RE.test(openVersionRaw) ? openVersionRaw : null;
       if (openVersion) {
-        const cmp = compareVersions(openVersion, lastReleased ?? '');
-        results.push({
-          name: `待合并 Release PR #${open.number}（${openVersion}）> 已发布版本（${lastReleased}）`,
-          ok: cmp > 0,
-          detail: cmp > 0 ? '推导方向正确 ✓' : '版本未前进——锚点可能错乱，勿合并',
-        });
+        if (lastReleased === null) {
+          // 最近 30 个已合并 PR 里没有已收尾的 Release PR。两种情况必须区分：
+          // 仓库从未发过版（首次发版，无基线可比）vs 发过版但记录已滑出窗口（基线未知）。
+          // 用「是否已存在任何 tag」判定——有 tag 却推不出基线时必须 fail-closed。
+          let hasAnyTag = false;
+          let tagProbeFailed = false;
+          try {
+            const tags = (await client.getJson(`/repos/${repo}/tags?per_page=1`)) as unknown[];
+            hasAnyTag = Array.isArray(tags) && tags.length > 0;
+          } catch {
+            tagProbeFailed = true;
+          }
+          if (tagProbeFailed) {
+            results.push({
+              name: `待合并 Release PR #${open.number}（${openVersion}）版本方向`,
+              ok: false,
+              detail: '无法确认仓库是否已有发布（tag 查询失败）——fail-closed，请重跑',
+            });
+          } else if (!hasAnyTag) {
+            results.push({
+              name: `待合并 Release PR #${open.number}（${openVersion}）首次发版`,
+              ok: true,
+              detail: '仓库尚无任何 tag（首次发布，无回归基线）✓',
+            });
+          } else {
+            results.push({
+              name: `待合并 Release PR #${open.number}（${openVersion}）版本方向`,
+              ok: false,
+              detail:
+                '仓库已有 tag，但最近 30 个已合并 PR 中找不到已收尾的 Release PR——基线不可推定，请人工核验后按 RELEASING.md 处置',
+            });
+          }
+        } else {
+          const cmp = compareVersions(openVersion, lastReleased);
+          results.push({
+            name: `待合并 Release PR #${open.number}（${openVersion}）> 已发布版本（${lastReleased}）`,
+            ok: cmp > 0,
+            detail: cmp > 0 ? '推导方向正确 ✓' : '版本未前进——锚点可能错乱，勿合并',
+          });
+        }
       } else {
         results.push({
           name: `待合并 Release PR #${open.number}`,

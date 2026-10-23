@@ -200,6 +200,58 @@ describe('check-release-anchor pre-merge', () => {
     expect(findResult(results, '待合并 Release PR #102').ok).toBe(false);
   });
 
+  it('首次发版（无任何已收尾 PR + 无 tag）→ 版本方向不误报', async () => {
+    // 回归 2026-10-23：基线原取自 PR 分支的 manifest（已被 release-please 改成待发布版本），
+    // 等于拿 PR 版本和自己比，首个 Release PR 必然报「版本未前进」
+    const dir = makeManifestDir('0.2.0');
+    const results = await collectAnchorChecks({
+      repo: TEST_REPO,
+      argv: BASE_ARGS,
+      manifestPath: join(dir, 'manifest.json'),
+      fetchFn: stubFetch({
+        '/repos/zlh12331/superagent/pulls?state=closed': { body: [] },
+        '/repos/zlh12331/superagent/pulls?state=open': {
+          body: [ghPull(2, '0.2.0', { open: true })],
+        },
+        '/repos/zlh12331/superagent/tags?per_page=1': { body: [] },
+      }),
+    });
+    expect(findResult(results, '待合并 Release PR #2').ok).toBe(true);
+  });
+
+  it('已有 tag 但找不到已收尾 PR → fail-closed（基线不可推定）', async () => {
+    const dir = makeManifestDir('0.2.0');
+    const results = await collectAnchorChecks({
+      repo: TEST_REPO,
+      argv: BASE_ARGS,
+      manifestPath: join(dir, 'manifest.json'),
+      fetchFn: stubFetch({
+        '/repos/zlh12331/superagent/pulls?state=closed': { body: [] },
+        '/repos/zlh12331/superagent/pulls?state=open': {
+          body: [ghPull(2, '0.2.0', { open: true })],
+        },
+        '/repos/zlh12331/superagent/tags?per_page=1': { body: [ghRecord({ name: 'v0.1.0' })] },
+      }),
+    });
+    expect(findResult(results, '待合并 Release PR #2').ok).toBe(false);
+  });
+
+  it('tag 查询失败 → fail-closed，而不是当作首次发版放行', async () => {
+    const dir = makeManifestDir('0.2.0');
+    const results = await collectAnchorChecks({
+      repo: TEST_REPO,
+      argv: BASE_ARGS,
+      manifestPath: join(dir, 'manifest.json'),
+      fetchFn: stubFetch({
+        '/repos/zlh12331/superagent/pulls?state=closed': { body: [] },
+        '/repos/zlh12331/superagent/pulls?state=open': {
+          body: [ghPull(2, '0.2.0', { open: true })],
+        },
+      }),
+    });
+    expect(findResult(results, '待合并 Release PR #2').ok).toBe(false);
+  });
+
   it('版本缺失/不合法 → 抛错拒绝发起任何请求', async () => {
     const dir = makeManifestDir('not-a-semver');
     await expect(
