@@ -169,9 +169,9 @@ export async function runNsisLifecycle(options: NsisLifecycleOptions): Promise<v
       throw new Error(`安装后未找到可执行文件：${exe}`);
     }
 
-    // 安装器 runAfterFinish 在部分 NSIS 配置下会拉起应用；先结束它，避免单实例锁
-    // 让 Playwright 连到已在运行的实例。
-    killProcessByName(options.executableName);
+    // 安装器 runAfterFinish 在部分 NSIS 配置下会拉起应用；Windows 进程名取 productName，
+    // 不是 executableName。先结束它，避免单实例锁让 Playwright 连到已在运行的实例。
+    killProcessByName(options.productName);
     await verifyInstalledApp(exe, options.productName);
     await uninstallAndVerify(installDir, options.productName, options.workDir, protocolKey);
 
