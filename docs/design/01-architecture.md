@@ -85,6 +85,7 @@ channels.ts / payloads.ts / api.ts（派生常量与类型）
 - 品牌与身份真源：`app.config.json` → `pnpm brand:sync` 生成 `packages/shared/src/constants/brand.ts`，`check:brand` 校验构建配置漂移。
 - CI：PR 跑 typecheck / lint / 单测 / 集成 / E2E；CD 在 main 上六架构矩阵构建，全绿后打 tag 发布。
 - 版本与 CHANGELOG 由 release-please 接管（Conventional Commits + squash 合并）。
+- Windows 自定义协议由 NSIS 安装宏注册/卸载（electron-builder 的 `protocols` 仅 macOS）；协议值由 `init:template` 同步 `resources/installer.nsh`。
 
 ## 9. 已知取舍
 

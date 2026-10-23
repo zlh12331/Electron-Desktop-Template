@@ -342,6 +342,30 @@ function writeIndexHtml(
   ];
 }
 
+/**
+ * 改写 NSIS 安装器的协议定义
+ *
+ * electron-builder 的 `protocols` 只对 macOS 生效；Windows 协议由安装宏注册/卸载，
+ * 因此派生项目必须同步 installer.nsh 内的协议，不能只改 electron-builder.yml。
+ */
+function writeInstallerProtocol(root: string, input: InitInput, dryRun: boolean): RewriteResult {
+  const file = 'resources/installer.nsh';
+  const current = readIfExists(root, file);
+  if (current === null) {
+    return { file, changed: false };
+  }
+  if (!/^!define APP_PROTOCOL ".*"$/m.test(current)) {
+    throw new Error(`${file} 缺失 !define APP_PROTOCOL，无法同步 Windows 协议`);
+  }
+  return rewriteText(
+    root,
+    file,
+    (text) =>
+      text.replace(/^!define APP_PROTOCOL ".*"$/m, `!define APP_PROTOCOL "${input.protocol}"`),
+    dryRun,
+  );
+}
+
 /** 改写 i18n 文案里写死的旧产品名 */
 function writeLocales(root: string, input: InitInput, dryRun: boolean): RewriteResult[] {
   const files = [
@@ -519,6 +543,7 @@ export function runInitTemplate(
     writeElectronBuilder(root, input, previous, dryRun),
     writeDevAppUpdate(root, input, dryRun),
     ...writeIndexHtml(root, input, previous, dryRun),
+    writeInstallerProtocol(root, input, dryRun),
     ...writeLocales(root, input, dryRun),
     writeLicense(root, input, dryRun),
     writeCodeowners(root, input, previous, dryRun),

@@ -31,6 +31,7 @@ function copyToTemp(): string {
     '.github',
     'src/renderer/index.html',
     'src/main/security/csp.ts',
+    'resources/installer.nsh',
     'src/renderer/i18n/locales',
     'packages/shared/src/constants',
     'CONTRIBUTING.md',
@@ -140,12 +141,18 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
   }
 
   it('dry-run：报告将改动的文件但不落盘', () => {
-    const files = ['app.config.json', 'src/renderer/index.html', 'src/main/security/csp.ts'];
+    const files = [
+      'app.config.json',
+      'src/renderer/index.html',
+      'src/main/security/csp.ts',
+      'resources/installer.nsh',
+    ];
     const before = files.map((file) => readFileSync(join(dir, file), 'utf8'));
     const results = runIn(dir, true);
 
     expect(results.some((r) => r.changed)).toBe(true);
     expect(results).toContainEqual({ file: 'src/main/security/csp.ts', changed: true });
+    expect(results).toContainEqual({ file: 'resources/installer.nsh', changed: true });
     expect(files.map((file) => readFileSync(join(dir, file), 'utf8'))).toEqual(before);
   });
 
@@ -206,6 +213,10 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
     expect(builder).toContain('Acme-Notes-Linux-');
     expect(builder).toContain('        - acmenotes');
     expect(builder).not.toContain('Code-Agent-Desktop');
+
+    const installer = readFileSync(join(dir, 'resources/installer.nsh'), 'utf8');
+    expect(installer).toContain('!define APP_PROTOCOL "acmenotes"');
+    expect(installer).not.toContain('!define APP_PROTOCOL "electron-template"');
 
     const devUpdate = readFileSync(join(dir, 'dev-app-update.yml'), 'utf8');
     expect(devUpdate).toContain('owner: acme');
@@ -353,6 +364,7 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
       'src/renderer/i18n/locales/zh-CN/common.json',
       'src/renderer/i18n/locales/en/common.json',
       'packages/shared/src/constants/brand.ts',
+      'resources/installer.nsh',
     ];
     const leaks: string[] = [];
     for (const rel of scanned) {

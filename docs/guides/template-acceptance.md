@@ -106,8 +106,9 @@ pnpm test:smoke
 判定：安装包生成；原生模块架构与目标一致；生产包 6 项 smoke 全过、无控制台错误、
 启动到可交互在预算内。
 
-> 这一步验证的是 `release/<platform>-unpacked`，**不包含 NSIS 安装 / 卸载**；
-> 需要发布级验证时，另在隔离 Windows VM 中执行安装 → 启动 → 卸载。
+> 这一步验证的是 `release/<platform>-unpacked`。NSIS 安装/卸载由
+> `pnpm acceptance:derived --nsis` 或 `pnpm acceptance:nsis --installer <exe> --yes`
+> 单独验证；两者都会安装/卸载唯一品牌的测试应用并清理协议与 userData。
 
 ## 五、判定与处置
 
@@ -133,6 +134,6 @@ macOS / Linux：删除 `~/Library/Application Support/<ProductName>` 或
 
 ## 七、已知未覆盖
 
-- NSIS 实际安装 / 卸载（见 4.4 注）
 - 自动更新端到端（无 Release 时更新 E2E 会跳过；可用本地 HTTP 更新源另测）
 - macOS / Linux 打包（由 CI 六平台矩阵覆盖，但不在本机验收范围内）
+- 安装器在真实用户机器上的签名/SmartScreen 行为（当前模板默认未签名）

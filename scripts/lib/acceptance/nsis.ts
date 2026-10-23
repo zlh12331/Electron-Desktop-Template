@@ -31,6 +31,8 @@ const INSTALL_TIMEOUT_MS = 180_000;
 const PATH_WAIT_MS = 30_000;
 /** 卸载后主程序消失的等待上限 */
 const UNINSTALL_WAIT_MS = 60_000;
+/** 卸载后注册表清理的等待上限（NSIS 卸载器会复制自身后异步执行） */
+const REGISTRY_WAIT_MS = 30_000;
 /** 应用优雅关闭的等待上限 */
 const APP_CLOSE_MS = 15_000;
 
@@ -116,7 +118,8 @@ async function uninstallAndVerify(
   if (!(await waitFor(() => !existsSync(exe), UNINSTALL_WAIT_MS))) {
     throw new Error(`卸载后主程序仍存在：${exe}`);
   }
-  if (registryKeyExists(protocolKey)) {
+  // /S 返回时卸载可能尚未开始（installer.nsh 已注明），文件消失也不保证注册表已清理。
+  if (!(await waitFor(() => !registryKeyExists(protocolKey), REGISTRY_WAIT_MS))) {
     throw new Error(`卸载后协议注册仍在：${protocolKey}`);
   }
 }

@@ -150,7 +150,7 @@ src/main/utils/wrap.ts            # sender 校验 + zod 双向校验 + traceId
 
 源仓库门禁看不到初始化后的项目，以下两条链路额外受约束：
 
-- `init:template` 同步品牌、把版本基线重置为 `0.0.0`、删除模板专用的 `bootstrap-sha`，并在改写首帧主题脚本时重算 CSP 哈希
+- `init:template` 同步品牌、把版本基线重置为 `0.0.0`、删除模板专用的 `bootstrap-sha`，在改写首帧主题脚本时重算 CSP 哈希，并同步 NSIS 安装宏里的 Windows 协议
 - 根 `postinstall` 先安装并校验 Electron 二进制，再按 Electron ABI 重编 `better-sqlite3`；失败显式退出，不留下「能装不能跑」的状态
 
 它们分别由 `scripts/init-template.test.ts` / `scripts/postinstall-rebuild.test.ts` 覆盖，

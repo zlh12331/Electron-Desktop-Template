@@ -50,6 +50,20 @@
 !include "LogicLib.nsh"
 !include "FileFunc.nsh"
 
+; Windows 协议注册（init:template 会同步本行到派生项目的协议）
+;
+; electron-builder 的 `protocols` 配置只对 macOS 生效；Windows 上应用运行时经
+; app.setAsDefaultProtocolClient 写 HKCU，NSIS 卸载器并不知道这个键。这里由安装器
+; 显式注册、卸载器显式删除，避免卸载后残留指向已删除 exe 的协议。
+!define APP_PROTOCOL "electron-template"
+
+!macro customInstall
+  WriteRegStr HKCU "Software\Classes\${APP_PROTOCOL}" "" "URL:${PRODUCT_NAME} Protocol"
+  WriteRegStr HKCU "Software\Classes\${APP_PROTOCOL}" "URL Protocol" ""
+  WriteRegStr HKCU "Software\Classes\${APP_PROTOCOL}\DefaultIcon" "" "$INSTDIR\${PRODUCT_NAME}.exe,0"
+  WriteRegStr HKCU "Software\Classes\${APP_PROTOCOL}\shell\open\command" "" '"$INSTDIR\${PRODUCT_NAME}.exe" "%1"'
+!macroend
+
 ; 安装器侧：旧卸载器失败 → 清理残留后继续安装
 ;
 ; $R0 = 旧卸载器退出码（由 handleUninstallResult 传入）。
@@ -89,12 +103,14 @@
 ;
 ; 约束（与本文件头的三条同源，均经 makensis 编译验证）：
 ; - 值名 = Electron 写入时用的 `app.getName()`（优先 productName），即 electron-builder.yml
-;   的 productName「Code Agent Desktop」；NSIS 侧由 ${PRODUCT_NAME} 提供（卸载器段可用）。
+;   的 productName（构建期由 ${PRODUCT_NAME} 提供，卸载器段可用）。
 ; - 不引用 ${INSTALL_REGISTRY_KEY} / ${UNINSTALL_REGISTRY_KEY}：它们由 multiUser.nsh 定义，
 ;   而本文件注入在生成的脚本最前面，引用会触发 "unknown variable"（项目把警告当错误）。
 ; - 只删 Run 键下的这一条值，不动其它键；DeleteRegValue 对不存在的值静默（无需先判断）。
 !macro customUnInstall
   DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCT_NAME}"
+  ; 运行时注册的协议键同样归本应用所有；不删会留下指向已卸载 exe 的残留
+  DeleteRegKey HKCU "Software\Classes\${APP_PROTOCOL}"
 !macroend
 
 ; ── 更新模式跳过「安装模式」页（2026-10-01 向导式更新安装）─────────────────
