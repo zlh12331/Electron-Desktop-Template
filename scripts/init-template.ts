@@ -240,7 +240,9 @@ function writePackageJson(root: string, input: InitInput, dryRun: boolean): Rewr
     'package.json',
     (value) => {
       value['name'] = input.executableName;
-      value['version'] = '0.1.0';
+      // 派生项目尚未发布：0.0.0 作为「无已发布版本」的显式基线，
+      // 首个 feat 由 release-please 升到 0.1.0（与 manifest 保持一致）
+      value['version'] = '0.0.0';
       value['description'] = input.description;
       value['author'] = input.author;
       value['repository'] = {
@@ -428,7 +430,8 @@ const CHANGELOG_KEEP_START = '<!-- template:keep-start -->';
 const CHANGELOG_KEEP_END = '<!-- template:keep-end -->';
 
 /** 清空历史后的首行占位 */
-const CHANGELOG_EMPTY_STATE = '暂无版本记录。首次发版后，release-please 会在此处生成第一个版本段。';
+const CHANGELOG_EMPTY_STATE =
+  '暂无版本记录。首次发版（0.1.0）后，release-please 会在此处生成第一个版本段。';
 
 /**
  * 生成派生项目的 CHANGELOG 骨架：保留模板说明区（写作约定 + 版本段模板），
@@ -456,7 +459,7 @@ function resetReleaseState(root: string, dryRun: boolean): RewriteResult[] {
     root,
     '.release-please-manifest.json',
     (value) => {
-      value['.'] = '0.1.0';
+      value['.'] = '0.0.0';
     },
     dryRun,
   );
