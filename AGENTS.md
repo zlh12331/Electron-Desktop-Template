@@ -30,11 +30,15 @@ pnpm acceptance:derived
 pnpm acceptance:nsis --installer <path-to.exe> --yes
 
 # 质量门禁
-pnpm check:static           # 静态审计 16 项（见下）
+pnpm check:static           # 静态审计 18 项（见下）
 pnpm check:tokens           # 设计令牌：裸色/hex/字号/间距双写
 pnpm check:i18n             # i18n：缺失 + 双语一致 + 冗余（默认 --strict）
 pnpm check:brand            # 品牌一致性：app.config.json ↔ 生成物与构建配置
 pnpm check:schema-drift     # schema.ts ↔ drizzle/ 迁移漂移
+pnpm check:observability-config # 可观测性变量注册表 ↔ 代码/.env/文档/CI
+pnpm check:observability-slo    # SLO 定义 ↔ 指标注册表/运行手册
+pnpm observability:doctor    # 脱敏生效配置 + 格式校验 + OTLP 探测（--release 发布断言）
+pnpm observability:smoke     # 真实 Electron → 本地 OTLP 三类信号到达（需先 pnpm build）
 pnpm check:secrets-git      # gitleaks 扫 <远端 main>..HEAD（pre-push 与 CI 用）
 pnpm check:secrets          # gitleaks 扫工作区全量文件（手动排查用，含未提交改动）
 pnpm knip                   # 死代码 / 死依赖（CI 卡关）
@@ -52,7 +56,7 @@ pnpm docs:types             # TypeDoc 契约文档
 pnpm tokens:build           # Style Dictionary 生成 tokens.css
 ```
 
-`check:static` 覆盖：tokens + i18n + comments（过期注释/失效文件引用）+ tsdoc（export 符号 TSDoc 棘轮）+ file-size（净行 ≤600）+ functions（形参 ≤4 / 函数体 ≤200）+ complexity（认知复杂度 ≤15）+ coverage-floors + docs + docs-scripts + test-boundary + csp-hash + css-vars + animations + ui-consistency + brand，全部棘轮只收紧。
+`check:static` 覆盖：tokens + i18n + comments（过期注释/失效文件引用）+ tsdoc（export 符号 TSDoc 棘轮）+ file-size（净行 ≤600）+ functions（形参 ≤4 / 函数体 ≤200）+ complexity（认知复杂度 ≤15）+ coverage-floors + observability-config（变量注册表/文档/CI 一致）+ observability-slo（SLO 定义与指标名/手册一致）+ docs + docs-scripts + test-boundary + csp-hash + css-vars + animations + ui-consistency + brand，全部棘轮只收紧。
 
 本地全量验证：`pnpm verify:local`（质量层）/ `pnpm verify:local:full`（追加构建与打包）。
 
@@ -142,6 +146,7 @@ tools/           → 独立 TS 子包（depcruise / typedoc）
 - 遥测（OpenTelemetry）：`OTEL_EXPORTER_OTLP_ENDPOINT` 未配置时打包版不外发，dev 仅 Console trace；完整级别/指标/日志清单见 [23 可观测性](docs/design/23-otel-spec.md)。
 - 遥测级别 `off` / `error-only` / `full` 由设置页控制（写 `telemetry-pref.json`，重启生效）；本地日志始终写，诊断包导出时脱敏。
 - 报障走 GitHub Issue + 诊断包导出（无云端上报依赖）。本地 SigNoz / Sentry 配置见 [observability-runbook.md](docs/guides/observability-runbook.md)。
+- 配置改了先跑 `pnpm observability:doctor --offline`；发布前 CI 会跑 `--release --offline` 断言。配置真源在 `packages/shared/src/observability/env.ts`。
 
 ## 构建产物 & Git
 

@@ -2,7 +2,7 @@
 
 > 基于当前实现：`src/main/infra/telemetry/`、`src/main/utils/error-report.ts`、`src/main/ipc/telemetry.handler.ts`、
 > `src/renderer/lib/error-report.ts`、`src/renderer/lib/web-vitals.ts`、`scripts/sentry-*.ts`。
-> 最后同步：2026-10-23（Sentry 重新接入 + OTel metrics/logs + Web Vitals + 本地 SigNoz 验证）
+> 最后同步：2026-10-24（配置单一真源 + doctor + 管道健康 + SLO 定义 + 设置页状态/连接测试）
 
 ---
 
@@ -59,6 +59,8 @@
 - 渲染层：`lib/error-report.ts` → `telemetry:captureError` → `captureRendererError`。渲染层仍先经 electron-log 落本地日志。
 - 全局兜底：`uncaughtException` / `unhandledRejection`（主进程）、`window.error` / `unhandledrejection` / React 三层错误边界（渲染层）。
 - 原生崩溃：Sentry minidump 集成启用 `crashReporter`（`uploadToServer:false`，由 Sentry transport 上传）。
+- 上次异常退出：`.crash-marker` 记录时间/message/stack，下次启动 `recoverFromCrash` 以 `scope=crash-recovery` 上报（Sentry 离线时仍有本地日志/OTel）。
+- 渲染层错误自动带 hash route；IPC handler 把本次 `traceId` 写入 Sentry tags 与 OTel 日志 `app.trace_id`。
 
 ### 3.3 脱敏与隐私
 
@@ -132,14 +134,28 @@
 - 映射：`traceId`→`app.trace_id`、`channel`→`ipc.channel`、`scope`→`log.scope`、`errorCode`→`error.code`、其余→`log.<key>`。
 - 异常：`exception.type` / `exception.message` / `exception.stacktrace`。
 - 正文/属性/异常栈全部过 `redactText`；单条属性 ≤2KB、正文 ≤8KB、栈 ≤16KB、属性数 ≤24。
-- 渲染层错误由 `telemetry.handler.ts` 显式 emit 一条 `renderer.error` 日志（渲染层不直接持有 OTel SDK）。
+- 渲染层错误由 `telemetry.handler.ts` 显式 emit 一条 `renderer.error` 日志（渲染层不直接持有 OTel SDK），并带 `app.trace_id`。
 - 级别：`full` 默认 info；`OTEL_LOG_LEVEL` 可调 debug/info/warn/error；`error-only` 固定 error。
+- 采样/限流：`OTEL_LOG_SAMPLE_RATIO`（默认 1）只作用于 info/debug；`OTEL_LOG_MAX_PER_MINUTE`（默认 0=不限）作用于非 error；
+  warn/error 不采样，避免丢关键错误。
+- 管道健康：每个 OTLP exporter 的回调记录 attempts/failures/lastSuccessAt/lastError；采样/限流丢弃数单独计数，
+  通过 `telemetry:getStatus`、诊断包 `runtime.json` 与设置页状态卡展示。
 
 ### 4.5 渲染层 Web Vitals
 
 - `src/renderer/lib/web-vitals.ts` 在 `main.tsx` 启动时采集 CLS/FCP/INP/LCP/TTFB（web-vitals v6）。
 - 批量：满 10 条或 5s 定时 flush；`pagehide` / `visibilitychange=hidden` 立即 flush。
 - 无 IPC 桥（浏览器模式/旧 preload）→ 不注册监听；主进程 metrics 未启用 → 返回 `accepted=0`，渲染层不重试。
+
+### 4.6 配置单一真源与自检
+
+- 变量名/默认值/作用域/敏感性唯一真源：`packages/shared/src/observability/env.ts`；运行时解析在同目录 `resolve.ts`。
+- 优先级：运行时 env > 构建期 `__SENTRY_DSN__` > 代码默认值；遥测级别由 `telemetry-pref.json` 提供。
+- `pnpm check:observability-config`：校验注册表 ↔ 代码 ↔ `.env.example` ↔ 运行手册 ↔ CI 无未知/缺失变量。
+- `pnpm observability:doctor`：打印脱敏生效配置、校验格式、可选 OTLP 真实探测；`--release --offline` 用于发布前半配置断言。
+- `pnpm observability:smoke`：启动真实 Electron + 本地 OTLP 接收器，断言 traces/metrics/logs 均能到达。
+- SLO/告警定义在 `observability/slo.json`，`pnpm check:observability-slo` 校验指标名与运行手册覆盖。
+- 设置页「遥测」区块展示 Sentry/OTel 状态、导出健康与「测试连接」；OTLP 发空载荷探测，Sentry 只校验 DSN 结构。
 
 ## 五、诊断包与排障
 
@@ -148,7 +164,7 @@
 - `manifest.json`：应用/运行时版本、平台、导出时间；
 - `settings.json`：设置快照（`redactSensitive`）；
 - `logs/*.log`：日志尾部（单文件 8MB，`redactText`）；
-- `runtime.json`：自启、窗口状态、`observability` 快照（级别、OTel 各信号启用态、Sentry release/environment/reason；**不含 DSN/端点/请求头**）。
+- `runtime.json`：自启、窗口状态、`observability` 快照（级别、OTel 各信号启用态、Sentry release/environment/reason、管道健康/丢弃计数；**不含 DSN/端点/请求头**）。
 
 排障顺序：本地日志（traceId）→ 诊断包 → Sentry issue（有 DSN）→ SigNoz trace/metrics/logs（有端点）。
 
@@ -162,9 +178,11 @@
 
 ## 七、检查清单
 
-- [ ] 新 span/metric 遵守命名与低基数属性；同步本文件 §4.2/§4.3
+- [ ] 新 span/metric 遵守命名与低基数属性；指标名走 `packages/shared/src/observability/metrics.ts`
 - [ ] 新错误路径走 `error-report`，不要直接 `Sentry.capture*`
 - [ ] 新增日志字段先确认不含凭据；OTel 属性会自动脱敏但本地日志不会
+- [ ] 新增/改名环境变量 → 更新注册表、`.env.example`、运行手册并跑 `check:observability-config`
 - [ ] DSN/端点缺失时功能可用（no-op）；`off` 时无网络外发
 - [ ] 改动遥测级别语义 → 同步设置页 i18n 与本文件 §二
-- [ ] 改动发布链路 → 验证 `sentry:sourcemaps` 跳过/上传两条路径
+- [ ] 改动发布链路 → 验证 `sentry:sourcemaps` 跳过/上传两条路径与 `observability:doctor --release`
+- [ ] 改动 SLO/告警 → 同步 `observability/slo.json`、运行手册并跑 `check:observability-slo`

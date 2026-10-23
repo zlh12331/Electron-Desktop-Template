@@ -48,6 +48,7 @@ src/main/
 ├── quit-state.ts             # 退出状态位
 ├── diagnostics.ts            # 诊断包导出
 ├── infra/
+│   ├── app-info.ts           # build-info.json 读取（关于页/OTel resource/Sentry tags）
 │   ├── autostart/            # 开机自启（三平台）
 │   ├── file/                 # 用户手势授权表（对话框选中的路径）
 │   ├── i18n/                 # 主进程文案（托盘等）
@@ -99,6 +100,7 @@ packages/shared/src/
 ├── renderer.ts               # 渲染层出口（schema 一律 type-only）
 ├── preload.ts                # preload 出口（零第三方依赖）
 ├── constants/                # brand（生成物）/ errors / protocol / zoom
+├── observability/            # 配置注册表（env）/ 纯解析 / 指标名 / SLO 校验 / OTLP 探测
 ├── ipc/
 │   ├── meta.ts               # channel 元数据（零依赖）
 │   ├── domains/              # 按域定义 + index.ts 域册

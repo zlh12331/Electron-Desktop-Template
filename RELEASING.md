@@ -120,7 +120,8 @@ pnpm check:changelog-polish   # 验证通过后再合并 Release PR
 - `SENTRY_AUTH_TOKEN` + `SENTRY_ORG` + `SENTRY_PROJECT`：source map 上传凭据
 
 原生调试符号默认不上传；需要原生崩溃完整符号化时设置仓库变量 `SENTRY_UPLOAD_DEBUG_FILES=1`
-（会显著增加 CI 时间与 Sentry 存储）。详见 [可观测性运行手册](docs/guides/observability-runbook.md)。
+（会显著增加 CI 时间与 Sentry 存储）。CD 在构建前执行 `pnpm observability:doctor --release --offline`：
+上传凭据半配置会直接 fail，全缺/全配都放行。详见 [可观测性运行手册](docs/guides/observability-runbook.md)。
 
 未配置时 CD 不会因此失败；是否在发布说明中标注「未签名」由维护者决定。
 

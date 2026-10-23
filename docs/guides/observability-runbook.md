@@ -83,6 +83,49 @@ pnpm dev
 - `Sentry 未启用`（未配 DSN）或 `Sentry 已启用`
 - `OpenTelemetry 初始化完成（OTLP exporter）`，字段 `tracing/metrics/logs` 为 true
 
+### 2.4 配置参考（单一真源）
+
+变量名、默认值、作用域与敏感性唯一真源：[packages/shared/src/observability/env.ts](../../packages/shared/src/observability/env.ts)；
+`pnpm check:observability-config` 会校验代码、`.env.example`、本表与 CI 不漂移。
+
+| 变量 | 作用域 | 默认值 | 重启生效 | 说明 |
+|---|---|---|---|---|
+| `SENTRY_DSN` | runtime / build | 无 | 是 | 运行时优先于构建期注入；未配置 Sentry no-op |
+| `SENTRY_ENVIRONMENT` | runtime | production / development | 是 | Sentry 环境标签 |
+| `SENTRY_RELEASE` | runtime / build / ci | `{executableName}@{version}` | 是 | 运行时与上传必须一致 |
+| `SENTRY_AUTH_TOKEN` | build / ci | 无 | 否 | source map / debug files 上传令牌（敏感） |
+| `SENTRY_ORG` | build / ci | 无 | 否 | Sentry 组织 slug |
+| `SENTRY_PROJECT` | build / ci | 无 | 否 | Sentry 项目 slug |
+| `SENTRY_UPLOAD_DISABLED` | build / ci | 无 | 否 | 置 1 跳过 source map 上传 |
+| `SENTRY_UPLOAD_DEBUG_FILES` | ci | 0 | 否 | 置 1 上传原生调试符号 |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | runtime | 无 | 是 | OTLP base URL，自动派生 `/v1/*` |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | runtime | 无 | 是 | trace 专用端点 |
+| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | runtime | 无 | 是 | metrics 专用端点 |
+| `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | runtime | 无 | 是 | logs 专用端点 |
+| `OTEL_EXPORTER_OTLP_HEADERS` | runtime | 无 | 是 | OTLP 请求头（敏感） |
+| `OTEL_SERVICE_NAME` | runtime | `{executableName}-prod/dev` | 是 | 后端服务名 |
+| `OTEL_TRACES_SAMPLER` | runtime | parentbased_traceidratio | 是 | always_on / always_off / traceidratio |
+| `OTEL_TRACES_SAMPLER_ARG` | runtime | dev=1 / prod=0.2 | 是 | 根 span 采样率 0..1 |
+| `OTEL_LOG_LEVEL` | runtime | info（error-only 固定 error） | 是 | 日志导出最低级别 |
+| `OTEL_LOG_SAMPLE_RATIO` | runtime | 1 | 是 | info/debug 采样率；warn/error 不采样 |
+| `OTEL_LOG_MAX_PER_MINUTE` | runtime | 0（不限） | 是 | 非 error 日志每分钟上限 |
+| `OTEL_METRIC_EXPORT_INTERVAL` | runtime | 60000 | 是 | 指标导出间隔毫秒（1000..600000） |
+| `OTEL_DIAG` | runtime | 关 | 是 | 置 1 输出 OTel SDK 排障日志 |
+
+### 2.5 配置自检与连接测试
+
+```bash
+pnpm observability:doctor                 # 生效配置 + 格式校验 + OTLP 真实探测
+pnpm observability:doctor --offline       # 只做静态校验
+pnpm observability:doctor --release --offline  # CI 发布前：半配置上传凭据 fail
+pnpm observability:doctor --json          # 机器可读输出
+```
+
+设置页「遥测」区块也会展示 Sentry/OTel 状态、导出健康（成功/失败/丢弃）与「测试连接」按钮：
+
+- OTLP：发送空 resource 载荷验证可达/鉴权，不产生业务数据；
+- Sentry：只校验 DSN 结构，不发送测试事件。
+
 ## 三、验证清单（本地）
 
 | 信号 | 操作 | 预期 |
@@ -95,6 +138,16 @@ pnpm dev
 | 脱敏 | 在错误消息里带 `sk-...`/Bearer | 导出诊断包与后端日志中为 `[REDACTED]` |
 
 > 渲染层错误风暴有 30 条/分钟限流；连续触发时 `accepted=false` 属预期。
+
+自动化验证（无需 SigNoz）：
+
+```bash
+pnpm build              # 需要 out/main + out/renderer
+pnpm observability:smoke
+```
+
+该脚本启动真实 Electron，指向本机临时 OTLP 接收器，断言 traces/metrics/logs 各至少到达 1 次；
+失败会打印各信号计数并以非零退出。
 
 ## 四、Sentry（可选）
 
@@ -134,19 +187,23 @@ pnpm dev
 > 下列阈值为模板起点，接入业务后按真实基线调整；改阈值时同步本表。
 > 指标名以 OTel 原名为准；SigNoz 查询构建器/ PromQL 会把点转为下划线，以 UI 自动补全为准。
 
-| SLO | 指标 / 公式 | 目标 | 告警 |
-|---|---|---|---|
-| Crash-free sessions | Sentry release health | ≥99.5%（7d） | <99% 持续 1h → critical |
-| IPC 成功率 | `ipc.server.requests{outcome="success"}` / 总数 | ≥99.5%（1h） | 错误率 >1% 10m → warning；>5% 5m → critical |
-| IPC 延迟 | `ipc.server.request.duration` p95 | ≤300ms（1h） | p95 >1s 10m → warning |
-| 启动耗时 | `app.startup.duration{phase="window"}` p95 | ≤3s（1h） | p95 >5s 15m → warning |
-| 更新检查成功率 | `app.update.check.duration{outcome!="network"}` / 总数 | ≥98%（24h） | 失败率 >5% 1h → warning |
-| 下载耗时 | `app.update.download.duration` p95 | 按包体设定 | 连续 3 次超阈值 → warning |
-| 事件循环 p99 | `nodejs.eventloop.delay` p99 | ≤200ms | >1s 5m → warning；>2s 5m → critical |
-| 主进程内存增长 | `nodejs.memory.growth` >150MB 事件 | 0 次/日 | 任意事件 → warning |
-| LCP | `web_vitals.lcp` p75 | ≤2.5s（24h） | >4s 30m → warning |
-| INP | `web_vitals.inp` p75 | ≤200ms（24h） | >500ms 30m → warning |
-| CLS | `web_vitals.cls` p75 | ≤0.1（24h） | >0.25 30m → warning |
+机器可读定义在 [observability/slo.json](../../observability/slo.json)；`pnpm check:observability-slo` 会校验
+id/指标名/阈值并确认本表覆盖全部 id。改阈值时同步 JSON、本表与后端告警。
+
+| ID | SLO | 指标 / 公式 | 目标 | 告警 |
+|---|---|---|---|---|
+| `crash-free-sessions` | Crash-free sessions | Sentry release health | ≥99.5%（7d） | <99% 持续 1h → critical |
+| `ipc-error-rate` | IPC 成功率 | `ipc.server.requests{outcome="success"}` / 总数 | ≥99.5%（1h） | 错误率 >1% 10m → warning；>5% 5m → critical |
+| `ipc-p95-latency` | IPC 延迟 | `ipc.server.request.duration` p95 | ≤300ms（1h） | p95 >1s 10m → warning |
+| `startup-p95` | 启动耗时 | `app.startup.duration{phase="window"}` p95 | ≤3s（1h） | p95 >5s 15m → warning |
+| `update-check-failure` | 更新检查失败率 | `app.update.events{phase="error"}` / 总数 | ≤2%（24h） | 失败率 >5% 1h → warning |
+| `update-download-p95` | 下载耗时 | `app.update.download.duration` p95 | ≤10s（24h，按包体调整） | >30s 1h → warning |
+| `event-loop-p99` | 事件循环 p99 | `nodejs.eventloop.delay` p99 | ≤200ms | >1s 5m → warning；>2s 5m → critical |
+| `web-vitals-lcp` | LCP | `web_vitals.lcp` p75 | ≤2.5s（24h） | >4s 30m → warning |
+| `web-vitals-inp` | INP | `web_vitals.inp` p75 | ≤200ms（24h） | >500ms 30m → warning |
+| `web-vitals-cls` | CLS | `web_vitals.cls` p75 | ≤0.1（24h） | >0.25 30m → warning |
+
+`nodejs.memory.growth` 是观察指标（单次增长告警），不纳入 SLO 表。
 
 SigNoz 配置路径（以当前 UI 为准）：
 
@@ -205,7 +262,17 @@ SigNoz 配置路径（以当前 UI 为准）：
 
 > 记录只写实际观察到的结果；未验证的项保持「未验证」。
 
-### 8.1 验证后清理
+### 8.1 配置治理补验（2026-10-24）
+
+- `pnpm check:observability-config` 通过：21 个变量在注册表、代码、`.env.example`、本手册与 CI 一致。
+- `pnpm check:observability-slo` 通过：10 条 SLO 定义合法且本手册覆盖全部 id。
+- `pnpm observability:doctor --offline` 通过；`SENTRY_AUTH_TOKEN` 半配置时
+  `pnpm observability:doctor --release --offline` 按预期 fail。
+- `pnpm observability:smoke`（真实 Electron + 本地 OTLP 接收器）通过：traces/metrics/logs
+  各至少 1 次到达；同时验证 `telemetry:getStatus` 与 `telemetry:testConnection` IPC 正常。
+- 设置页状态卡/连接测试由组件测试覆盖（`telemetry-status-card.test.tsx`）。
+
+### 8.2 验证后清理
 
 ```bash
 # 停止应用（若仍在运行）
