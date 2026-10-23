@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { useSetTelemetryLevel, useTelemetryLevelQuery } from '@/hooks/use-telemetry';
 import { useTranslation } from '@/i18n/use-translation';
 import { cn } from '@/lib/utils';
+import { TelemetryStatusCard } from './telemetry-status-card';
 
 /** 遥测级别区块（隐私合规） */
 export function TelemetrySection(): React.ReactElement {
@@ -52,6 +53,7 @@ export function TelemetrySection(): React.ReactElement {
           );
         })}
       </div>
+      <TelemetryStatusCard />
     </div>
   );
 }

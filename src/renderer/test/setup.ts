@@ -29,6 +29,57 @@ function createEmptyApi(): MockApi {
     telemetry: {
       captureError: async () => ({ data: { accepted: true } }),
       reportWebVitals: async () => ({ data: { accepted: 0 } }),
+      getStatus: async () => ({
+        data: {
+          level: 'off',
+          sentry: {
+            enabled: false,
+            initialized: false,
+            reason: 'telemetry-off',
+            release: null,
+            environment: null,
+          },
+          otel: {
+            enabled: false,
+            tracing: false,
+            metrics: false,
+            logs: false,
+            endpointConfigured: false,
+          },
+          health: {
+            traces: {
+              attempts: 0,
+              failures: 0,
+              lastSuccessAt: null,
+              lastFailureAt: null,
+              lastError: null,
+            },
+            metrics: {
+              attempts: 0,
+              failures: 0,
+              lastSuccessAt: null,
+              lastFailureAt: null,
+              lastError: null,
+            },
+            logs: {
+              attempts: 0,
+              failures: 0,
+              lastSuccessAt: null,
+              lastFailureAt: null,
+              lastError: null,
+            },
+            sampledLogs: 0,
+            rateLimitedLogs: 0,
+            lastDropAt: null,
+          },
+        },
+      }),
+      testConnection: async () => ({
+        data: {
+          sentry: { configured: false, valid: false, message: '未配置 DSN' },
+          otlp: { checked: false, reason: 'no-endpoint', message: '', results: [] },
+        },
+      }),
     },
     backup: {},
     proxy: {},
