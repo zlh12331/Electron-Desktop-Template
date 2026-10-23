@@ -30,6 +30,9 @@ permissions:
 
 jobs:
   welcome:
+    # bot 作者的 issue/PR 不欢迎：Renovate 的 Dependency Dashboard、Dependabot
+    # 的升级 PR 都是机器人建的，发人类欢迎语纯属噪音（2026-10-23 实测踩到）
+    if: github.event.sender.type != 'Bot'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
