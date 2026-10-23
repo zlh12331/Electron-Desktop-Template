@@ -89,6 +89,7 @@
     "build:all": "pnpm prepare:build-info && pnpm build && electron-builder --publish never",
     "scaffold:ipc": "tsx scripts/scaffold/scaffold-ipc.ts",
     "init:template": "tsx scripts/init-template.ts",
+    "acceptance:nsis": "tsx scripts/acceptance-nsis.ts",
     "analyze:bundle": "cross-env ANALYZE_BUNDLE=1 pnpm build",
     "docs:types": "pnpm --filter @code-agent/typedoc-docs run gen",
     "prepare": "husky",

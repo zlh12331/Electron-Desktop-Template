@@ -28,7 +28,7 @@
       }
     }
   },
-  "ignoreBinaries": ["gitleaks"],
+  "ignoreBinaries": ["gitleaks", "reg.exe"],
   "ignoreDependencies": ["@electron/rebuild", "tslib"],
   "ignoreIssues": {
     "src/renderer/components/ui/**": ["exports"]
