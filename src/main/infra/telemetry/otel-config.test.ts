@@ -118,6 +118,15 @@ describe('resolveOtelConfig', () => {
     expect(config.enabled).toBe(false);
   });
 
+  it('error-only 只有 trace/metrics 端点：禁用（没有日志后端）', () => {
+    const config = resolveOtelConfig(
+      { OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: 'http://127.0.0.1:4318/v1/metrics' },
+      { isPackaged: true, level: 'error-only' },
+    );
+    expect(config.enabled).toBe(false);
+    expect(config.logEndpoint).toBeNull();
+  });
+
   it('采样参数：always_off / always_on / 非法值回落', () => {
     const base = { OTEL_EXPORTER_OTLP_ENDPOINT: 'http://127.0.0.1:4318' };
     expect(

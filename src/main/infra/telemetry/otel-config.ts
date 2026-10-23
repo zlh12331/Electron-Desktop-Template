@@ -171,7 +171,8 @@ export function resolveOtelConfig(
   const hasEndpoint = traces !== null || metrics !== null || logs !== null;
   // error-only 只导出错误日志（trace/metrics 关闭，错误聚合走 Sentry）；
   // full 才启用 trace/metrics，dev 无端点时用 Console trace 本地观察
-  const enabled = level !== 'off' && (level === 'full' ? hasEndpoint || !isPackaged : hasEndpoint);
+  const enabled =
+    level === 'off' ? false : level === 'full' ? hasEndpoint || !isPackaged : logs !== null;
   const fullSignals = enabled && level === 'full';
 
   return {
