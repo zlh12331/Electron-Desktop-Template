@@ -22,6 +22,7 @@ import {
   killProcessTree,
   protocolRegistryKey,
   registryKeyExists,
+  updaterCacheDir,
   waitFor,
 } from './windows';
 
@@ -124,13 +125,25 @@ async function uninstallAndVerify(
   }
 }
 
-/** 清理本次验收创建的 userData 与协议注册 */
-function cleanupRuntime(appData: string, appDataExisted: boolean, protocolKey: string): void {
-  if (!appDataExisted && existsSync(appData)) {
-    rmSync(appData, { recursive: true, force: true });
+/** 清理状态（只在本次运行创建时删除，避免误删用户既有数据） */
+interface RuntimeCleanupState {
+  readonly appData: string;
+  readonly appDataExisted: boolean;
+  readonly updaterCache: string;
+  readonly updaterCacheExisted: boolean;
+  readonly protocolKey: string;
+}
+
+/** 清理本次验收创建的 userData、updater 缓存与协议注册 */
+function cleanupRuntime(state: RuntimeCleanupState): void {
+  if (!state.appDataExisted && existsSync(state.appData)) {
+    rmSync(state.appData, { recursive: true, force: true });
   }
-  if (registryKeyExists(protocolKey)) {
-    deleteRegistryKey(protocolKey);
+  if (!state.updaterCacheExisted && existsSync(state.updaterCache)) {
+    rmSync(state.updaterCache, { recursive: true, force: true });
+  }
+  if (registryKeyExists(state.protocolKey)) {
+    deleteRegistryKey(state.protocolKey);
   }
 }
 
@@ -159,6 +172,8 @@ export async function runNsisLifecycle(options: NsisLifecycleOptions): Promise<v
   }
   const appData = appDataDir(options.executableName);
   const appDataExisted = existsSync(appData);
+  const updaterCache = updaterCacheDir(options.executableName);
+  const updaterCacheExisted = existsSync(updaterCache);
   let succeeded = false;
 
   mkdirSync(options.workDir, { recursive: true });
@@ -181,7 +196,7 @@ export async function runNsisLifecycle(options: NsisLifecycleOptions): Promise<v
     succeeded = true;
     console.log('[nsis] ✅ 安装 → 启动 → 卸载 完成');
   } finally {
-    cleanupRuntime(appData, appDataExisted, protocolKey);
+    cleanupRuntime({ appData, appDataExisted, updaterCache, updaterCacheExisted, protocolKey });
     if (succeeded && !options.keep) {
       rmSync(options.workDir, { recursive: true, force: true });
     } else {

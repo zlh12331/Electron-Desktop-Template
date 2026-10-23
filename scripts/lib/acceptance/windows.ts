@@ -41,6 +41,15 @@ export function appDataDir(executableName: string): string {
 }
 
 /**
+ * electron-updater 在 Windows 的缓存目录（%LOCALAPPDATA%\<executableName>-updater）
+ *
+ * @param executableName 可执行名
+ */
+export function updaterCacheDir(executableName: string): string {
+  return join(process.env['LOCALAPPDATA'] ?? '', `${executableName}-updater`);
+}
+
+/**
  * 强杀进程树（安装器/应用可能派生子进程）
  *
  * @param pid 主进程 PID

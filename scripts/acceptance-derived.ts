@@ -21,6 +21,7 @@ import {
   deleteRegistryKey,
   protocolRegistryKey,
   registryKeyExists,
+  updaterCacheDir,
 } from './lib/acceptance/windows';
 import { parseArgs, rejectPositionals } from './scaffold/lib/args';
 
@@ -100,6 +101,8 @@ async function main(): Promise<void> {
   }
   const appData = appDataDir(executableName);
   const appDataExisted = process.platform === 'win32' && existsSync(appData);
+  const updaterCache = updaterCacheDir(executableName);
+  const updaterCacheExisted = process.platform === 'win32' && existsSync(updaterCache);
   const copyRoot = mkdtempSync(join(tmpdir(), 'template-acceptance-'));
   let succeeded = false;
 
@@ -188,6 +191,9 @@ async function main(): Promise<void> {
         if (!appDataExisted && existsSync(appData)) {
           rmSync(appData, { recursive: true, force: true });
         }
+        if (!updaterCacheExisted && existsSync(updaterCache)) {
+          rmSync(updaterCache, { recursive: true, force: true });
+        }
         const derivedBrand = readJson<{
           productName: string;
           executableName: string;
@@ -224,6 +230,9 @@ async function main(): Promise<void> {
       }
       if (!appDataExisted && existsSync(appData)) {
         rmSync(appData, { recursive: true, force: true });
+      }
+      if (!updaterCacheExisted && existsSync(updaterCache)) {
+        rmSync(updaterCache, { recursive: true, force: true });
       }
     }
     if (succeeded && !keep) {
