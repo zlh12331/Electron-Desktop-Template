@@ -94,6 +94,7 @@ tools/           → 独立 TS 子包（depcruise / typedoc）
 - **动效统一走 `src/renderer/lib/motion/`**，不散写 CSS transition。
 - **网页承载必须用 `WebContentsView`**（独立 session 分区），不能回渲染层 iframe（CSP/XFO 三层拦截）。
 - **dev 环境**：userData 重定向到 `.electron-user-data/`；开启 CDP 9222；`.env` 由 `process.loadEnvFile()` 加载。
+- **全新安装**：根 `postinstall` 先安装并校验 Electron 二进制，再重编 `better-sqlite3`；失败会显式退出。`pnpm dev` 报 `Electron uninstall` 说明安装钩子未执行。
 
 ## 数据库
 
@@ -115,6 +116,7 @@ tools/           → 独立 TS 子包（depcruise / typedoc）
 - 测试与源码 colocation：`*.test.ts(x)`；集成测试在 `tests/integration/`。
 - 覆盖率下限真源 = `scripts/coverage-floors.json`（棘轮，只收紧）。
 - 纯函数适合用 fast-check 属性测试补强。
+- 模板底座改动（`init-template` / `postinstall` / 打包 / 发版基线）必须按 [派生验收指南](docs/guides/template-acceptance.md)在干净副本验证；源仓库 `verify:local` 全绿不代表派生项目可用。
 
 ## 扩展点速查
 

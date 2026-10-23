@@ -172,7 +172,7 @@ pnpm test:e2e:electron  # 真实 Electron 窗口
 1. **Fork** 仓库（或如果你有权限，从 `main` 切一个描述性分支）
 2. 开发，确保上面所有门禁本地通过
 3. 推送并开 PR，描述里写明改了什么、为什么
-4. CI 会跑 5 项必需检查（质量门禁 / 三平台单测 / 集成测试 / 浏览器 E2E / 三平台 Electron E2E），**全绿才能合并**
+4. CI 会跑 6 项必需检查（质量门禁 / 六平台单测 / 集成测试 / 浏览器 E2E / 六平台 Electron E2E / PR 标题），**全绿才能合并**
 5. 合并采用 **squash**（保持线性历史）
 
 PR 会被自动请求给 @zlh12331 审阅。请耐心等待——这是个人维护的项目。
@@ -185,6 +185,12 @@ PR 会被自动请求给 @zlh12331 审阅。请耐心等待——这是个人维
 ```bash
 pnpm build:win:x64 && pnpm check:native-arch && pnpm test:smoke
 ```
+
+### 模板底座改动的额外要求
+
+涉及 `scripts/init-template.ts`、`scripts/postinstall-rebuild.mjs`、品牌 / 打包 / 发版基线的 PR，
+合并前按 [docs/guides/template-acceptance.md](docs/guides/template-acceptance.md) 在干净副本做一次
+派生验收，并把关键结果贴到 PR。
 
 ## 六·五、Label 体系
 

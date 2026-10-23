@@ -2,7 +2,7 @@
 
 > 本文说明**这个模板为什么这样组织**，以及每条约束由什么机器守着。
 > 功能清单见 [README](../../README.md)，扩展方法见 [AGENTS.md](../../AGENTS.md)「扩展点速查」。
-> 最后同步：2026-10-21
+> 最后同步：2026-10-23（补充派生链路与安装钩子）
 
 ## 核心命题
 
@@ -145,6 +145,16 @@ src/main/utils/wrap.ts            # sender 校验 + zod 双向校验 + traceId
 | `check:schema-drift` | schema.ts ↔ 迁移文件漂移 | 本地能跑，新装用户建表失败 |
 | `check:secrets-git` | 待推送区间含密钥 | 推上去即不可逆 |
 | `check:i18n` | 引用缺失 / 双语不一致 / 冗余 key | 界面出现原始 key |
+
+### 派生链路也是漂移面
+
+源仓库门禁看不到初始化后的项目，以下两条链路额外受约束：
+
+- `init:template` 同步品牌、把版本基线重置为 `0.0.0`、删除模板专用的 `bootstrap-sha`，并在改写首帧主题脚本时重算 CSP 哈希
+- 根 `postinstall` 先安装并校验 Electron 二进制，再按 Electron ABI 重编 `better-sqlite3`；失败显式退出，不留下「能装不能跑」的状态
+
+它们分别由 `scripts/init-template.test.ts` / `scripts/postinstall-rebuild.test.ts` 覆盖，
+最终以 [派生验收指南](../guides/template-acceptance.md)为准。
 
 ---
 

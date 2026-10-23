@@ -21,6 +21,8 @@ pnpm dev          # Electron 窗口
 pnpm dev:web      # 浏览器模式（mock api）
 ```
 
+> 首次安装会下载 Electron 二进制（约 100+ MB），需要网络；安装钩子失败会明确报错，不会留下「能装不能跑」的状态。
+
 ## 从模板开始你的项目
 
 一条命令改完全部品牌位点（真源 + package.json + 构建配置 + LICENSE + CODEOWNERS + 文档 URL + i18n 文案 + CHANGELOG）：
@@ -39,6 +41,8 @@ pnpm check:brand                                    # 校验全部位点对齐
 2. 按需接入业务：新增 IPC 域、数据表、设置分区、页面，方法见 AGENTS.md「扩展点速查」
 
 只改个别字段也可以手改 `app.config.json` → `pnpm brand:sync` → `pnpm check:brand`。
+
+模板底座改动后的验收流程见 [docs/guides/template-acceptance.md](docs/guides/template-acceptance.md)。
 
 ## 目录
 

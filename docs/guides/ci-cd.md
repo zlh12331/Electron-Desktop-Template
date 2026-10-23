@@ -1,9 +1,8 @@
 # CI/CD 流水线（六平台质量验证 + 产物验证分层）
 
-> 状态：**已实施并实跑验证**（2026-09-21：六平台 CI 全绿、CD 六个单架构 job + merge job 全部成功、v1.3.3 已发版）。
-> 阅读提示：本文既是 2026-09 的重构记录，也是**现行流水线的说明**——改 CI 先看 §3（目标架构）与 §5（关键设计决策）；
-> 「第 2 节」是改前基线、「第 10 节」是落地记录与实跑结果。
-> 关联：[27-auto-update-spec.md](../history/27-auto-update-spec.md)（更新机制与发布资产）、[RELEASING.md](../../RELEASING.md)（发版 runbook）
+> 状态：**现行流水线说明 + 2026-09 重构记录**。文中 `v1.3.x` 版本号与实跑数据是当时的证据；当前模板仓库为 `0.1.0` 基线、尚未发版，版本与发版口径以 [RELEASING.md](../../RELEASING.md) 为准。
+> 阅读提示：改 CI 先看 §3（目标架构）与 §5（关键设计决策）；「第 2 节」是改前基线、「第 10 节」是落地记录与实跑结果。
+> 关联：[27-auto-update-spec.md](../history/27-auto-update-spec.md)（更新机制与发布资产）、[RELEASING.md](../../RELEASING.md)（发版 runbook）、[template-acceptance.md](template-acceptance.md)（模板底座验收）
 
 ## 1. 定位与原则
 
@@ -203,7 +202,7 @@ flowchart TB
 | **unit** | 6 | `pnpm test:main` + `pnpm test:renderer`；**ubuntu-latest 实例改跑 `pnpm test:coverage`**（覆盖率阈值唯一把关点，覆盖率产物也从这里上传）；其余 5 个平台跑不带阈值的同套用例。`test:scripts` 不在此 job（与平台无关，留在 quality 单次执行，避免 6 倍重复） |
 | **integration** | 1 | `pnpm test:integration`（`tests/integration/`，20+ 文件；用户决策不扩平台） |
 | **e2e-browser** | 1 | `playwright install --with-deps chromium` → `playwright test --config e2e/playwright.config.ts --retries=2` |
-| **e2e-electron** | 6 | `node node_modules/electron/install.js`（装 Electron 二进制）→ `playwright install-deps`（**仅 ffmpeg，不装 Chromium**）→ `pnpm build`（dev 产物）→ `pnpm check:bundle`（单 chunk ≤5MB / 总包 ≤16MB）→ `pnpm check:compiler`（断言 React Compiler 未静默失效）→ `playwright test --config e2e/playwright.electron.config.ts --retries=2`（Linux 实例走 `xvfb-run -a`） |
+| **e2e-electron** | 6 | `node node_modules/electron/install.js`（CI 兜底；根 postinstall 已负责安装并校验）→ `playwright install-deps`（**仅 ffmpeg，不装 Chromium**）→ `pnpm build`（dev 产物）→ `pnpm check:bundle`（单 chunk ≤5MB / 总包 ≤16MB）→ `pnpm check:compiler`（断言 React Compiler 未静默失效）→ `playwright test --config e2e/playwright.electron.config.ts --retries=2`（Linux 实例走 `xvfb-run -a`） |
 | **unit-summary** | 1 | 无检查步骤，只汇总 unit 矩阵结果（`if: always()`，见 §3.3） |
 | **e2e-electron-summary** | 1 | 无检查步骤，只汇总 e2e-electron 矩阵结果（`if: always()`，见 §3.3） |
 

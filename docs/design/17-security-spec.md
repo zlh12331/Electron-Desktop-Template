@@ -1,7 +1,7 @@
 # 17 · 安全规范（Electron 生产级基线）
 
 > 对齐 Electron 官方安全清单与 OWASP 桌面应用实践，按模板当前实现（sandbox / CSP / safeStorage / zod / fuses）制定。
-> 最后同步：2026-10-22（模板版：命令与实现路径按当前代码订正）
+> 最后同步：2026-10-23（补充初始化时的 CSP 哈希同步）
 
 ---
 > 🔒 工程化强制：`check:csp-hash`（CSP 内联哈希）+ `check:secrets-git`（pre-push / CI）+ `check:secrets`（全仓自查）+ `check:devtools`（产物不含 devtools）
@@ -16,7 +16,7 @@
 
 ## 二、CSP 与导航
 
-- **CSP**：`src/main/security/csp.ts` 对 `defaultSession` 统一注入；产线 `script-src` 只认自身、wasm 与**一个内联脚本哈希**（`check:csp-hash` 卡关——改 CSP 或 `index.html` 内联脚本必须同步重算）。
+- **CSP**：`src/main/security/csp.ts` 对 `defaultSession` 统一注入；产线 `script-src` 只认自身、wasm 与**一个内联脚本哈希**（`check:csp-hash` 卡关——改 CSP 或 `index.html` 内联脚本必须同步重算）。`init:template` 改写 `storagePrefix` 时会同步重算该哈希，回归见 `scripts/init-template.test.ts`。
 - **开发期**放宽项（Vite HMR / React DevTools）只在 `!app.isPackaged` 生效，禁止进产线策略。
 - **导航**：`will-navigate` 拦截站外跳转；`setWindowOpenHandler` 统一改为系统浏览器打开；外链只走 `app:openExternal`。
 - **权限**：`setPermissionRequestHandler` 白名单式收口，渲染层系统权限请求一律拒绝（当前无任何授权项）。

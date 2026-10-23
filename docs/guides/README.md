@@ -5,12 +5,13 @@
 
 | 文档 | 内容 | 状态 |
 |---|---|---|
-| [ci-cd.md](ci-cd.md) | 六平台 CI（质量）+ CD（产物与发版）分层；PR 门禁、构建矩阵、smoke 覆盖与更新元数据合并 | 现行流水线即文中 §3 形态（2026-09 重构后持续使用） |
+| [ci-cd.md](ci-cd.md) | 六平台 CI（质量）+ CD（产物与发版）分层；PR 门禁、构建矩阵、smoke 覆盖与更新元数据合并 | 现行流水线即文中 §3 形态；`v1.3.x` 数据为历史证据，当前发版口径见 RELEASING |
+| [template-acceptance.md](template-acceptance.md) | 干净副本验收：初始化、全新安装、启动/持久化、打包与 smoke；隔离与清理要求 | 模板底座改动后必跑；源仓库门禁不能替代 |
 | [oss-automation.md](oss-automation.md) | GitHub 开源项目自动化运维模型：单人维护、本机 agent、审批门控与分层能力（L0–L5） | L0 + L1 已实施；L2 就绪；L3–L5 暂缓 |
 
 相关根目录文档：
 
-- [RELEASING.md](../../RELEASING.md)：发版 runbook（release-please → 合并 Release PR → CD 三平台构建 → 校验产物）
+- [RELEASING.md](../../RELEASING.md)：发版 runbook（release-please → 合并 Release PR → CD 六架构构建 → 校验产物）
 - [CONTRIBUTING.md](../../CONTRIBUTING.md)：提交规范与本地验证命令
 - [SECURITY.md](../../SECURITY.md)：漏洞报告与安全基线入口
 

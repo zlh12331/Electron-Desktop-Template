@@ -44,6 +44,7 @@
 | 领域 | 选型 | 说明 |
 |---|---|---|
 | 包管理 | pnpm 12 workspace | `pnpm-workspace.yaml` 统一声明构建脚本决策与 store 位置 |
+| 安装 | 根 `postinstall` | 安装并校验 Electron 二进制，再按 Electron ABI 重编 `better-sqlite3`；失败阻断 install |
 | Lint/Format | Biome 2 | 含 import 排序；`useNamingConvention` 默认 strictCase |
 | 单测 | Vitest 5 | 与源码 colocation；覆盖率下限存 `scripts/coverage-floors.json` |
 | E2E | Playwright | 浏览器模式 / Electron / 生产 smoke 三套配置 |
@@ -51,7 +52,7 @@
 | 死代码 | knip | files / deps / binaries 级卡关 |
 | API 文档 | TypeDoc | 独立 TS 6 子包（`tools/typedoc`），规避 TS7 不兼容 |
 | 设计令牌 | Style Dictionary | `tokens/aurora.json` → `src/renderer/styles/tokens.css`（生成物） |
-| 发版 | release-please | Conventional Commits + 单分支 prerelease 策略 |
+| 发版 | release-please | Conventional Commits + 单分支；默认稳定版，不内置 prerelease 配置 |
 
 ## 5. Monorepo 结构
 

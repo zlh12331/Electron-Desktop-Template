@@ -317,13 +317,13 @@ release-please 会按该版本开 Release PR，其余预检与合并流程不变
 | ruleset「protect-release-tags」 | active，target `refs/tags/v*`；禁止删除与强推（不限制创建，CD 仍可打 tag） |
 | 仓库合并设置 | 仅允许 squash（merge/rebase 已关闭）/ `allow_auto_merge=true`（能力开启，Release PR 仍不配 auto-merge）/ `allow_update_branch=true` / `delete_branch_on_merge=true` |
 | 安全 | secret scanning ✅ / push protection ✅ / dependabot alerts ✅ |
-| Actions | 默认 workflow 权限 = **write**（拍板维持）；`sha_pinning_required=false`（pin SHA 靠 workflow 纪律，9 个已全 pin）；`allowed_actions=all`；GITHUB_TOKEN 不可 approve PR |
+| Actions | 默认 workflow 权限 = **write**（拍板维持）；`sha_pinning_required=false`（pin SHA 靠 workflow 纪律；关键 action 以 SHA pin 为主，`softprops/action-gh-release` 仍用 `v3` tag）；`allowed_actions=all`；GITHUB_TOKEN 不可 approve PR |
 | 密钥/环境 | `RELEASE_PLEASE_TOKEN`（Release PR 必需）；签名密钥未配置，发布为未签名产物；environments 仅 copilot 自动项 |
 | 社区面 | Discussions 5 版块（General / Ideas / Polls / Q&A / 公告[仅维护者]）；**开帖表单 ×2 已配置（2026-10-07：`.github/DISCUSSION_TEMPLATE/q-a.yml` + `ideas.yml`，开帖即收集版本/系统/查重确认——替代事后追问）**；labels 28 个 taxonomy 全生效；issue 模板三件套 + blank_issues 关闭 + 安全私密上报引导 |
 | 社区面更正 | 「Discussions reply templates」**不是真实存在的 GitHub 功能**（2026-10-07 实证：SavedReply 为 viewer 级个人便签且无 API 管理入口，262 个 mutation 无一可写）——其意图由 **Discussion category forms**（开帖侧结构化表单，真实功能）更优实现，见上 |
 | Renovate | 周末批次 + 上海时区；非 major 归一组；electron major `enabled:false`；react-query 双包同 PR；`minimumReleaseAge: 1 day`（供应链 24h 缓冲） |
 
-### 6.2 workflow 一览（9 个，全部 active、显式 permissions；第三方 action 均 pin SHA）
+### 6.2 workflow 一览（9 个，全部 active、显式 permissions；第三方 action 以 SHA pin 为主，`softprops/action-gh-release@v3` 例外）
 
 | workflow | 职责一句话 |
 |---|---|
@@ -380,6 +380,7 @@ Renovate `minimumReleaseAge`（新版发布 24h 后才进升级 PR）+ electron 
 
 | 日期 | 版本 | 动作 |
 |---|---|---|
+| 2026-10-23 | v4.7 | 修正 action pin 表述：`softprops/action-gh-release` 仍用 `v3` tag，不再声称全部 pin；其余 workflow 说明与当前仓库对齐 |
 | 2026-10-23 | v4.6 | 模板化订正：移除 1.x/beta 历史版本内容；规则集名称、必需检查数与合并设置对齐当前仓库；删除本地未推提交台账 |
 | 2026-10-09 | v4.5 | Harden-Runner 试跑收尾：首个 CD 六 build job 含两类 ARM 全 success——ARM 采集能力实测证实，continue-on-error 撤销（§8） |
 | 2026-10-09 | v4.4 | stagingPercentage 灰度拍板不启用（无监控配套 + 用户规模小）；源码级机制与本仓接入路径留档 §5.6 |
