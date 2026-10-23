@@ -1,10 +1,10 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "06b08ca774ed3516bbad979c0e21dcaf24c3c1fa",
   "packages": {
     ".": {
       "release-type": "node",
       "include-component-in-tag": false,
-      "bootstrap-sha": "b19c4a4756a3af93373b0df58705bc2f1b29ef34",
       "changelog-sections": [
         { "type": "feat", "section": "新增", "hidden": false },
         { "type": "fix", "section": "修复", "hidden": false },
