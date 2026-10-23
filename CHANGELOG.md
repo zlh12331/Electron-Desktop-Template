@@ -18,6 +18,13 @@
 复制下面的结构到新版本段（`##` 标题、版本号与日期由 release-please 生成，不要手改）：
 
 ```markdown
+## [0.2.0](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.1.0...v0.2.0) (2026-10-23)
+
+
+### 新增
+
+* 初始化桌面应用模板 ([2516134](https://github.com/zlh12331/Electron-Desktop-Template/commit/2516134d0e7913299b773eb1b311de884b8b1303))
+
 ## [<version>](https://github.com/<owner>/<repo>/compare/v<prev>...v<version>) (<date>)
 
 > 一段话说清本版主线：解决了什么痛点、用户最该注意哪一处变化。两到三句，不写内部术语。
