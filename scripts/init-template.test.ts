@@ -173,7 +173,8 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
       repository: { url: string };
     };
     expect(pkg.name).toBe('acme-notes');
-    expect(pkg.version).toBe('0.1.0');
+    // 0.0.0 = 尚未发布；首个 feat 由 release-please 升到 0.1.0
+    expect(pkg.version).toBe('0.0.0');
     expect(pkg.repository.url).toBe('https://github.com/acme/acme-notes.git');
 
     const builder = readFileSync(join(dir, 'electron-builder.yml'), 'utf8');
@@ -267,7 +268,11 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
     const manifest = JSON.parse(
       readFileSync(join(dir, '.release-please-manifest.json'), 'utf8'),
     ) as Record<string, string>;
-    expect(manifest['.']).toBe('0.1.0');
+    const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as {
+      version: string;
+    };
+    expect(manifest['.']).toBe('0.0.0');
+    expect(pkg.version).toBe(manifest['.']);
 
     // bootstrap-sha 锚定模板仓自己的基线提交，派生项目里不存在，必须被清掉
     const releaseConfig = JSON.parse(

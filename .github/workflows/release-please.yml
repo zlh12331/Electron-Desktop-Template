@@ -29,7 +29,7 @@ jobs:
           # 独立 token：让 Release PR 上的必需检查能被触发
           #（GITHUB_TOKEN 产生的事件不触发其他 workflow）
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-          # 版本策略真源：feat→minor / fix→patch / prerelease(beta) 自动递增，
+          # 版本策略真源：feat→minor / fix→patch，
           # 详见 release-please-config.json（中文 CHANGELOG 分组也在这）
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
