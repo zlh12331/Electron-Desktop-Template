@@ -34,7 +34,7 @@
       "floor": { "statements": 76, "branches": 68, "functions": 75, "lines": 76 },
       "ratchet": { "statements": 76, "branches": 68, "functions": 75, "lines": 76 },
       "measured": { "statements": 81.31, "branches": 73.36, "functions": 80.29, "lines": 81.59 },
-      "measuredAt": "2026-10-22"
+      "measuredAt": "2026-10-23"
     }
   }
 }
