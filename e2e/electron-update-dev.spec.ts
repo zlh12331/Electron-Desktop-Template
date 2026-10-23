@@ -4,6 +4,7 @@
 // （结果依赖网络），不覆盖 electron-updater 自身行为。
 // 副作用防护：远端版本更高时会开始真实下载（Windows 全量约 328MB，见 dev-app-update.yml），
 // 用例检测到 available/downloading 立即 cancel。
+import { execFileSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ElectronApplication, Page } from '@playwright/test';
@@ -28,6 +29,30 @@ const LAUNCH_CHECK_DELAY_MS = 5_000;
 
 // 检查链路终态：网络错误同样算链路已通；available/downloading 是下载中态，由用例 cancel 后转 cancelled
 const DONE_PHASES = new Set(['not-available', 'error', 'downloaded', 'cancelled']);
+
+/**
+ * 远端仓库是否已有已发布版本
+ *
+ * dev 更新检查要求远端至少有一个 release；全新模板仓库没有时，electron-updater 直接以
+ * 「No published versions on GitHub」结束——macOS 的 Squirrel.Mac 只 reject、不触发
+ * error 事件，快照会停在 checking，用例只能等到超时。此时「检查是否真的发起」仍可测，
+ * 「是否到达终态」没有可比对象，应跳过而不是假红。
+ *
+ * 用 git ls-remote 查远端 tag（发布流程先打 tag 再建 Release，二者一一对应）：
+ * 不依赖 GitHub API 配额与令牌，公开仓库匿名即可。查询失败按「有 release」处理——
+ * 宁可跑真实用例，也不因网络抖动静默跳过。
+ */
+function repoHasPublishedRelease(): boolean {
+  try {
+    const out = execFileSync('git', ['ls-remote', '--tags', 'origin', 'refs/tags/v*'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return out.trim() !== '';
+  } catch {
+    return true;
+  }
+}
 
 /**
  * 等待主窗口（过滤 devtools:// 窗口）
@@ -133,11 +158,12 @@ test.describe('dev 更新调试链路（APP_DEV_UPDATE 接线）', () => {
   test('开关开启：启动检查真实发生并推送渲染层', async () => {
     // 预算 = 实例启动 + 5s 启动检查延迟 + 最坏 45s 检查超时（update-service.ts CHECK_TIMEOUT_MS）
     test.setTimeout(120_000);
+    const hasRelease = repoHasPublishedRelease();
     ({ app, page } = await launchElectron({ APP_DEV_UPDATE: '1' }));
 
     // 轮询启动检查结果：接线生效的可观测证据 = lastCheckAt 被置位 + phase 到达任意终态
     // （无开关时 lastCheckAt 恒为 null，见上一用例）
-    const deadline = Date.now() + 75_000;
+    const deadline = Date.now() + (hasRelease ? 75_000 : 30_000);
     let phase: string | undefined;
     let lastCheckAt: number | null = null;
     let message = '';
@@ -154,10 +180,20 @@ test.describe('dev 更新调试链路（APP_DEV_UPDATE 接线）', () => {
         // cancelled，防 CI 拉全量包（Windows 约 328MB）
         await page.evaluate(() => window.api.update.cancel());
       }
+      // 无已发布版本：检查已发起即可判定接线生效，不必等到超时
+      if (!hasRelease && lastCheckAt !== null) {
+        break;
+      }
       await page.waitForTimeout(1_000);
     }
 
     expect(lastCheckAt).not.toBeNull();
+    if (!hasRelease) {
+      // 无 release 时 electron-updater 以「No published versions」结束；macOS Squirrel 只
+      // reject 不触发 error 事件，快照停在 checking——没有终态可比，跳过终态断言。
+      // 首个 Release 发布后本用例自动恢复完整校验。
+      test.skip(true, '仓库尚无已发布版本：检查已发起，无终态可比');
+    }
     expect(phase).not.toBeUndefined();
     expect(phase).not.toBe('checking');
     // 防误测：终态必须是真实检查结果，而非手动门卫的消息
