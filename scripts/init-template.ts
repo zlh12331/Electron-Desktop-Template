@@ -8,6 +8,7 @@
 //         [--artifact-base My-App] [--executable my-app] [--dry-run]
 // 幂等：重复执行同一组参数不产生额外改动（每步都是「替换已知旧值」或「写定值」）。
 
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -307,25 +308,38 @@ function writeDevAppUpdate(root: string, input: InitInput, dryRun: boolean): Rew
   );
 }
 
-/** 改写 index.html（标题 + 首帧主题存储键） */
+/** 改写首页品牌并同步首帧脚本的 CSP 哈希。 */
 function writeIndexHtml(
   root: string,
   input: InitInput,
   previous: PreviousBrand,
   dryRun: boolean,
-): RewriteResult {
-  return rewriteText(
-    root,
-    'src/renderer/index.html',
-    (text) =>
-      text
-        .replace(/<title>.*<\/title>/, `<title>${input.productName}</title>`)
-        .replaceAll(
-          `localStorage.getItem('${previous.storagePrefix}:theme')`,
-          `localStorage.getItem('${input.storagePrefix}:theme')`,
-        ),
-    dryRun,
-  );
+): RewriteResult[] {
+  const file = 'src/renderer/index.html';
+  const current = readIfExists(root, file);
+  if (current === null) {
+    return [{ file, changed: false }];
+  }
+  const html = current
+    .replace(/<title>.*<\/title>/, `<title>${input.productName}</title>`)
+    .replaceAll(
+      `localStorage.getItem('${previous.storagePrefix}:theme')`,
+      `localStorage.getItem('${input.storagePrefix}:theme')`,
+    );
+  const inline = html.match(/<head>[\s\S]*?<script>([\s\S]*?)<\/script>/)?.[1];
+  if (inline === undefined) {
+    throw new Error(`${file} 缺失首帧主题脚本，无法同步 CSP 哈希`);
+  }
+  const hash = `sha256-${createHash('sha256').update(inline).digest('base64')}`;
+  return [
+    writeIfChanged(root, file, html, dryRun),
+    rewriteText(
+      root,
+      'src/main/security/csp.ts',
+      (text) => text.replace(/'sha256-[A-Za-z0-9+/=]+'/, `'${hash}'`),
+      dryRun,
+    ),
+  ];
 }
 
 /** 改写 i18n 文案里写死的旧产品名 */
@@ -504,7 +518,7 @@ export function runInitTemplate(
     writePackageJson(root, input, dryRun),
     writeElectronBuilder(root, input, previous, dryRun),
     writeDevAppUpdate(root, input, dryRun),
-    writeIndexHtml(root, input, previous, dryRun),
+    ...writeIndexHtml(root, input, previous, dryRun),
     ...writeLocales(root, input, dryRun),
     writeLicense(root, input, dryRun),
     writeCodeowners(root, input, previous, dryRun),
