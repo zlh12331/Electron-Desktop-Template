@@ -25,6 +25,10 @@ pnpm test:e2e               # 浏览器模式
 pnpm test:e2e:electron      # Electron 真实窗口
 pnpm test:smoke             # 生产构建 smoke（需先 build:dist）
 
+# 模板底座验收（仓库外副本；--nsis 会真实安装/卸载测试应用）
+pnpm acceptance:derived
+pnpm acceptance:nsis --installer <path-to.exe> --yes
+
 # 质量门禁
 pnpm check:static           # 静态审计 16 项（见下）
 pnpm check:tokens           # 设计令牌：裸色/hex/字号/间距双写

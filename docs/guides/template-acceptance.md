@@ -4,6 +4,18 @@
 > 或把模板交付给团队前。
 > 结论先行：源仓库 `pnpm verify:local` 全绿 ≠ 派生项目可用；必须用干净副本走一遍真实用户路径。
 
+## 快速入口
+
+```bash
+pnpm acceptance:derived          # 全新安装 → 初始化/幂等 → 门禁 → E2E → 打包/smoke
+pnpm acceptance:derived --nsis   # 追加 NSIS 安装 → 启动 → 卸载（仅 Windows）
+pnpm acceptance:nsis --installer release/xxx.exe --yes  # 单独验证已构建的安装包
+```
+
+脚本在仓库外创建干净副本，成功自动删除，失败保留现场（`--keep` 成功也保留）。
+`--skip-e2e` / `--skip-build` 可用于快速迭代；NSIS 会真实安装/卸载测试应用，
+建议在一次性 VM 或测试账号中执行。
+
 ## 一、为什么必须做
 
 模板的常规门禁都在**源仓库**里运行：品牌是模板自己的值、依赖已安装、运行数据已存在。
@@ -29,7 +41,9 @@
   避免和真实应用、现有 E2E 的 userData 冲突。
 - 打包态 smoke 会写真实 `%APPDATA%`（Windows）并注册协议；结束后按第六节清理。
 
-## 三、创建干净副本
+## 三、手工流程（脚本不可用或排障时）
+
+以下步骤与 `pnpm acceptance:derived` 等价，仅用于脚本本身出问题或需要逐段排查时。
 
 ```bash
 mkdir -p <outside-dir>

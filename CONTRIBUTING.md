@@ -189,8 +189,14 @@ pnpm build:win:x64 && pnpm check:native-arch && pnpm test:smoke
 ### 模板底座改动的额外要求
 
 涉及 `scripts/init-template.ts`、`scripts/postinstall-rebuild.mjs`、品牌 / 打包 / 发版基线的 PR，
-合并前按 [docs/guides/template-acceptance.md](docs/guides/template-acceptance.md) 在干净副本做一次
-派生验收，并把关键结果贴到 PR。
+合并前执行派生验收，并把关键结果贴到 PR：
+
+```bash
+pnpm acceptance:derived
+# 动了 NSIS / 安装器时再加：pnpm acceptance:derived --nsis（仅 Windows）
+```
+
+详见 [docs/guides/template-acceptance.md](docs/guides/template-acceptance.md)。
 
 ## 六·五、Label 体系
 
