@@ -3,7 +3,7 @@
 // src/renderer/dev/mock-api.ts 模拟）不在此文件。
 // 运行 pnpm test:e2e:electron：webServer 由 e2e/playwright.electron.config.ts 先拉起 electron-vite dev。
 
-import { cpSync, existsSync, mkdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PRODUCT_NAME } from '@code-agent/shared/renderer';
@@ -11,6 +11,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 import { _electron as electron } from 'playwright';
 
+import { unwrap } from '../src/renderer/lib/ipc';
 import { closeElectronApp } from './helpers/close-electron';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -52,7 +53,9 @@ async function waitForMainWindow(app: ElectronApplication): Promise<Page> {
   throw new Error('等待主窗口超时（20s）：仅出现 DevTools 窗口');
 }
 
-async function launchElectron(): Promise<{ app: ElectronApplication; page: Page }> {
+async function launchElectron(
+  userData: string = E2E_USER_DATA,
+): Promise<{ app: ElectronApplication; page: Page }> {
   const app = await electron.launch({
     args: [MAIN_ENTRY],
     env: {
@@ -61,7 +64,7 @@ async function launchElectron(): Promise<{ app: ElectronApplication; page: Page 
       // 设了它就改走 loadURL 连 dev server，而非 loadFile 载生产产物（src/main/window.ts）；
       // 端口须与 e2e/playwright.electron.config.ts 的 webServer 一致
       ELECTRON_RENDERER_URL: 'http://localhost:5173',
-      APP_USER_DATA: E2E_USER_DATA,
+      APP_USER_DATA: userData,
       APP_DEBUG_PORT: DEBUG_PORT,
       // 豁免关窗协商：仍有运行中回合时关闭会弹确认框（src/main/window.ts），测试环境会卡死
       APP_SKIP_CLOSE_GUARD: '1',
@@ -78,6 +81,16 @@ async function launchElectron(): Promise<{ app: ElectronApplication; page: Page 
     await closeElectronApp(app);
     throw err;
   }
+}
+
+async function expectProcessExited(
+  child: ReturnType<ElectronApplication['process']>,
+): Promise<void> {
+  await expect
+    .poll(() => child.exitCode !== null || child.signalCode !== null, {
+      message: 'Electron 主进程必须完全退出后才能重启或清理 userData',
+    })
+    .toBe(true);
 }
 
 test.describe('Electron 应用 E2E 测试', () => {
@@ -157,6 +170,53 @@ test.describe('Electron 应用 E2E 测试', () => {
 
     expect(result.hasError).toBe(false);
     expect(result.hasData).toBe(true);
+  });
+
+  test('主题经顶栏切换后跨重启持久化', async () => {
+    mkdirSync(E2E_USER_DATA, { recursive: true });
+    const userData = mkdtempSync(join(E2E_USER_DATA, 'theme-persistence-'));
+    let ownedApp: ElectronApplication | undefined;
+    let ownedProcess: ReturnType<ElectronApplication['process']> | undefined;
+
+    try {
+      ({ app, page } = await launchElectron(userData));
+      ownedApp = app;
+      // 必须在关闭前保存句柄：关闭后 Playwright 可能已移除该实例的内部映射。
+      ownedProcess = app.process();
+      const themeButton = page.getByRole('button', { name: /切换主题|Toggle theme/i });
+      await expect(themeButton).toBeVisible();
+      await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+
+      await themeButton.click();
+      await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
+      // 设置写穿透异步完成；只读确认落库，不能通过 IPC 写入替代 UI 操作。
+      await expect
+        .poll(async () => {
+          const result = await page.evaluate(() => window.api.settings.getAll({}));
+          return unwrap(result).settings['theme'];
+        })
+        .toBe('light');
+
+      await closeElectronApp(app);
+      await expectProcessExited(ownedProcess);
+
+      ({ app, page } = await launchElectron(userData));
+      ownedApp = app;
+      ownedProcess = app.process();
+      await expect(page.getByRole('button', { name: /切换主题|Toggle theme/i })).toBeVisible();
+      const restored = await page.evaluate(() => window.api.settings.getAll({}));
+      expect(unwrap(restored).settings['theme']).toBe('light');
+      await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
+    } finally {
+      if (ownedApp !== undefined) {
+        await closeElectronApp(ownedApp);
+      }
+      if (ownedProcess !== undefined) {
+        await expectProcessExited(ownedProcess);
+      }
+      // 仅删除本次创建的子目录，保留其他用例的 userData。
+      rmSync(userData, { recursive: true, force: true });
+    }
   });
 
   test('IPC 全链路：system/getStatus 返回运行时状态', async () => {
