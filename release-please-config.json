@@ -4,7 +4,7 @@
     ".": {
       "release-type": "node",
       "include-component-in-tag": false,
-      "bootstrap-sha": "2516134d0e7913299b773eb1b311de884b8b1303",
+      "bootstrap-sha": "b19c4a4756a3af93373b0df58705bc2f1b29ef34",
       "changelog-sections": [
         { "type": "feat", "section": "新增", "hidden": false },
         { "type": "fix", "section": "修复", "hidden": false },

@@ -269,7 +269,7 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
     ) as Record<string, string>;
     expect(manifest['.']).toBe('0.1.0');
 
-    // bootstrap-sha 锚定模板仓自己的初始提交，派生项目里不存在，必须被清掉
+    // bootstrap-sha 锚定模板仓自己的基线提交，派生项目里不存在，必须被清掉
     const releaseConfig = JSON.parse(
       readFileSync(join(dir, 'release-please-config.json'), 'utf8'),
     ) as { packages: Record<string, Record<string, unknown>> };
