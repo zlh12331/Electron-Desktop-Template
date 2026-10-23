@@ -112,6 +112,16 @@ pnpm check:changelog-polish   # 验证通过后再合并 Release PR
 - macOS 公证：`APPLE_API_KEY` + `APPLE_API_KEY_ID` + `APPLE_API_ISSUER`
   （或 `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` + `APPLE_TEAM_ID`）
 
+### 5.1 可观测性（可选）
+
+发布构建会自动尝试上传 Sentry source map；以下 Secrets 任一缺失时脚本打印跳过原因并继续构建：
+
+- `SENTRY_DSN`：构建期注入的默认 DSN（运行时环境变量可覆盖；不配则错误上报 no-op）
+- `SENTRY_AUTH_TOKEN` + `SENTRY_ORG` + `SENTRY_PROJECT`：source map 上传凭据
+
+原生调试符号默认不上传；需要原生崩溃完整符号化时设置仓库变量 `SENTRY_UPLOAD_DEBUG_FILES=1`
+（会显著增加 CI 时间与 Sentry 存储）。详见 [可观测性运行手册](docs/guides/observability-runbook.md)。
+
 未配置时 CD 不会因此失败；是否在发布说明中标注「未签名」由维护者决定。
 
 ## 六、预发布（可选，模板默认关闭）

@@ -101,14 +101,14 @@ channels.ts（IPC_CHANNELS 常量由 deriveChannels(meta) 生成，as const 字�
 - 运行时兜底（启动期注册循环内，P2 加固）：`handler === undefined` 抛错（防 `as any` 绕过）；**`resSchema` 缺失同样启动即抛错**（响应契约必填——此前实质可选，新方法漏配会让「响应防漂移」静默失效）。
 - 事件方法无需注册（主进程 `webContents.send` 主动推送）。
 
-## 5. wrap 中间件（`src/main/utils/wrap.ts`）
+## 5. wrap 中间件（`src/main/ipc/wrap.ts`）
 
 每个 IPC request 都经过统一 wrap，职责：
 - **sender 校验**：校验 `event.sender` 合法来源（P2 加固：来源 URL 白名单，防跨窗口越权）。
 - **traceId 贯穿**：从 `ctx` 读取或生成 traceId（形状校验：8-64 位字母数字/连字符/下划线），随事件带出（可追踪性）。
 - **zod 入参校验**（`def.schema`）+ **响应契约校验**（`resSchema` 存在时校验 handler 返回，防手写 Res 接口漂移）。
 - **错误分类**：把异常映射为 `AppError` / 错误码（见 §6）。
-- **错误上报**：经 error-report 单一出口落本地结构化日志（fire-and-forget，不阻塞响应；2026-09-13 移除 Sentry）。
+- **可观测性**：每个 request 外层建 `ipc {channel}` span，并记录 `ipc.server.requests` / `ipc.server.request.duration`（含校验失败）；错误经 error-report 落本地日志并转发可选 Sentry（fire-and-forget，不阻塞响应）。
 
 `IpcHandlerContext` 提供给 handler 统一的 `{ event, traceId, ... }` 运行上下文。
 
@@ -154,5 +154,5 @@ main:     updateService 状态变化 → emitEvent(webContents, 'update:event:st
 | `packages/shared/src/ipc/channels.ts` | channel 常量（deriveChannels(meta) 生成，as const） |
 | `packages/shared/src/ipc/response.ts` | `IpcResponse<T>` 统一响应封装 |
 | `src/main/ipc/register.ts` | 定义表驱动 handler 注册（缺 handler/缺 resSchema 启动即抛错） |
-| `src/main/utils/wrap.ts` | sender 校验/traceId/schema/错误分类与上报（error-report）中间件 |
+| `src/main/ipc/wrap.ts` | sender 校验/traceId/schema/错误分类与上报（error-report）中间件 |
 | `src/preload/utils/create-api.ts` | preload 自动生成 window.api（CJS 沙箱安全） |

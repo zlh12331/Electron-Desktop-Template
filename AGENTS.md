@@ -138,8 +138,10 @@ tools/           → 独立 TS 子包（depcruise / typedoc）
 ## 外部服务 / 凭据
 
 - 凭据用 Electron `safeStorage` 加密（Windows DPAPI / macOS Keychain / Linux libsecret）。
-- 遥测为 OpenTelemetry 单通道：`OTEL_EXPORTER_OTLP_ENDPOINT` 未配置即不外发。
-- 报障走 GitHub Issue + 诊断包导出（无云端上报依赖）。
+- 错误/崩溃上报（Sentry）：`SENTRY_DSN` 未配置即完整 no-op；发布 CI 可用 `SENTRY_AUTH_TOKEN` / `SENTRY_ORG` / `SENTRY_PROJECT` 上传 source map（缺失时明确跳过）。
+- 遥测（OpenTelemetry）：`OTEL_EXPORTER_OTLP_ENDPOINT` 未配置时打包版不外发，dev 仅 Console trace；完整级别/指标/日志清单见 [23 可观测性](docs/design/23-otel-spec.md)。
+- 遥测级别 `off` / `error-only` / `full` 由设置页控制（写 `telemetry-pref.json`，重启生效）；本地日志始终写，诊断包导出时脱敏。
+- 报障走 GitHub Issue + 诊断包导出（无云端上报依赖）。本地 SigNoz / Sentry 配置见 [observability-runbook.md](docs/guides/observability-runbook.md)。
 
 ## 构建产物 & Git
 

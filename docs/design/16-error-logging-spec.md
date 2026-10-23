@@ -1,7 +1,7 @@
 # 16. 错误与日志规范
 
 > 统一主进程（electron-log + traceId）、渲染层（ErrorBoundary + sonner）与观测（error-report 本地错误上报 + OTel）的错误处理约定。
-> 最后同步：2026-09-24（Sentry 已于 2026-09-13 移除）
+> 最后同步：2026-10-23（Sentry 重新接入为可选通道 + OTel logs/metrics 落地）
 
 ---
 > 🔒 工程化强制：Biome noConsole 规则 + traceId 由 preload 自动附加（运行时强制，非人工约定）
@@ -45,10 +45,12 @@
 - 禁止空 catch（必须按 unknown 缩小 + 记录）
 - 网络失败的重试由消费方决定：TanStack Query 默认查询 1 次、mutation 0 次（`lib/query/query-client.ts`），需要退避的场景在 hook 内显式配置
 
-## 三、错误上报与 OTel
+## 三、错误上报、Sentry 与 OTel
 
-- **error-report**（`src/main/utils/error-report.ts` / `src/renderer/lib/error-report.ts`）：异常单一出口，落本地日志（渲染层经 electron-log 转发主进程，随诊断包导出），报障走 GitHub Issue 深链；Sentry 已于 2026-09-13 移除（决策记录见 23-otel-spec）
-- **OTel**（@opentelemetry/*）：telemetry/otel.ts 导出 span（可观测性），与 electron-log 互补（结构化指标 vs 文本日志）；未配置 OTLP 端点时不外发
+- **error-report**（`src/main/utils/error-report.ts` / `src/renderer/lib/error-report.ts`）：异常单一出口，先落本地日志（渲染层经 electron-log 转发主进程，随诊断包导出并做导出期脱敏），再交可选后端。
+- **Sentry**（`@sentry/electron/main`）：主进程错误聚合、原生崩溃与 release health；DSN 未配置时完整 no-op。渲染层错误经 `telemetry:captureError` IPC 转发（渲染层不引入 Sentry SDK），报障深链仍指向 GitHub Issue。
+- **OTel**（@opentelemetry/*）：trace（IPC/启动/更新检查）+ metrics（RED、漏斗、资源、Web Vitals）+ logs（主进程结构化日志）；未配置 OTLP 端点时打包版不外发，dev 仅 Console trace。
+- 三者的级别语义、脱敏边界与指标清单见 [23 可观测性规范](23-otel-spec.md)。
 
 ## 四、渲染层错误 UI 约定
 

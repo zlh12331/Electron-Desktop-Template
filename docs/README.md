@@ -16,6 +16,7 @@
 - **要改界面**：[09 前端实现](design/09-ux-interaction-spec.md) → [10 组件规范](design/10-component-design-spec.md) → [08 UX 规范](design/08-ux-guidelines.md) → [11 a11y](design/11-a11y-spec.md) / [12 性能](design/12-performance-spec.md)
 - **要发版 / 改流水线**：[guides/ci-cd.md](guides/ci-cd.md) → [RELEASING.md](../RELEASING.md)
 - **要验收模板底座**：[guides/template-acceptance.md](guides/template-acceptance.md)（干净副本 → 初始化 → 启动/持久化 → 打包 smoke）
+- **要接可观测性 / 查告警**：[23 可观测性规范](design/23-otel-spec.md) → [observability-runbook.md](guides/observability-runbook.md)（本地 SigNoz、Sentry 凭据、SLO 与告警）
 - **要把模板交给团队**：[guides/oss-automation.md](guides/oss-automation.md)（单人维护 + 本机 agent 的审批门控模型）
 
 ## 约定

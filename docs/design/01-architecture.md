@@ -19,8 +19,9 @@
 `src/main/index.ts` 只做装配：
 
 ```
+模块求值：Sentry 初始化（ready 前，DSN 缺失即 no-op）
 单实例锁 → 协议注册 → whenReady:
-  logger → 遥测 → initDb → i18n → 代理 → 错误兜底 → 崩溃恢复
+  logger → OpenTelemetry（trace/metrics/logs）→ initDb → i18n → 代理 → 错误兜底 → 崩溃恢复
   → registerIpcHandlers(按域的 handler 对象) → update.start → CSP
   → 监控（内存 / 事件循环）→ createWindow → createTray → 冷启动深链补发
 ```
@@ -66,10 +67,10 @@ channels.ts / payloads.ts / api.ts（派生常量与类型）
 
 ## 6. 错误、日志与可观测
 
-- 所有 IPC handler 经 `utils/wrap.ts` 包装：traceId + 入参 zod 校验 + 响应 schema 校验 + 异常归一为 `IpcResponse.error`。
+- 所有 IPC handler 经 `ipc/wrap.ts` 包装：traceId + 入参 zod 校验 + 响应 schema 校验 + 异常归一为 `IpcResponse.error`。
 - 日志：electron-log 落本地文件，`traceId` 贯穿渲染 → 主进程。
 - 全局兜底：`registerGlobalErrorHandlers`（主进程）、`AppErrorBoundary` / `SectionErrorBoundary`（渲染层）。
-- 遥测：OpenTelemetry 单通道，`OTEL_EXPORTER_OTLP_ENDPOINT` 未配置即不外发；级别由 `telemetry-pref` 控制（off / error-only / full）。
+- 遥测双通道：Sentry 负责错误/原生崩溃/release health（DSN 未配置即 no-op）；OpenTelemetry 负责 trace/metrics/logs（OTLP 端点未配置时打包版 no-op）。级别由 `telemetry-pref` 控制：`off` 全部关闭，`error-only` 只有 Sentry + error 日志，`full` 全量。详见 [23 可观测性规范](23-otel-spec.md)。
 
 ## 7. 安全基线
 

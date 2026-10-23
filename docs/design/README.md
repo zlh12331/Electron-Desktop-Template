@@ -42,7 +42,7 @@
 |---|---|---|---|
 | 17 | [安全规范](17-security-spec.md) | Electron 生产级基线：进程隔离 / CSP / 凭据 / 依赖 | check:csp-hash / check:secrets-git |
 | 16 | [错误与日志](16-error-logging-spec.md) | AppError、traceId、ErrorBoundary 分层与本地优先上报 | — |
-| 23 | [可观测性](23-otel-spec.md) | OTel 单通道、span 约定、与日志的分工 | — |
+| 23 | [可观测性](23-otel-spec.md) | L4：Sentry 错误/崩溃、OTel trace/metrics/logs、Web Vitals、遥测级别与脱敏边界 | — |
 
 ## 五、流程
 

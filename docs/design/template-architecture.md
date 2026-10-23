@@ -44,7 +44,7 @@ packages/shared/src/ipc/
 
 src/preload/utils/create-api.ts   # 遍历 meta 生成 window.api
 src/main/ipc/register.ts          # 遍历定义表统一注册
-src/main/utils/wrap.ts            # sender 校验 + zod 双向校验 + traceId
+src/main/ipc/wrap.ts            # sender 校验 + zod 双向校验 + traceId
 ```
 
 依赖方向严格单向：`meta` ← `domains` ← `definitions` ← `channels` / `api`。

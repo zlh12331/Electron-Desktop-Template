@@ -55,11 +55,11 @@ src/main/
 │   ├── network/              # 代理解析与应用（Node/Chromium 双栈）
 │   ├── storage/              # SQLite + 本地持久化：db / 迁移 / 设置 / 备份 / keychain / window-state
 │   │   └── tables/           # 表定义（core 通用表；业务表按域新增）
-│   ├── telemetry/            # OpenTelemetry + 事件循环/内存监控
+│   ├── telemetry/            # Sentry + OpenTelemetry（trace/metrics/logs）+ 事件循环/内存监控 + 脱敏
 │   └── update/               # electron-updater 封装
-├── ipc/                      # 按域的 handler + 统一注册器
+├── ipc/                      # 按域的 handler + 统一注册器 + wrap（sender/契约/span/metrics）
 ├── security/                 # CSP 等安全基线
-└── utils/                    # logger / wrap / error-report / file-permissions / json-file
+└── utils/                    # logger / error-report / telemetry-flush / file-permissions / json-file
 ```
 
 **扩展点**：新增业务服务 = `infra/<domain>/` 新建模块 → `service-container.ts` 加 lazy accessor 与 dispose 步骤 → `ipc/<domain>.handler.ts` → `index.ts` 注册 → shared 侧加 IPC 域（见 19 号规范）。
