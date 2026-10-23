@@ -51,7 +51,6 @@ import {
   flushSentry,
   getSentryStatus,
   initSentry,
-  resolveSentryDsn,
 } from './sentry';
 
 function lastInitOptions(): ElectronMainOptions {
@@ -68,16 +67,6 @@ beforeEach(async () => {
   delete process.env['SENTRY_ENVIRONMENT'];
   delete process.env['SENTRY_RELEASE'];
   await closeSentry();
-});
-
-describe('resolveSentryDsn', () => {
-  it('运行时优先于构建期；空串视为未配置', () => {
-    expect(resolveSentryDsn({ ['SENTRY_DSN']: 'https://runtime' }, 'https://build')).toBe(
-      'https://runtime',
-    );
-    expect(resolveSentryDsn({ ['SENTRY_DSN']: '  ' }, 'https://build')).toBe('https://build');
-    expect(resolveSentryDsn({}, '')).toBe('');
-  });
 });
 
 describe('initSentry', () => {
@@ -204,17 +193,21 @@ describe('capture', () => {
   });
 
   it('captureRendererError：重建 Error + renderer tags + componentStack', () => {
-    captureRendererError({
-      name: 'TypeError',
-      message: 'renderer boom',
-      stack: 'TypeError: renderer boom\n at app.tsx:1:1',
-      componentStack: 'at Panel',
-      tags: { boundary: 'SectionErrorBoundary' },
-    });
+    captureRendererError(
+      {
+        name: 'TypeError',
+        message: 'renderer boom',
+        stack: 'TypeError: renderer boom\n at app.tsx:1:1',
+        componentStack: 'at Panel',
+        tags: { boundary: 'SectionErrorBoundary' },
+      },
+      'trace-123',
+    );
     expect(mocks.scope.setTags).toHaveBeenCalledWith({
       boundary: 'SectionErrorBoundary',
       'error.source': 'renderer',
       'app.process': 'renderer',
+      'app.trace_id': 'trace-123',
     });
     expect(mocks.scope.setExtra).toHaveBeenCalledWith('componentStack', 'at Panel');
     const captured = mocks.captureException.mock.calls[0]?.[0] as Error;

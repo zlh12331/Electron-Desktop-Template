@@ -2,12 +2,12 @@
 // 决定是否初始化 OTel，此文件必须可同步读取
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { TelemetryLevel } from '@code-agent/shared/main';
+import {
+  DEFAULT_TELEMETRY_LEVEL,
+  TELEMETRY_LEVELS,
+  type TelemetryLevel,
+} from '@code-agent/shared/observability';
 import { app } from 'electron';
-
-const DEFAULT_LEVEL: TelemetryLevel = 'full';
-
-const VALID_LEVELS: readonly TelemetryLevel[] = ['off', 'error-only', 'full'];
 
 function getPrefPath(): string {
   return join(app.getPath('userData'), 'telemetry-pref.json');
@@ -22,17 +22,17 @@ export function readTelemetryLevelSync(): TelemetryLevel {
   try {
     const path = getPrefPath();
     if (!existsSync(path)) {
-      return DEFAULT_LEVEL;
+      return DEFAULT_TELEMETRY_LEVEL;
     }
     const content = readFileSync(path, 'utf8');
     const pref = JSON.parse(content) as Partial<TelemetryPref>;
     const level = pref.level;
-    if (level !== undefined && VALID_LEVELS.includes(level)) {
+    if (level !== undefined && TELEMETRY_LEVELS.includes(level)) {
       return level;
     }
-    return DEFAULT_LEVEL;
+    return DEFAULT_TELEMETRY_LEVEL;
   } catch {
-    return DEFAULT_LEVEL;
+    return DEFAULT_TELEMETRY_LEVEL;
   }
 }
 

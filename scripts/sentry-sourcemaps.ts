@@ -7,7 +7,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 
-import { buildSourcemapCommands, resolveSentryUploadConfig } from './lib/sentry-upload';
+import { resolveSentryUploadConfig } from '@code-agent/shared/observability';
+
+import { buildSourcemapCommands } from './lib/sentry-upload';
 
 const root = join(import.meta.dirname, '..');
 

@@ -4,6 +4,8 @@
 
 import { z } from 'zod';
 
+import { TelemetryLevelSchema } from './settings';
+
 /** 单条错误消息体最大长度（栈可能很长，但 32KB 足以覆盖压缩后调用链） */
 const MAX_STACK_LENGTH = 32_768;
 
@@ -106,4 +108,120 @@ export interface TelemetryReportWebVitalsRes {
 /** Web Vitals 上报响应 schema */
 export const TelemetryReportWebVitalsResSchema = z.object({
   accepted: z.number().int().nonnegative(),
+});
+
+// ────────── 运行状态 / 连接测试（设置页可观测性状态卡）──────────
+
+/** Sentry 未启用原因 */
+export const SentryStatusReasonSchema = z.enum(['telemetry-off', 'no-dsn', 'init-failed']);
+
+/** 单个遥测信号的健康快照 */
+export const TelemetrySignalHealthSchema = z.object({
+  attempts: z.number().int().nonnegative(),
+  failures: z.number().int().nonnegative(),
+  lastSuccessAt: z.number().int().nonnegative().nullable(),
+  lastFailureAt: z.number().int().nonnegative().nullable(),
+  lastError: z.string().max(1_024).nullable(),
+});
+
+/** 遥测运行状态响应 */
+export interface TelemetryStatusRes {
+  readonly level: z.infer<typeof TelemetryLevelSchema>;
+  readonly sentry: {
+    readonly enabled: boolean;
+    readonly initialized: boolean;
+    readonly reason: z.infer<typeof SentryStatusReasonSchema> | null;
+    readonly release: string | null;
+    readonly environment: string | null;
+  };
+  readonly otel: {
+    readonly enabled: boolean;
+    readonly tracing: boolean;
+    readonly metrics: boolean;
+    readonly logs: boolean;
+    readonly endpointConfigured: boolean;
+  };
+  readonly health: {
+    readonly traces: z.infer<typeof TelemetrySignalHealthSchema>;
+    readonly metrics: z.infer<typeof TelemetrySignalHealthSchema>;
+    readonly logs: z.infer<typeof TelemetrySignalHealthSchema>;
+    readonly sampledLogs: number;
+    readonly rateLimitedLogs: number;
+    readonly lastDropAt: number | null;
+  };
+}
+
+/** 遥测运行状态响应 schema */
+export const TelemetryStatusResSchema = z.object({
+  level: TelemetryLevelSchema,
+  sentry: z.object({
+    enabled: z.boolean(),
+    initialized: z.boolean(),
+    reason: SentryStatusReasonSchema.nullable(),
+    release: z.string().nullable(),
+    environment: z.string().nullable(),
+  }),
+  otel: z.object({
+    enabled: z.boolean(),
+    tracing: z.boolean(),
+    metrics: z.boolean(),
+    logs: z.boolean(),
+    endpointConfigured: z.boolean(),
+  }),
+  health: z.object({
+    traces: TelemetrySignalHealthSchema,
+    metrics: TelemetrySignalHealthSchema,
+    logs: TelemetrySignalHealthSchema,
+    sampledLogs: z.number().int().nonnegative(),
+    rateLimitedLogs: z.number().int().nonnegative(),
+    lastDropAt: z.number().int().nonnegative().nullable(),
+  }),
+});
+
+/** OTLP 连接探测结果 */
+export interface TelemetryOtlpProbe {
+  readonly signal: 'traces' | 'metrics' | 'logs';
+  readonly url: string;
+  readonly ok: boolean;
+  readonly statusCode: number | null;
+  readonly message: string;
+}
+
+/** 连接测试响应（Sentry 只做配置校验，不发送测试事件） */
+export interface TelemetryTestConnectionRes {
+  readonly sentry: {
+    readonly configured: boolean;
+    readonly valid: boolean;
+    readonly message: string;
+  };
+  readonly otlp: {
+    readonly checked: boolean;
+    readonly reason: 'off' | 'no-endpoint' | 'rate-limited' | 'probed';
+    readonly message: string;
+    readonly results: readonly TelemetryOtlpProbe[];
+  };
+}
+
+/** OTLP 连接探测结果 schema */
+export const TelemetryOtlpProbeSchema = z.object({
+  signal: z.enum(['traces', 'metrics', 'logs']),
+  url: z.string(),
+  ok: z.boolean(),
+  statusCode: z.number().int().positive().nullable(),
+  message: z.string(),
+});
+
+/** 连接测试响应 schema */
+export const TelemetryTestConnectionResSchema = z.object({
+  sentry: z.object({
+    configured: z.boolean(),
+    valid: z.boolean(),
+    message: z.string(),
+  }),
+  otlp: z.object({
+    checked: z.boolean(),
+    reason: z.enum(['off', 'no-endpoint', 'rate-limited', 'probed']),
+    message: z.string(),
+    results: z.array(TelemetryOtlpProbeSchema),
+  }),
 });

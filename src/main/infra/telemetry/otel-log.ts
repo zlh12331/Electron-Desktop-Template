@@ -1,10 +1,13 @@
 // otel-log.ts：主进程结构化日志 → OTel Logs 的桥接状态（无 electron-log 依赖，避免循环）
 // 边界：logger.ts 每次写日志后调用 emitOtelLog；OTel 未初始化时 sink 为 null，emit 立即返回
 // 为什么不用 electron-log hook：主进程日志已统一经 logger.ts，直接在此收口可避免双 transport 重复导出
+
+import type { OtelLogMinLevel } from '@code-agent/shared/observability';
 import type { LogAttributes, Logger as OtelLogger } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import type { OtelLogMinLevel } from './otel-config';
+import { FixedWindowRateLimiter } from './rate-limit';
 import { redactText } from './redact';
+import { recordLogDrop } from './telemetry-health';
 
 /** 可导出的日志级别（与 electron-log 的 error/warn/info/debug 对齐） */
 type BridgeLogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -45,9 +48,20 @@ const MAX_BODY_LENGTH = 8_192;
 
 const MAX_STACK_LENGTH = 16_384;
 
+/** 日志 sink 的导出策略 */
+export interface OtelLogSinkOptions {
+  /** 最低导出级别（error-only 固定 error） */
+  readonly minLevel: OtelLogMinLevel;
+  /** info/debug 随机采样率（warn/error 永不采样） */
+  readonly sampleRatio: number;
+  /** 非 error 日志每分钟上限（0 = 不限） */
+  readonly maxPerMinute: number;
+}
+
 interface LogSink {
   readonly logger: OtelLogger;
-  readonly minLevel: OtelLogMinLevel;
+  readonly options: OtelLogSinkOptions;
+  readonly limiter: FixedWindowRateLimiter | null;
 }
 
 let sink: LogSink | null = null;
@@ -56,10 +70,15 @@ let sink: LogSink | null = null;
  * 绑定 OTel Logger sink（otel.ts 初始化 LoggerProvider 后调用）
  *
  * @param logger 已绑定 resource 的 OTel Logger
- * @param minLevel 最低导出级别（error-only 固定 error）
+ * @param options 级别/采样/限流策略
  */
-export function setOtelLogSink(logger: OtelLogger, minLevel: OtelLogMinLevel): void {
-  sink = { logger, minLevel };
+export function setOtelLogSink(logger: OtelLogger, options: OtelLogSinkOptions): void {
+  sink = {
+    logger,
+    options,
+    limiter:
+      options.maxPerMinute > 0 ? new FixedWindowRateLimiter(options.maxPerMinute, 60_000) : null,
+  };
 }
 
 /** 解绑 sink（provider shutdown 前调用，避免 shutdown 过程中的迟到日志写入已关闭的 provider） */
@@ -177,7 +196,21 @@ export function emitOtelLog(
   if (sink === null || !isBridgeLevel(level)) {
     return;
   }
-  if (LEVEL_RANK[level] < LEVEL_RANK[sink.minLevel]) {
+  if (LEVEL_RANK[level] < LEVEL_RANK[sink.options.minLevel]) {
+    return;
+  }
+  // 只采样信息级：错误/告警必须保留；采样在限流前，避免采样掉的记录占用限流配额
+  if (
+    (level === 'info' || level === 'debug') &&
+    sink.options.sampleRatio < 1 &&
+    Math.random() >= sink.options.sampleRatio
+  ) {
+    recordLogDrop('sampled');
+    return;
+  }
+  // 非 error 日志受每分钟上限约束；error 永远放行
+  if (level !== 'error' && sink.limiter !== null && !sink.limiter.tryAcquire()) {
+    recordLogDrop('rate-limited');
     return;
   }
 

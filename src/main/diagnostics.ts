@@ -9,6 +9,7 @@ import { readTelemetryLevelSync } from './infra/storage/telemetry-pref';
 import { getTelemetryRuntimeStatus } from './infra/telemetry/otel';
 import { redactSensitive, redactText } from './infra/telemetry/redact';
 import { getSentryStatus } from './infra/telemetry/sentry';
+import { getTelemetryHealth } from './infra/telemetry/telemetry-health';
 import { logger } from './utils/logger';
 
 // 单个日志文件超过 8MB 只保留尾部——近期上下文在尾部，同时防诊断包爆炸
@@ -41,6 +42,7 @@ function buildObservabilitySnapshot(): Record<string, unknown> {
       release: sentry.release,
       environment: sentry.environment,
     },
+    health: getTelemetryHealth(),
   };
 }
 

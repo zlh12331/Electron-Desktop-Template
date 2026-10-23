@@ -3,6 +3,7 @@
 // 命名遵循 OTel 语义约定（点分小写）：服务端指标用 ipc.* / process.* / nodejs.*，产品指标用 app.* / web_vitals.*
 
 import type { WebVitalName } from '@code-agent/shared/main';
+import { OBSERVABILITY_METRICS, WEB_VITAL_METRICS } from '@code-agent/shared/observability';
 import type { Attributes, Counter, Histogram, Meter, ObservableGauge } from '@opentelemetry/api';
 import { app } from 'electron';
 
@@ -40,18 +41,18 @@ function createWebVitalInstruments(meter: Meter): Record<WebVitalName, Histogram
       unit,
     });
   return {
-    ['CLS']: create('web_vitals.cls', '1'),
-    ['FCP']: create('web_vitals.fcp', 'ms'),
-    ['INP']: create('web_vitals.inp', 'ms'),
-    ['LCP']: create('web_vitals.lcp', 'ms'),
-    ['TTFB']: create('web_vitals.ttfb', 'ms'),
+    ['CLS']: create(WEB_VITAL_METRICS.CLS, '1'),
+    ['FCP']: create(WEB_VITAL_METRICS.FCP, 'ms'),
+    ['INP']: create(WEB_VITAL_METRICS.INP, 'ms'),
+    ['LCP']: create(WEB_VITAL_METRICS.LCP, 'ms'),
+    ['TTFB']: create(WEB_VITAL_METRICS.TTFB, 'ms'),
   };
 }
 
 /** 注册进程级 observable gauge（内存 / 各 Electron 进程 CPU 与工作集） */
 function registerProcessGauges(meter: Meter): void {
   const memoryGauge: ObservableGauge<Attributes> = meter.createObservableGauge(
-    'process.memory.usage',
+    OBSERVABILITY_METRICS.processMemoryUsage,
     {
       description: 'Node.js process memory usage',
       unit: 'By',
@@ -66,11 +67,14 @@ function registerProcessGauges(meter: Meter): void {
     result.observe(mem.arrayBuffers, { state: 'array_buffers' });
   });
 
-  const processMemoryGauge = meter.createObservableGauge('electron.process.memory', {
-    description: 'Electron process working set (main / renderer / gpu / utility)',
-    unit: 'By',
-  });
-  const processCpuGauge = meter.createObservableGauge('electron.process.cpu', {
+  const processMemoryGauge = meter.createObservableGauge(
+    OBSERVABILITY_METRICS.electronProcessMemory,
+    {
+      description: 'Electron process working set (main / renderer / gpu / utility)',
+      unit: 'By',
+    },
+  );
+  const processCpuGauge = meter.createObservableGauge(OBSERVABILITY_METRICS.electronProcessCpu, {
     description: 'Electron process CPU usage (0-100)',
     unit: 'percent',
   });
@@ -112,33 +116,33 @@ function registerProcessGauges(meter: Meter): void {
  */
 export function initOtelMetrics(meter: Meter): void {
   instruments = {
-    ipcRequests: meter.createCounter('ipc.server.requests', {
+    ipcRequests: meter.createCounter(OBSERVABILITY_METRICS.ipcRequests, {
       description: 'IPC request count by channel and outcome',
     }),
-    ipcDuration: meter.createHistogram('ipc.server.request.duration', {
+    ipcDuration: meter.createHistogram(OBSERVABILITY_METRICS.ipcRequestDuration, {
       description: 'IPC request duration by channel and outcome',
       unit: 'ms',
     }),
-    startupDuration: meter.createHistogram('app.startup.duration', {
+    startupDuration: meter.createHistogram(OBSERVABILITY_METRICS.startupDuration, {
       description: 'Application startup duration by phase',
       unit: 'ms',
     }),
-    updateEvents: meter.createCounter('app.update.events', {
+    updateEvents: meter.createCounter(OBSERVABILITY_METRICS.updateEvents, {
       description: 'Auto-update funnel events',
     }),
-    updateCheckDuration: meter.createHistogram('app.update.check.duration', {
+    updateCheckDuration: meter.createHistogram(OBSERVABILITY_METRICS.updateCheckDuration, {
       description: 'Update check duration by trigger and outcome',
       unit: 'ms',
     }),
-    updateDownloadDuration: meter.createHistogram('app.update.download.duration', {
+    updateDownloadDuration: meter.createHistogram(OBSERVABILITY_METRICS.updateDownloadDuration, {
       description: 'Update download duration by outcome',
       unit: 'ms',
     }),
-    eventLoopDelay: meter.createHistogram('nodejs.eventloop.delay', {
+    eventLoopDelay: meter.createHistogram(OBSERVABILITY_METRICS.eventLoopDelay, {
       description: 'Main process event loop delay p99 per sampling window',
       unit: 'ms',
     }),
-    memoryGrowth: meter.createHistogram('nodejs.memory.growth', {
+    memoryGrowth: meter.createHistogram(OBSERVABILITY_METRICS.memoryGrowth, {
       description: 'Detected RSS growth over a monotonic sampling window',
       unit: 'MB',
     }),

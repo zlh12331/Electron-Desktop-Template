@@ -4,12 +4,16 @@
 import type {
   TelemetryCaptureErrorRes,
   TelemetryReportWebVitalsRes,
+  TelemetryStatusRes,
+  TelemetryTestConnectionRes,
 } from '../../schemas/telemetry';
 import {
   TelemetryCaptureErrorReqSchema,
   TelemetryCaptureErrorResSchema,
   TelemetryReportWebVitalsReqSchema,
   TelemetryReportWebVitalsResSchema,
+  TelemetryStatusResSchema,
+  TelemetryTestConnectionResSchema,
 } from '../../schemas/telemetry';
 import { IPC_META } from '../meta';
 import { withSchema } from '../with-schema';
@@ -26,5 +30,17 @@ export const telemetryDomain = {
     TelemetryReportWebVitalsReqSchema,
     {} as TelemetryReportWebVitalsRes,
     TelemetryReportWebVitalsResSchema,
+  ),
+  getStatus: withSchema(
+    IPC_META.telemetry.getStatus,
+    null,
+    {} as TelemetryStatusRes,
+    TelemetryStatusResSchema,
+  ),
+  testConnection: withSchema(
+    IPC_META.telemetry.testConnection,
+    null,
+    {} as TelemetryTestConnectionRes,
+    TelemetryTestConnectionResSchema,
   ),
 } as const;

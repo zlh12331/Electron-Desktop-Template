@@ -184,6 +184,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # 发布前配置断言：上传凭据半配置直接 fail；全缺/全配都放行（模板默认无 Sentry）
+      - name: Observability release preflight
+        run: pnpm observability:doctor --release --offline
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_UPLOAD_DISABLED: ${{ vars.SENTRY_UPLOAD_DISABLED || '0' }}
+
       - name: Generate SBOM (CycloneDX)
         shell: bash
         run: |
@@ -215,6 +225,7 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_UPLOAD_DISABLED: ${{ vars.SENTRY_UPLOAD_DISABLED || '0' }}
         run: |
           if [ -n "${ORIG_CSC_LINK:-}" ]; then
             export CSC_LINK="$ORIG_CSC_LINK"

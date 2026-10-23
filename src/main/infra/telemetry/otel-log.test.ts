@@ -1,8 +1,9 @@
 import type { Logger as OtelLogger } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clearOtelLogSink, emitOtelLog, isOtelLogsEnabled, setOtelLogSink } from './otel-log';
+import { getTelemetryHealth, resetTelemetryHealth } from './telemetry-health';
 
 function createSink(): { logger: OtelLogger; emit: ReturnType<typeof vi.fn> } {
   const emit = vi.fn();
@@ -12,8 +13,13 @@ function createSink(): { logger: OtelLogger; emit: ReturnType<typeof vi.fn> } {
   };
 }
 
+beforeEach(() => {
+  resetTelemetryHealth();
+});
+
 afterEach(() => {
   clearOtelLogSink();
+  vi.restoreAllMocks();
 });
 
 describe('emitOtelLog', () => {
@@ -24,7 +30,7 @@ describe('emitOtelLog', () => {
 
   it('info 级别：severity + 正文 + 上下文键映射', () => {
     const sink = createSink();
-    setOtelLogSink(sink.logger, 'info');
+    setOtelLogSink(sink.logger, { minLevel: 'info', sampleRatio: 1, maxPerMinute: 0 });
     emitOtelLog(
       'info',
       { traceId: 'trace-1', channel: 'app:getInfo', scope: 'auto-updater', custom: 42 },
@@ -46,7 +52,7 @@ describe('emitOtelLog', () => {
 
   it('error-only 级别过滤：info/warn 丢弃，error 放行', () => {
     const sink = createSink();
-    setOtelLogSink(sink.logger, 'error');
+    setOtelLogSink(sink.logger, { minLevel: 'error', sampleRatio: 1, maxPerMinute: 0 });
     emitOtelLog('info', {}, 'info');
     emitOtelLog('warn', {}, 'warn');
     emitOtelLog('error', {}, 'error');
@@ -54,9 +60,29 @@ describe('emitOtelLog', () => {
     expect(sink.emit).toHaveBeenCalledWith(expect.objectContaining({ severityText: 'ERROR' }));
   });
 
+  it('采样率 0：info 丢弃、error 保留，并记录 sampledLogs', () => {
+    const sink = createSink();
+    setOtelLogSink(sink.logger, { minLevel: 'info', sampleRatio: 0, maxPerMinute: 0 });
+    emitOtelLog('info', {}, 'sampled out');
+    emitOtelLog('error', {}, 'kept');
+    expect(sink.emit).toHaveBeenCalledTimes(1);
+    expect(sink.emit).toHaveBeenCalledWith(expect.objectContaining({ severityText: 'ERROR' }));
+    expect(getTelemetryHealth().sampledLogs).toBe(1);
+  });
+
+  it('每分钟上限：info 超出丢弃、error 永远放行', () => {
+    const sink = createSink();
+    setOtelLogSink(sink.logger, { minLevel: 'info', sampleRatio: 1, maxPerMinute: 1 });
+    emitOtelLog('info', {}, 'first');
+    emitOtelLog('info', {}, 'second');
+    emitOtelLog('error', {}, 'error');
+    expect(sink.emit).toHaveBeenCalledTimes(2);
+    expect(getTelemetryHealth().rateLimitedLogs).toBe(1);
+  });
+
   it('异常对象：提取 exception.*，正文与栈脱敏', () => {
     const sink = createSink();
-    setOtelLogSink(sink.logger, 'info');
+    setOtelLogSink(sink.logger, { minLevel: 'info', sampleRatio: 1, maxPerMinute: 0 });
     const error = new Error('token=sk-aaaaaaaa');
     error.stack = 'Error: sk-aaaaaaaa\n    at file.ts:1:1';
     emitOtelLog('error', {}, '操作失败', error);
@@ -71,7 +97,7 @@ describe('emitOtelLog', () => {
 
   it('序列化后的 error 字段同样可提取', () => {
     const sink = createSink();
-    setOtelLogSink(sink.logger, 'info');
+    setOtelLogSink(sink.logger, { minLevel: 'info', sampleRatio: 1, maxPerMinute: 0 });
     emitOtelLog('error', { error: { name: 'TypeError', message: 'bad', stack: 'at x' } }, '失败');
     const record = sink.emit.mock.calls[0]?.[0] as {
       attributes: Record<string, unknown>;
@@ -83,7 +109,7 @@ describe('emitOtelLog', () => {
 
   it('不可序列化上下文被跳过，不让日志路径抛错', () => {
     const sink = createSink();
-    setOtelLogSink(sink.logger, 'info');
+    setOtelLogSink(sink.logger, { minLevel: 'info', sampleRatio: 1, maxPerMinute: 0 });
     const circular: Record<string, unknown> = {};
     circular['self'] = circular;
     expect(() => emitOtelLog('info', { circular }, 'ok')).not.toThrow();
@@ -98,7 +124,7 @@ describe('emitOtelLog', () => {
       }),
       enabled: () => true,
     } as unknown as OtelLogger;
-    setOtelLogSink(logger, 'info');
+    setOtelLogSink(logger, { minLevel: 'info', sampleRatio: 1, maxPerMinute: 0 });
     expect(() => emitOtelLog('info', {}, 'ok')).not.toThrow();
   });
 });

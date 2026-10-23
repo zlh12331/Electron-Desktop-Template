@@ -15,9 +15,9 @@ export type {
   InferIpcApi,
   InferRequestMap,
 } from './ipc/derive';
-
 export type * from './ipc/payloads';
 export type { IpcResponse } from './ipc/response';
+export * from './observability';
 
 // ── zod schema 值导出（单一真源，定义表由其组装）：主进程 IPC 入参/响应校验的运行时本体。
 //    携带 zod 运行时：preload（sandbox）与渲染层应从各自专用出口取用——

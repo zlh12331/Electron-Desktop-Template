@@ -22,6 +22,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  window.location.hash = '';
 });
 
 describe('reportError', () => {
@@ -57,6 +58,16 @@ describe('reportError', () => {
       name: 'NonErrorThrow',
       message: 'plain failure',
     });
+  });
+
+  it('自动附带 hash route；显式 route tag 优先', () => {
+    const spy = captureSpy();
+    window.location.hash = '#/settings';
+    reportError(new Error('route boom'));
+    expect(spy).toHaveBeenLastCalledWith(expect.objectContaining({ tags: { route: '/settings' } }));
+
+    reportError(new Error('explicit route'), { tags: { route: '/manual' } });
+    expect(spy).toHaveBeenLastCalledWith(expect.objectContaining({ tags: { route: '/manual' } }));
   });
 
   it('超长字段按 IPC schema 上限截断（避免整条被 INVALID_INPUT 拒绝）', () => {

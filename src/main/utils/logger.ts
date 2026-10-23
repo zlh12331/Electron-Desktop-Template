@@ -1,6 +1,6 @@
 // logger.ts：主进程日志——electron-log 封装（文件 + console 双通道）、全局异常处理器、崩溃标记
 // 边界：渲染层日志经 electron-log/renderer 转发到这里落盘；错误出口统一走 error-report.ts
-import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { app } from 'electron';
@@ -170,15 +170,23 @@ function getCrashMarkerPath(): string {
   return join(app.getPath('userData'), '.crash-marker');
 }
 
+/** 上次异常退出的崩溃标记（启动恢复时上报用） */
+export interface CrashMarker {
+  readonly timestamp: number;
+  readonly message: string;
+  readonly stack?: string;
+}
+
 function writeCrashMarker(error: Error): void {
   try {
     const markerPath = getCrashMarkerPath();
     mkdirSync(dirname(markerPath), { recursive: true });
-    writeFileSync(
-      markerPath,
-      JSON.stringify({ timestamp: Date.now(), message: error.message }),
-      'utf8',
-    );
+    const marker: CrashMarker = {
+      timestamp: Date.now(),
+      message: error.message,
+      ...(error.stack !== undefined ? { stack: error.stack } : {}),
+    };
+    writeFileSync(markerPath, JSON.stringify(marker), 'utf8');
     logger.info({ markerPath }, '已写入崩溃标记');
   } catch (writeError) {
     logger.error({ error: String(writeError) }, '崩溃标记写入失败');
@@ -197,6 +205,24 @@ export function clearCrashMarker(): void {
   }
 }
 
-export function hasCrashMarker(): boolean {
-  return existsSync(getCrashMarkerPath());
+/** 读取崩溃标记（文件缺失/损坏/字段非法返回 null；不删除文件） */
+export function readCrashMarker(): CrashMarker | null {
+  try {
+    const content = readFileSync(getCrashMarkerPath(), 'utf8');
+    const parsed = JSON.parse(content) as Partial<CrashMarker>;
+    if (
+      typeof parsed.timestamp !== 'number' ||
+      !Number.isFinite(parsed.timestamp) ||
+      typeof parsed.message !== 'string'
+    ) {
+      return null;
+    }
+    return {
+      timestamp: parsed.timestamp,
+      message: parsed.message,
+      ...(typeof parsed.stack === 'string' ? { stack: parsed.stack } : {}),
+    };
+  } catch {
+    return null;
+  }
 }

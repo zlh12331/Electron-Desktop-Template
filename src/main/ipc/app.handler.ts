@@ -10,6 +10,7 @@ import {
 import { app, dialog, shell } from 'electron';
 
 import { exportDiagnosticsPackage } from '../diagnostics';
+import { readBuildInfo } from '../infra/app-info';
 import {
   createAutostartDeps,
   readAutostartState,
@@ -18,30 +19,6 @@ import {
 import { t } from '../infra/i18n';
 import { logger } from '../utils/logger';
 import type { IpcHandlerContext } from './wrap';
-
-// 构建信息从打包时注入的 build-info.json 读（CI 产物）；读不到按 dev 兜底
-interface BuildInfo {
-  readonly version?: string;
-  readonly channel?: string;
-  readonly commitSha?: string;
-  readonly buildTime?: string;
-}
-
-function readBuildInfo(): BuildInfo {
-  try {
-    const candidates = app.isPackaged
-      ? [join(process.resourcesPath, 'build-info.json')]
-      : [join(app.getAppPath(), 'resources', 'build-info.json')];
-    for (const file of candidates) {
-      const data = require('node:fs').readFileSync(file, 'utf-8');
-      const parsed = JSON.parse(data) as BuildInfo;
-      if (typeof parsed === 'object' && parsed !== null) {
-        return parsed;
-      }
-    }
-  } catch {}
-  return { channel: 'dev' };
-}
 
 export const appHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContext>['app'] = {
   getStatus: async () => {

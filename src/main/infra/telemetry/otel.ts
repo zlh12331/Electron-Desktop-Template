@@ -2,6 +2,7 @@
 // 边界：OTEL_EXPORTER_OTLP_ENDPOINT 未配置时打包版完整 no-op；dev 无端点只走 Console trace
 // 信号分工：Sentry 负责错误聚合/原生崩溃；OTel 负责 trace/metrics/logs（Sentry 性能采样固定 0，避免双扣配额）
 import { APP_ID, PRODUCT_NAME, type TelemetryLevel } from '@code-agent/shared/main';
+import { type OtelResolvedConfig, resolveOtelConfig } from '@code-agent/shared/observability';
 import {
   DiagConsoleLogger,
   DiagLogLevel,
@@ -28,10 +29,12 @@ import {
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import { app } from 'electron';
 import { logger, setLogSink } from '../../utils/logger';
+import { readBuildInfo } from '../app-info';
 import { readTelemetryLevelSync } from '../storage/telemetry-pref';
-import { type OtelResolvedConfig, resolveOtelConfig } from './otel-config';
+import { instrumentExporter } from './instrument-exporter';
 import { clearOtelLogSink, emitOtelLog, setOtelLogSink } from './otel-log';
 import { initOtelMetrics, resetOtelMetrics } from './otel-metrics';
+import { resetTelemetryHealth } from './telemetry-health';
 
 /** OTel 运行状态快照（诊断包展示；不含端点/请求头） */
 export interface OtelRuntimeStatus {
@@ -67,7 +70,8 @@ let activeConfig: OtelResolvedConfig | null = null;
 const SHUTDOWN_TIMEOUT_MS = 3_000;
 
 function getResource(config: OtelResolvedConfig): ReturnType<typeof resourceFromAttributes> {
-  return resourceFromAttributes({
+  const build = readBuildInfo();
+  const attributes: Record<string, string> = {
     'service.name': config.serviceName,
     'service.version': app.getVersion(),
     'service.namespace': APP_ID,
@@ -78,7 +82,17 @@ function getResource(config: OtelResolvedConfig): ReturnType<typeof resourceFrom
     'host.platform': process.platform,
     'process.runtime.name': 'node',
     'process.runtime.version': process.version,
-  });
+  };
+  if (build.channel !== undefined) {
+    attributes['app.build.channel'] = build.channel;
+  }
+  if (build.commitSha !== undefined) {
+    attributes['app.build.commit'] = build.commitSha;
+  }
+  if (build.buildTime !== undefined) {
+    attributes['app.build.time'] = build.buildTime;
+  }
+  return resourceFromAttributes(attributes);
 }
 
 function initTracing(
@@ -87,10 +101,13 @@ function initTracing(
 ): void {
   const exporter =
     config.traceEndpoint !== null
-      ? new OTLPTraceExporter({
-          url: config.traceEndpoint,
-          ...(Object.keys(config.headers).length > 0 ? { headers: config.headers } : {}),
-        })
+      ? instrumentExporter(
+          new OTLPTraceExporter({
+            url: config.traceEndpoint,
+            ...(Object.keys(config.headers).length > 0 ? { headers: config.headers } : {}),
+          }),
+          'traces',
+        )
       : new ConsoleSpanExporter();
   const sampler = new ParentBasedSampler({
     root: new TraceIdRatioBasedSampler(config.traceSampleRatio),
@@ -112,10 +129,13 @@ function initMetrics(
   if (config.metricEndpoint === null) {
     return;
   }
-  const exporter = new OTLPMetricExporter({
-    url: config.metricEndpoint,
-    ...(Object.keys(config.headers).length > 0 ? { headers: config.headers } : {}),
-  });
+  const exporter = instrumentExporter(
+    new OTLPMetricExporter({
+      url: config.metricEndpoint,
+      ...(Object.keys(config.headers).length > 0 ? { headers: config.headers } : {}),
+    }),
+    'metrics',
+  );
   const reader = new PeriodicExportingMetricReader({
     exporter,
     exportIntervalMillis: config.metricExportIntervalMs,
@@ -133,17 +153,24 @@ function initLogs(
   if (config.logEndpoint === null) {
     return;
   }
-  const exporter = new OTLPLogExporter({
-    url: config.logEndpoint,
-    ...(Object.keys(config.headers).length > 0 ? { headers: config.headers } : {}),
-  });
+  const exporter = instrumentExporter(
+    new OTLPLogExporter({
+      url: config.logEndpoint,
+      ...(Object.keys(config.headers).length > 0 ? { headers: config.headers } : {}),
+    }),
+    'logs',
+  );
   const provider = new LoggerProvider({
     resource,
     processors: [new BatchLogRecordProcessor({ exporter })],
   });
   logs.setGlobalLoggerProvider(provider);
   loggerProvider = provider;
-  setOtelLogSink(provider.getLogger(PRODUCT_NAME, app.getVersion()), config.logMinLevel);
+  setOtelLogSink(provider.getLogger(PRODUCT_NAME, app.getVersion()), {
+    minLevel: config.logMinLevel,
+    sampleRatio: config.logSampleRatio,
+    maxPerMinute: config.logMaxPerMinute,
+  });
   setLogSink((level, context, message, error) => {
     emitOtelLog(level, context, message, error);
   });
@@ -162,6 +189,7 @@ export function initTelemetry(level: TelemetryLevel = readTelemetryLevelSync()):
     return;
   }
   activeLevel = level;
+  resetTelemetryHealth();
   if (level === 'off') {
     logger.info({}, 'OpenTelemetry 未初始化（遥测级别 = off）');
     return;
@@ -227,6 +255,11 @@ export function initTelemetry(level: TelemetryLevel = readTelemetryLevelSync()):
 /** 取全局 tracer（trace 未启用为 null；withSpan 不依赖它，始终可用） */
 export function getTracer(): Tracer | null {
   return tracer;
+}
+
+/** 当前生效的 OTel 配置（连接测试/诊断用；未调用 initTelemetry 时为 null） */
+export function getOtelActiveConfig(): OtelResolvedConfig | null {
+  return activeConfig;
 }
 
 /** 当前 OTel 运行状态（诊断包与测试用） */

@@ -6,10 +6,12 @@
 import { createRequire } from 'node:module';
 
 import { EXECUTABLE_NAME, type TelemetryLevel } from '@code-agent/shared/main';
+import { resolveSentryConfig } from '@code-agent/shared/observability';
 import type { ErrorEvent } from '@sentry/electron/main';
 import { app } from 'electron';
 import { setErrorCaptureSink } from '../../utils/error-report';
 import { registerTelemetryFlush } from '../../utils/telemetry-flush';
+import { readBuildInfo } from '../app-info';
 import { redactSensitive, redactText } from './redact';
 
 /** Sentry 运行时模块（只取实际用到的成员） */
@@ -82,24 +84,6 @@ const state: SentryState = {
 function readBuildDsn(): string {
   // biome-ignore lint/correctness/noUndeclaredVariables: 由 Vite define 在构建期替换的全局常量
   return typeof __SENTRY_DSN__ === 'string' ? __SENTRY_DSN__.trim() : '';
-}
-
-/**
- * 解析生效 DSN：运行时环境变量优先于构建期注入（便于本地调试覆盖）
- *
- * @param env 环境变量（测试注入）
- * @param buildDsn 构建期 DSN（测试注入）
- * @returns 去空白后的 DSN；未配置为空串
- */
-export function resolveSentryDsn(
-  env: NodeJS.ProcessEnv = process.env,
-  buildDsn: string = readBuildDsn(),
-): string {
-  const runtime = env['SENTRY_DSN']?.trim();
-  if (runtime !== undefined && runtime !== '') {
-    return runtime;
-  }
-  return buildDsn.trim();
 }
 
 /** 脱敏一组 tags（只处理字符串值，调用方已由 schema 限长） */
@@ -185,27 +169,35 @@ export function initSentry(level: TelemetryLevel): SentryStatus {
   if (state.initialized) {
     return getSentryStatus();
   }
-  if (level === 'off') {
-    state.reason = 'telemetry-off';
+
+  const resolved = resolveSentryConfig(process.env, {
+    level,
+    isPackaged: app.isPackaged,
+    version: app.getVersion(),
+    executableName: EXECUTABLE_NAME,
+    buildDsn: readBuildDsn(),
+  });
+  if (!resolved.enabled) {
+    state.reason = resolved.reason;
     return getSentryStatus();
   }
 
-  const dsn = resolveSentryDsn();
-  if (dsn === '') {
-    state.reason = 'no-dsn';
-    return getSentryStatus();
+  const build = readBuildInfo();
+  const buildTags: Record<string, string> = {};
+  if (build.channel !== undefined) {
+    buildTags['app.channel'] = build.channel;
   }
-
-  const environment =
-    process.env['SENTRY_ENVIRONMENT']?.trim() ?? (app.isPackaged ? 'production' : 'development');
-  const release = process.env['SENTRY_RELEASE']?.trim() ?? `${EXECUTABLE_NAME}@${app.getVersion()}`;
+  if (build.commitSha !== undefined) {
+    buildTags['app.commit'] = build.commitSha;
+  }
 
   try {
     const sdk = loadSentryModule();
     sdk.init({
-      dsn,
-      environment,
-      release,
+      dsn: resolved.dsn,
+      environment: resolved.environment,
+      release: resolved.release,
+      ...(Object.keys(buildTags).length > 0 ? { initialScope: { tags: buildTags } } : {}),
       // 只做错误/崩溃（性能与日志走自建 OTel 管线，避免 Sentry 配额双扣）
       tracesSampleRate: 0,
       includeLocalVariables: false,
@@ -236,8 +228,8 @@ export function initSentry(level: TelemetryLevel): SentryStatus {
     state.enabled = true;
     state.initialized = true;
     state.reason = null;
-    state.release = release;
-    state.environment = environment;
+    state.release = resolved.release;
+    state.environment = resolved.environment;
     // logger/error-report 只依赖轻量注册表，不静态引入 Sentry SDK
     registerTelemetryFlush(flushSentry);
     setErrorCaptureSink({
@@ -305,7 +297,7 @@ export function captureMainMessage(message: string, level: 'error' | 'warning'):
  * 用渲染层原始 stack 重建 Error，保留跨进程的调用链；tags 补 error.source=renderer，
  * 便于与主进程错误分开检索。
  */
-export function captureRendererError(payload: RendererErrorPayload): void {
+export function captureRendererError(payload: RendererErrorPayload, traceId?: string): void {
   if (!state.initialized) {
     return;
   }
@@ -323,6 +315,7 @@ export function captureRendererError(payload: RendererErrorPayload): void {
         ...redactTags(payload.tags ?? {}),
         'error.source': 'renderer',
         'app.process': 'renderer',
+        ...(traceId !== undefined && traceId !== '' ? { 'app.trace_id': traceId } : {}),
       });
       if (payload.componentStack !== undefined) {
         scope.setExtra('componentStack', redactText(payload.componentStack));

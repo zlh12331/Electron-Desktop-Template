@@ -40,18 +40,31 @@ function truncate(value: string, max: number): string {
   return value.length > max ? `${value.slice(0, max)}…` : value;
 }
 
-/** 标签值截断 + 条目数上限（与 shared schema 的 MAX_TAGS 对齐） */
+/** 当前 hash 路由（无 hash 时返回 undefined；jsdom/浏览器预览不强制补） */
+function currentRoute(): string | undefined {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+  const hash = window.location.hash;
+  return hash.startsWith('#') ? hash.slice(1) || '/' : undefined;
+}
+
+/** 标签值截断 + 条目数上限（与 shared schema 的 MAX_TAGS 对齐；route 占一个名额） */
 function normalizeTags(
   tags: Readonly<Record<string, string>> | undefined,
 ): Record<string, string> | undefined {
-  if (tags === undefined) {
+  const route = currentRoute();
+  if (tags === undefined && route === undefined) {
     return undefined;
   }
   const result: Record<string, string> = {};
-  for (const [key, value] of Object.entries(tags).slice(0, 20)) {
+  for (const [key, value] of Object.entries(tags ?? {}).slice(0, 20)) {
     result[truncate(key, 64)] = truncate(value, 256);
   }
-  return result;
+  if (route !== undefined && result['route'] === undefined) {
+    result['route'] = truncate(route, 256);
+  }
+  return Object.fromEntries(Object.entries(result).slice(0, 20));
 }
 
 /** 把错误归一为可跨进程序列化的载荷（名称/消息/栈；非 Error 抛出物转字符串） */

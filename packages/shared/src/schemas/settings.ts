@@ -3,8 +3,8 @@
 // 边界：只定义形状与值域；落库（app_settings）/凭据（keychain）/代理、缩放等主进程应用点都在各自模块
 
 import { z } from 'zod';
-
 import { ZOOM_LEVELS } from '../constants/zoom';
+import { TELEMETRY_LEVELS, type TelemetryLevel } from '../observability/telemetry-level';
 
 // ── 渲染层设置下沉 SQLite（settings 持久化单一真源） ─────────────
 
@@ -157,10 +157,10 @@ export type SettingsChangedPayload = z.infer<typeof SettingsChangedPayloadSchema
 // ─── 遥测级别 ───────────────────────────────────────────────
 
 /** 遥测级别（off = 完全关闭；error-only = 仅错误；full = 全量） */
-export const TelemetryLevelSchema = z.enum(['off', 'error-only', 'full']);
+export const TelemetryLevelSchema = z.enum(TELEMETRY_LEVELS);
 
-/** 遥测级别 TypeScript 类型 */
-export type TelemetryLevel = z.infer<typeof TelemetryLevelSchema>;
+/** 遥测级别 TypeScript 类型（真源在 observability/telemetry-level） */
+export type { TelemetryLevel };
 
 /** settings:getTelemetryLevel 响应 payload */
 export interface GetTelemetryLevelRes {
