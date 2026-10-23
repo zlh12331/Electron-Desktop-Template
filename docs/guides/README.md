@@ -6,7 +6,7 @@
 | 文档 | 内容 | 状态 |
 |---|---|---|
 | [ci-cd.md](ci-cd.md) | 六平台 CI（质量）+ CD（产物与发版）分层；PR 门禁、构建矩阵、smoke 覆盖与更新元数据合并 | 现行流水线即文中 §3 形态（2026-09 重构后持续使用） |
-| [oss-automation.md](oss-automation.md) | GitHub 开源项目自动化运维模型：单人维护、本机 agent、审批门控与分层能力（L0–L5） | L0 + L1 已实施；L2 设计就绪；L3–L5 按 §7 重启条件暂缓 |
+| [oss-automation.md](oss-automation.md) | GitHub 开源项目自动化运维模型：单人维护、本机 agent、审批门控与分层能力（L0–L5） | L0 + L1 已实施；L2 就绪；L3–L5 暂缓 |
 
 相关根目录文档：
 
