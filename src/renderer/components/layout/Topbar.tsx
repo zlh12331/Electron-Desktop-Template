@@ -88,7 +88,7 @@ export function Topbar({
           variant="outline"
           size="sm"
           className="text-muted-foreground hover:bg-muted/60 hover:text-foreground gap-1.5 px-2 py-1 text-xs"
-          aria-label={t('topbar.commandPalette')}
+          aria-label={`${t('topbar.commandPalette')} ${paletteKbd}`}
           onClick={onOpenCommandPalette}
         >
           <Search className="size-3" strokeWidth={1.5} />
