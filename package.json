@@ -93,6 +93,7 @@
     "sentry:debug-files": "tsx scripts/sentry-debug-files.ts",
     "observability:doctor": "tsx scripts/observability-doctor.ts",
     "observability:smoke": "tsx scripts/observability-smoke.ts",
+    "observability:collector-smoke": "tsx scripts/collector-smoke.ts",
     "check:observability-config": "tsx scripts/check-observability-config.ts",
     "check:observability-slo": "tsx scripts/check-observability-slo.ts",
     "scaffold:ipc": "tsx scripts/scaffold/scaffold-ipc.ts",
