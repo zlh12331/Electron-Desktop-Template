@@ -8,7 +8,11 @@ import {
   parseDeepLink,
   registerDeepLinkProtocol,
 } from './deep-link';
-import { createAutostartDeps, setAutostartEnabled } from './infra/autostart/autostart';
+import {
+  createAutostartDeps,
+  resolveStartHidden,
+  setAutostartEnabled,
+} from './infra/autostart/autostart';
 import { initMainI18n, t } from './infra/i18n';
 import { applyProxyChange } from './infra/network/proxy-applier';
 import { initDb } from './infra/storage/db';
@@ -18,12 +22,13 @@ import { EventLoopLagMonitor } from './infra/telemetry/event-loop-lag';
 import { reportEventLoopLag } from './infra/telemetry/lag-alert';
 import { startMemoryMonitor } from './infra/telemetry/memory-monitor';
 import { initTelemetry, shutdownTelemetry, withSpan } from './infra/telemetry/otel';
-import {
-  recordEventLoopDelay,
-  recordMemoryGrowth,
-  recordStartupPhase,
-} from './infra/telemetry/otel-metrics';
+import { recordEventLoopDelay, recordMemoryGrowth } from './infra/telemetry/otel-metrics';
 import { closeSentry, initSentry } from './infra/telemetry/sentry';
+import {
+  recordStartupMilestone,
+  stopStartupObservation,
+  withStartupObservation,
+} from './infra/telemetry/startup';
 import { clearUpdateCache, readUpdateCacheInfo } from './infra/update/update-cache';
 import { appHandlers } from './ipc/app.handler';
 import { backupHandlers } from './ipc/backup.handler';
@@ -44,11 +49,18 @@ import { disposeServices, recoverFromCrash, serviceContainer } from './service-c
 import { createTray } from './tray';
 import { reportError, reportMessage } from './utils/error-report';
 import { flushPendingLogs, initLogger, logger, registerGlobalErrorHandlers } from './utils/logger';
+import { flushTelemetryOnFatal } from './utils/telemetry-flush';
 import { createWindow, readCloseAction } from './window';
 import { bringMainWindowToFront } from './window-show';
 import { syncTitleBarOverlayFromTheme } from './window-theme';
 
-// ───── 启动前引导：dev 路径重定向 + .env 加载（必须在 whenReady 之前完成）─────
+// 环境文件必须先于 userData/CDP/Sentry 解析；空路径用于隔离验收，禁止继承本机后端配置。
+const envFile = process.env['APP_ENV_FILE'];
+if (process.env['NODE_ENV'] !== 'test' && envFile !== '') {
+  try {
+    process.loadEnvFile(envFile ?? join(__dirname, '../../.env'));
+  } catch {}
+}
 
 if (!app.isPackaged) {
   // dev 的 userData 重定向到仓库内目录：避免沙箱拦截 %APPDATA%，也便于整目录删除重置
@@ -57,12 +69,6 @@ if (!app.isPackaged) {
   // dev 固定开 CDP 远程调试端口（E2E / 外部 DevTools 接入依赖）
   const debugPort = process.env['APP_DEBUG_PORT'] ?? '9222';
   app.commandLine.appendSwitch('remote-debugging-port', debugPort);
-}
-
-if (process.env['NODE_ENV'] !== 'test') {
-  try {
-    process.loadEnvFile(join(__dirname, '../../.env'));
-  } catch {}
 }
 
 // ───── 单实例锁与协议深链接管 ─────
@@ -84,9 +90,8 @@ if (!gotTheLock) {
 
 const deepLinkRegistered = registerDeepLinkProtocol();
 
-// 主进程模块求值即启动计时起点：包含 Sentry 初始化与等待 app ready 的时间
-// （SLO 口径见 docs/observability/README.md 的 app.startup.duration）
-const startupStartedAt = performance.now();
+// performance.timeOrigin 对应 Node 进程时钟起点，包含模块加载时间，不冒充 OS 启动器耗时。
+const startupStartedAt = 0;
 
 // ───── 遥测前置：Sentry 必须在 app ready 前完成初始化（原生崩溃/早期异常才收得到）─────
 // 遥测级别只读一次（userData 已在 dev 重定向之后确定）；off 时 initSentry 完整 no-op
@@ -137,135 +142,136 @@ app
     } else {
       logger.info({ reason: sentryInit.reason }, 'Sentry 未启用');
     }
-    if (startupTelemetryLevel !== 'off') {
-      initTelemetry(startupTelemetryLevel);
-    } else {
-      logger.warn({}, '遥测已关闭（telemetry-pref.json: off），跳过 OpenTelemetry 初始化');
-    }
-    // 启动关键路径落 span：DB 初始化/迁移与窗口创建失败时可在 trace 中定位，日志同时继承 trace 上下文
-    await withSpan('db.init', {}, async () => {
-      initDb();
-    });
-    initMainI18n(readSetting('language'));
-    void applyProxyChange(readSetting('proxy'));
-    registerGlobalErrorHandlers();
-    void recoverFromCrash();
+    initTelemetry(startupTelemetryLevel);
+    await withStartupObservation(
+      startupStartedAt,
+      resolveStartHidden(app) ? 'hidden' : 'foreground',
+      async () => {
+        await withSpan('db.init', {}, async () => {
+          initDb();
+        });
+        initMainI18n(readSetting('language'));
+        void applyProxyChange(readSetting('proxy'));
+        registerGlobalErrorHandlers();
+        void recoverFromCrash();
 
-    registerIpcHandlers({
-      app: appHandlers,
-      settings: settingsHandlers,
-      proxy: createProxyHandlers(),
-      window: createWindowHandlers(),
-      backup: backupHandlers,
-      system: systemHandlers,
-      logs: logsHandlers,
-      telemetry: telemetryHandlers,
-      devtools: devtoolsHandlers,
-      dialog: dialogHandlers,
-      secrets: secretsHandlers,
-      update: createUpdateHandlers({
-        updateService: serviceContainer.getUpdateService(),
-        readCacheInfo: () => readUpdateCacheInfo(process.resourcesPath),
-        clearCache: () => clearUpdateCache(process.resourcesPath),
-      }),
-    });
+        registerIpcHandlers({
+          app: appHandlers,
+          settings: settingsHandlers,
+          proxy: createProxyHandlers(),
+          window: createWindowHandlers(),
+          backup: backupHandlers,
+          system: systemHandlers,
+          logs: logsHandlers,
+          telemetry: telemetryHandlers,
+          devtools: devtoolsHandlers,
+          dialog: dialogHandlers,
+          secrets: secretsHandlers,
+          update: createUpdateHandlers({
+            updateService: serviceContainer.getUpdateService(),
+            readCacheInfo: () => readUpdateCacheInfo(process.resourcesPath),
+            clearCache: () => clearUpdateCache(process.resourcesPath),
+          }),
+        });
 
-    serviceContainer.getUpdateService().start({
-      autoCheckEnabled: isAutoCheckEnabled,
-      allowPrereleaseEnabled: isAllowPrereleaseEnabled,
-      devUpdateEnabled: process.env['APP_DEV_UPDATE'] === '1',
-    });
+        serviceContainer.getUpdateService().start({
+          autoCheckEnabled: isAutoCheckEnabled,
+          allowPrereleaseEnabled: isAllowPrereleaseEnabled,
+          devUpdateEnabled: process.env['APP_DEV_UPDATE'] === '1',
+        });
 
-    applyCspToSession(session.defaultSession, !app.isPackaged);
-    logger.info({ isPackaged: app.isPackaged }, 'CSP 策略已注入');
+        applyCspToSession(session.defaultSession, !app.isPackaged);
+        logger.info({ isPackaged: app.isPackaged }, 'CSP 策略已注入');
 
-    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-      // 白名单式收口：渲染层对系统权限（通知/摄像头/地理位置等）的请求一律拒绝
-      logger.warn(
-        { permission, url: webContents.getURL() },
-        '拒绝渲染层权限请求（未授权权限类型）',
-      );
-      callback(false);
-    });
+        session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+          // 白名单式收口：渲染层对系统权限（通知/摄像头/地理位置等）的请求一律拒绝
+          logger.warn(
+            { permission, url: webContents.getURL() },
+            '拒绝渲染层权限请求（未授权权限类型）',
+          );
+          callback(false);
+        });
 
-    logger.info({}, '应用启动');
-    recordStartupPhase('services', performance.now() - startupStartedAt);
+        logger.info({}, '应用启动');
+        recordStartupMilestone('services');
 
-    stopMemoryMonitor = startMemoryMonitor({
-      onAlert: (report) => {
-        recordMemoryGrowth(report.growthMb, report.durationSec);
-        reportMessage(
-          `主进程内存疑似持续增长：${report.growthMb.toFixed(0)}MB / ${report.durationSec.toFixed(0)}s`,
-          'warning',
-        );
-        logger.warn(
-          { growthMb: report.growthMb, durationSec: report.durationSec },
-          '主进程内存疑似泄漏（连续增长）',
-        );
+        stopMemoryMonitor = startMemoryMonitor({
+          onAlert: (report) => {
+            recordMemoryGrowth(report.growthMb, report.durationSec);
+            reportMessage(
+              `主进程内存疑似持续增长：${report.growthMb.toFixed(0)}MB / ${report.durationSec.toFixed(0)}s`,
+              'warning',
+            );
+            logger.warn(
+              { growthMb: report.growthMb, durationSec: report.durationSec },
+              '主进程内存疑似泄漏（连续增长）',
+            );
+          },
+        });
+
+        lagMonitor = new EventLoopLagMonitor({
+          onSample: (sample) => recordEventLoopDelay(sample.lagMs),
+          onLag: (sample) => reportEventLoopLag(sample, () => false),
+        });
+        lagMonitor.start();
+
+        // Windows/Linux 无 open-url 事件：冷启动深链从 argv 补提（macOS 走 open-url 暂存）
+        coldLaunchDeepLink ??= extractProtocolUrl(process.argv);
+
+        await withSpan('window.create', {}, async () => {
+          createWindow();
+        });
+        const startupDurationMs = Math.round(performance.now() - startupStartedAt);
+        recordStartupMilestone('window');
+        logger.info({ durationMs: startupDurationMs }, '启动完成（主窗口已创建）');
+
+        createTray({
+          getUpdateStatus: () => serviceContainer.getUpdateService().getStatus().snapshot,
+          checkForUpdate: () => {
+            void serviceContainer.getUpdateService().check(false);
+          },
+          installUpdate: () => {
+            serviceContainer.getUpdateService().quitAndInstall();
+          },
+          setAutostart: (enabled) => {
+            void setAutostartEnabled(createAutostartDeps(), enabled)
+              .then((state) => {
+                broadcastLoginItemChanged(state);
+              })
+              .catch((err: unknown) => {
+                logger.warn({ error: String(err) }, '托盘切换开机自启失败');
+              });
+          },
+          getCloseAction: () => readCloseAction(),
+          setCloseAction: (action) => {
+            const next = { ...readWindowSettings(), closeAction: action };
+            writeSetting('window', next);
+            logger.info({ closeAction: action }, '托盘切换关窗行为');
+            broadcastSettingChanged('window', next);
+          },
+          onUpdateStatus: (listener) => serviceContainer.getUpdateService().onStatus(listener),
+        });
+
+        // 补广播冷启动暂存的深链（必须在 createWindow 之后，渲染层已挂好监听）
+        if (coldLaunchDeepLink !== null) {
+          broadcastDeepLink(parseDeepLink(coldLaunchDeepLink));
+          coldLaunchDeepLink = null;
+        }
+
+        nativeTheme.on('updated', () => {
+          syncTitleBarOverlayFromTheme(readAllSettings()['theme']);
+        });
+
+        app.on('activate', () => {
+          logger.debug({}, '应用激活，唤起主窗口');
+          bringMainWindowToFront(createWindow);
+        });
       },
-    });
-
-    lagMonitor = new EventLoopLagMonitor({
-      onLag: (sample) => {
-        recordEventLoopDelay(sample.lagMs);
-        reportEventLoopLag(sample, () => false);
-      },
-    });
-    lagMonitor.start();
-
-    // Windows/Linux 无 open-url 事件：冷启动深链从 argv 补提（macOS 走 open-url 暂存）
-    coldLaunchDeepLink ??= extractProtocolUrl(process.argv);
-
-    await withSpan('window.create', {}, async () => {
-      createWindow();
-    });
-    const startupDurationMs = Math.round(performance.now() - startupStartedAt);
-    recordStartupPhase('window', startupDurationMs);
-    logger.info({ durationMs: startupDurationMs }, '启动完成（主窗口已创建）');
-
-    createTray({
-      getUpdateStatus: () => serviceContainer.getUpdateService().getStatus().snapshot,
-      checkForUpdate: () => {
-        void serviceContainer.getUpdateService().check(false);
-      },
-      installUpdate: () => {
-        serviceContainer.getUpdateService().quitAndInstall();
-      },
-      setAutostart: (enabled) => {
-        void setAutostartEnabled(createAutostartDeps(), enabled)
-          .then((state) => {
-            broadcastLoginItemChanged(state);
-          })
-          .catch((err: unknown) => {
-            logger.warn({ error: String(err) }, '托盘切换开机自启失败');
-          });
-      },
-      getCloseAction: () => readCloseAction(),
-      setCloseAction: (action) => {
-        const next = { ...readWindowSettings(), closeAction: action };
-        writeSetting('window', next);
-        logger.info({ closeAction: action }, '托盘切换关窗行为');
-        broadcastSettingChanged('window', next);
-      },
-      onUpdateStatus: (listener) => serviceContainer.getUpdateService().onStatus(listener),
-    });
-
-    // 补广播冷启动暂存的深链（必须在 createWindow 之后，渲染层已挂好监听）
-    if (coldLaunchDeepLink !== null) {
-      broadcastDeepLink(parseDeepLink(coldLaunchDeepLink));
-      coldLaunchDeepLink = null;
-    }
-
-    nativeTheme.on('updated', () => {
-      syncTitleBarOverlayFromTheme(readAllSettings()['theme']);
-    });
-
-    app.on('activate', () => {
-      logger.debug({}, '应用激活，唤起主窗口');
-      bringMainWindowToFront(createWindow);
-    });
+    );
   })
-  .catch((err: unknown) => {
+  .catch(async (err: unknown) => {
+    const forceExit = setTimeout(() => app.exit(1), 2_000);
+    forceExit.unref();
     try {
       reportError(err, { message: '应用启动失败', tags: { scope: 'startup' } });
     } catch {}
@@ -275,6 +281,8 @@ app
       const { dialog } = require('electron');
       dialog.showErrorBox(t('startup.failedTitle'), String(err));
     } catch {}
+    await Promise.allSettled([flushPendingLogs(), flushTelemetryOnFatal(1_500)]);
+    clearTimeout(forceExit);
     app.exit(1);
   });
 
@@ -312,6 +320,7 @@ app.on('before-quit', async (event) => {
     stopMemoryMonitor?.();
     stopMemoryMonitor = null;
     await disposeServices();
+    stopStartupObservation();
     await shutdownTelemetry();
     await closeSentry();
   } catch (err) {

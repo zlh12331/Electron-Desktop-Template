@@ -29,9 +29,12 @@ function createEmptyApi(): MockApi {
     telemetry: {
       captureError: async () => ({ data: { accepted: true } }),
       reportWebVitals: async () => ({ data: { accepted: 0 } }),
+      rendererReady: async () => ({ data: { accepted: true } }),
       getStatus: async () => ({
         data: {
           level: 'off',
+          configuredLevel: 'off',
+          restartRequired: false,
           sentry: {
             enabled: false,
             initialized: false,
@@ -70,6 +73,7 @@ function createEmptyApi(): MockApi {
             },
             sampledLogs: 0,
             rateLimitedLogs: 0,
+            suppressedErrors: 0,
             lastDropAt: null,
           },
         },

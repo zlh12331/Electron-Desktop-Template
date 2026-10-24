@@ -127,6 +127,8 @@ export const TelemetrySignalHealthSchema = z.object({
 /** 遥测运行状态响应 */
 export interface TelemetryStatusRes {
   readonly level: z.infer<typeof TelemetryLevelSchema>;
+  readonly configuredLevel: z.infer<typeof TelemetryLevelSchema>;
+  readonly restartRequired: boolean;
   readonly sentry: {
     readonly enabled: boolean;
     readonly initialized: boolean;
@@ -147,6 +149,7 @@ export interface TelemetryStatusRes {
     readonly logs: z.infer<typeof TelemetrySignalHealthSchema>;
     readonly sampledLogs: number;
     readonly rateLimitedLogs: number;
+    readonly suppressedErrors: number;
     readonly lastDropAt: number | null;
   };
 }
@@ -154,6 +157,8 @@ export interface TelemetryStatusRes {
 /** 遥测运行状态响应 schema */
 export const TelemetryStatusResSchema = z.object({
   level: TelemetryLevelSchema,
+  configuredLevel: TelemetryLevelSchema,
+  restartRequired: z.boolean(),
   sentry: z.object({
     enabled: z.boolean(),
     initialized: z.boolean(),
@@ -174,6 +179,7 @@ export const TelemetryStatusResSchema = z.object({
     logs: TelemetrySignalHealthSchema,
     sampledLogs: z.number().int().nonnegative(),
     rateLimitedLogs: z.number().int().nonnegative(),
+    suppressedErrors: z.number().int().nonnegative(),
     lastDropAt: z.number().int().nonnegative().nullable(),
   }),
 });

@@ -7,6 +7,7 @@ import { resolveStartHidden } from './infra/autostart/autostart';
 import { readSetting } from './infra/storage/settings-pref';
 import { loadWindowState, trackWindowState, type WindowState } from './infra/storage/window-state';
 import { recordRendererCrash } from './infra/telemetry/otel-metrics';
+import { bindStartupWindow, recordStartupReady } from './infra/telemetry/startup';
 import { isCloseConfirmed, isQuitting } from './quit-state';
 import { notifyMinimizedToTray } from './tray';
 import { reportError, reportMessage } from './utils/error-report';
@@ -120,6 +121,7 @@ export function createWindow(): BrowserWindow {
     },
   );
 
+  bindStartupWindow(win.webContents.id);
   const rendererUrl = process.env['ELECTRON_RENDERER_URL'];
   if (rendererUrl) {
     void win.loadURL(rendererUrl);
@@ -132,6 +134,7 @@ export function createWindow(): BrowserWindow {
     logger.info({}, '开机自启静默启动：窗口驻留托盘不显示');
   }
   win.once('ready-to-show', () => {
+    recordStartupReady(win.webContents.id, 'ready-to-show');
     if (startHidden) {
       return;
     }
@@ -170,7 +173,6 @@ export function createWindow(): BrowserWindow {
     if (details.reason === 'clean-exit') {
       return;
     }
-    recordRendererCrash(details.reason);
     reportError(
       new Error(`渲染进程异常退出：reason=${details.reason} exitCode=${details.exitCode}`),
       {
@@ -185,6 +187,7 @@ export function createWindow(): BrowserWindow {
       crashRecoveryCount = 0;
     }
     crashRecoveryCount += 1;
+    recordRendererCrash(details.reason, crashRecoveryCount > 2 ? 'stopped' : 'reload');
     if (crashRecoveryCount > 2) {
       logger.error(
         { reason: details.reason, crashRecoveryCount },

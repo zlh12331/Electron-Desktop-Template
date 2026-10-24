@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   level: 'full' as 'off' | 'error-only' | 'full',
+  configuredLevel: null as 'off' | 'error-only' | 'full' | null,
   tryAcquire: vi.fn(() => true),
   captureRendererError: vi.fn(),
   emitOtelLog: vi.fn(),
@@ -25,6 +26,7 @@ const mocks = vi.hoisted(() => ({
     logs: { attempts: 1, failures: 0, lastSuccessAt: 1, lastFailureAt: null, lastError: null },
     sampledLogs: 0,
     rateLimitedLogs: 0,
+    suppressedErrors: 0,
     lastDropAt: null,
   },
 }));
@@ -34,7 +36,7 @@ vi.mock('electron', () => ({
 }));
 
 vi.mock('../infra/storage/telemetry-pref', () => ({
-  readTelemetryLevelSync: () => mocks.level,
+  readTelemetryLevelSync: () => mocks.configuredLevel ?? mocks.level,
 }));
 
 vi.mock('../infra/telemetry/rate-limit', () => ({
@@ -45,6 +47,7 @@ vi.mock('../infra/telemetry/rate-limit', () => ({
 
 vi.mock('../infra/telemetry/sentry', () => ({
   captureRendererError: mocks.captureRendererError,
+  getSentryActiveConfig: vi.fn(() => null),
   getSentryStatus: () => ({
     enabled: mocks.sentryEnabled,
     initialized: mocks.sentryEnabled,
@@ -82,6 +85,8 @@ vi.mock('../infra/telemetry/otel-metrics', () => ({
   recordWebVital: mocks.recordWebVital,
 }));
 
+import { TelemetryStatusResSchema } from '@code-agent/shared/main';
+import { getSentryActiveConfig } from '../infra/telemetry/sentry';
 import { telemetryHandlers } from './telemetry.handler';
 
 const input = {
@@ -96,6 +101,8 @@ const ctx = { traceId: 'trace-123', sender: {} } as never;
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.level = 'full';
+  mocks.configuredLevel = null;
+  vi.mocked(getSentryActiveConfig).mockReturnValue(null);
   mocks.tryAcquire.mockReturnValue(true);
   mocks.recordWebVital.mockReturnValue(true);
   mocks.sentryEnabled = true;
@@ -167,6 +174,13 @@ describe('telemetry.reportWebVitals', () => {
 });
 
 describe('telemetry.getStatus', () => {
+  it('保存偏好不同于活动级别时标记待重启，响应符合共享契约', async () => {
+    mocks.configuredLevel = 'off';
+    const result = await telemetryHandlers.getStatus(undefined, ctx);
+    expect(result).toMatchObject({ level: 'full', configuredLevel: 'off', restartRequired: true });
+    expect(TelemetryStatusResSchema.safeParse(result).success).toBe(true);
+  });
+
   it('组合 Sentry/OTel/health 快照', async () => {
     await expect(telemetryHandlers.getStatus(undefined, ctx)).resolves.toMatchObject({
       level: 'full',
@@ -178,6 +192,19 @@ describe('telemetry.getStatus', () => {
 });
 
 describe('telemetry.testConnection', () => {
+  it('复用含构建 DSN 的启动配置，不误报未配置或发送测试事件', async () => {
+    vi.mocked(getSentryActiveConfig).mockReturnValue({
+      enabled: true,
+      reason: null,
+      dsn: 'https://public@example.invalid/1',
+      release: 'app@1.0.0',
+      environment: 'production',
+    });
+    const result = await telemetryHandlers.testConnection(undefined, ctx);
+    expect(result.sentry).toMatchObject({ configured: true, valid: true });
+    expect(mocks.captureRendererError).not.toHaveBeenCalled();
+  });
+
   it('OTLP 端点：真实探测结果聚合', async () => {
     process.env['OTEL_EXPORTER_OTLP_ENDPOINT'] = 'http://127.0.0.1:4318';
     mocks.probeOtlpEndpoints.mockResolvedValue([

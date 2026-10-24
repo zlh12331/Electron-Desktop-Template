@@ -49,6 +49,8 @@ function StatusGrid({ status }: { readonly status: TelemetryStatusRes }): ReactE
   const reason = reasonLabel(status.sentry.reason, t);
   return (
     <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+      <span className="text-muted-foreground">{t('settings.obsEffectiveLevel')}</span>
+      <span>{status.level}</span>
       <span className="text-muted-foreground">{t('settings.obsSentry')}</span>
       <span>
         {onOff(status.sentry.enabled, t)}
@@ -75,11 +77,14 @@ function StatusGrid({ status }: { readonly status: TelemetryStatusRes }): ReactE
 
 function ConnectionResult({ data }: { readonly data: TelemetryTestConnectionRes }): ReactElement {
   const { t } = useTranslation();
-  const sentryText = data.sentry.valid
-    ? t('settings.obsSentryValid')
-    : data.sentry.configured
-      ? t('settings.obsSentryInvalid')
-      : t('settings.obsSentryMissing');
+  const sentryText =
+    data.otlp.reason === 'off'
+      ? t('settings.obsOff')
+      : data.sentry.valid
+        ? t('settings.obsSentryValid')
+        : data.sentry.configured
+          ? t('settings.obsSentryInvalid')
+          : t('settings.obsSentryMissing');
   const skippedText =
     data.otlp.reason === 'off'
       ? t('settings.obsTelemetryOff')
@@ -128,6 +133,14 @@ export function TelemetryStatusCard(): ReactElement {
         <Label className="font-serif text-sm tracking-wide">{t('settings.obsTitle')}</Label>
       </div>
       <StatusGrid status={status} />
+      {status.restartRequired && (
+        <p className="text-xs text-muted-foreground" role="status">
+          {t('settings.obsPendingRestart', { level: status.configuredLevel })}
+        </p>
+      )}
+      <p className="text-2xs text-muted-foreground">
+        {t('settings.obsSuppressedErrors', { count: status.health.suppressedErrors })}
+      </p>
       <p className="text-2xs text-muted-foreground">
         {t('settings.obsHealth', {
           attempts: health.attempts,

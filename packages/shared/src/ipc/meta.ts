@@ -107,6 +107,7 @@ export const IPC_META = {
     captureError: request('telemetry:captureError'),
     // Web Vitals 批量上报：主进程转为 OTel histogram（遥测级别非 full 时丢弃）
     reportWebVitals: request('telemetry:reportWebVitals'),
+    rendererReady: request('telemetry:rendererReady'),
     // 设置页可观测性状态卡：Sentry/OTel 启用态 + 管道健康
     getStatus: request('telemetry:getStatus'),
     // 连接测试：OTLP 真实探测；Sentry 仅校验 DSN 结构（不发送测试事件）

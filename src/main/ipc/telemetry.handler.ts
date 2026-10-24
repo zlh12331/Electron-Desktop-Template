@@ -14,7 +14,12 @@ import { getOtelActiveConfig, getTelemetryRuntimeStatus } from '../infra/telemet
 import { emitOtelLog } from '../infra/telemetry/otel-log';
 import { recordWebVital } from '../infra/telemetry/otel-metrics';
 import { FixedWindowRateLimiter } from '../infra/telemetry/rate-limit';
-import { captureRendererError, getSentryStatus } from '../infra/telemetry/sentry';
+import {
+  captureRendererError,
+  getSentryActiveConfig,
+  getSentryStatus,
+} from '../infra/telemetry/sentry';
+import { recordStartupReady } from '../infra/telemetry/startup';
 import { getTelemetryHealth } from '../infra/telemetry/telemetry-health';
 import type { IpcHandlerContext } from './wrap';
 
@@ -76,11 +81,18 @@ export const telemetryHandlers: InferHandlers<
     return { accepted };
   },
 
+  rendererReady: async (_input, ctx) => ({
+    accepted: recordStartupReady(ctx.sender.id, 'renderer-ready'),
+  }),
+
   getStatus: async () => {
     const otel = getTelemetryRuntimeStatus();
     const sentry = getSentryStatus();
+    const configuredLevel = readTelemetryLevelSync();
     return {
       level: otel.level,
+      configuredLevel,
+      restartRequired: configuredLevel !== otel.level,
       sentry: {
         enabled: sentry.enabled,
         initialized: sentry.initialized,
@@ -101,12 +113,14 @@ export const telemetryHandlers: InferHandlers<
 
   testConnection: async () => {
     const level = getTelemetryRuntimeStatus().level;
-    const sentry = resolveSentryConfig(process.env, {
-      level,
-      isPackaged: app.isPackaged,
-      version: app.getVersion(),
-      executableName: EXECUTABLE_NAME,
-    });
+    const sentry =
+      getSentryActiveConfig() ??
+      resolveSentryConfig(process.env, {
+        level,
+        isPackaged: app.isPackaged,
+        version: app.getVersion(),
+        executableName: EXECUTABLE_NAME,
+      });
     const dsnInfo = parseSentryDsn(sentry.dsn);
     const sentryConfigured = sentry.dsn !== '';
     const sentryValid = level !== 'off' && sentryConfigured && dsnInfo.valid;

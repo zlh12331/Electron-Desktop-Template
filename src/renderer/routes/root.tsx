@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useTranslation } from '@/i18n/use-translation';
 import { reportError } from '@/lib/error-report';
+import { reportRendererReady } from '@/lib/startup';
 
 /**
  * 根布局组件
@@ -14,6 +15,9 @@ import { reportError } from '@/lib/error-report';
  * 其 children（HomePage / AboutPage）通过 <Outlet /> 渲染。
  */
 export function RootLayout(): ReactElement {
+  useEffect(() => {
+    reportRendererReady();
+  }, []);
   return (
     <AppShell>
       <Outlet />

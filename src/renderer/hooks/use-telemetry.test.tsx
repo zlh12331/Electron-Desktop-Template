@@ -17,6 +17,8 @@ import {
 
 const statusSnapshot = {
   level: 'full',
+  configuredLevel: 'full',
+  restartRequired: false,
   sentry: {
     enabled: false,
     initialized: false,
@@ -37,6 +39,7 @@ const statusSnapshot = {
     logs: { attempts: 1, failures: 0, lastSuccessAt: 1, lastFailureAt: null, lastError: null },
     sampledLogs: 0,
     rateLimitedLogs: 0,
+    suppressedErrors: 0,
     lastDropAt: null,
   },
 } as const;

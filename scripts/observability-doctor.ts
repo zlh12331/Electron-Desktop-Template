@@ -11,6 +11,7 @@ import {
   probeOtlpTargets,
   resolveObservabilityConfig,
   resolveSentryUploadConfig,
+  resolveTelemetryPreference,
   TELEMETRY_LEVELS,
   type TelemetryLevel,
 } from '@code-agent/shared/observability';
@@ -29,7 +30,30 @@ const offline = args.includes('--offline');
 const json = args.includes('--json');
 const release = args.includes('--release');
 const packaged = args.includes('--packaged');
-const levelArg = args.find((arg) => arg.startsWith('--level='))?.slice('--level='.length) ?? 'full';
+const envFile =
+  args.find((arg) => arg.startsWith('--env-file='))?.slice('--env-file='.length) ??
+  process.env['APP_ENV_FILE'] ??
+  (release ? '' : join(root, '.env'));
+if (envFile !== '') {
+  try {
+    process.loadEnvFile(envFile);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+}
+const userDataPath =
+  args.find((arg) => arg.startsWith('--user-data='))?.slice('--user-data='.length) ??
+  process.env['APP_USER_DATA'] ??
+  join(root, '.electron-user-data');
+let savedLevel: TelemetryLevel = 'off';
+try {
+  savedLevel = resolveTelemetryPreference(
+    JSON.parse(readFileSync(join(userDataPath, 'telemetry-pref.json'), 'utf8')),
+  );
+} catch {}
+const levelArg =
+  args.find((arg) => arg.startsWith('--level='))?.slice('--level='.length) ??
+  (release ? 'full' : savedLevel);
 
 function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(path, 'utf8')) as T;
@@ -86,7 +110,20 @@ const summary = summarizeConfig(resolved, upload);
 const failed = hasFailures(checks);
 
 if (json) {
-  console.log(JSON.stringify({ config: summary, checks }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        config: summary,
+        checks,
+        source: {
+          envFile: envFile === '' ? 'process-env' : envFile,
+          level: release ? 'release-simulation' : 'preference-or-override',
+        },
+      },
+      null,
+      2,
+    ),
+  );
 } else {
   console.log('[observability-doctor] 生效配置（已脱敏）');
   console.log(JSON.stringify(summary, null, 2));
@@ -102,4 +139,4 @@ if (failed) {
   console.error('[observability-doctor] ❌ 存在 fail 项');
   process.exit(1);
 }
-console.log('[observability-doctor] ✅ 通过');
+if (!json) console.log('[observability-doctor] 通过');

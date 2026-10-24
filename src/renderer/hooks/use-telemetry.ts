@@ -59,6 +59,7 @@ export function useSetTelemetryLevel() {
     },
     onSuccess: (_data, level) => {
       void queryClient.invalidateQueries({ queryKey: TELEMETRY_LEVEL_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: TELEMETRY_STATUS_QUERY_KEY });
       toast.success(t('common.telemetryUpdated', { level }));
     },
     onError: (error) => {
@@ -83,6 +84,8 @@ export function useTelemetryStatusQuery() {
     },
     staleTime: 0,
     refetchOnWindowFocus: false,
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: false,
   });
 }
 

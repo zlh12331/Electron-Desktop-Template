@@ -31,6 +31,12 @@ export const telemetryDomain = {
     {} as TelemetryReportWebVitalsRes,
     TelemetryReportWebVitalsResSchema,
   ),
+  rendererReady: withSchema(
+    IPC_META.telemetry.rendererReady,
+    null,
+    {} as TelemetryCaptureErrorRes,
+    TelemetryCaptureErrorResSchema,
+  ),
   getStatus: withSchema(
     IPC_META.telemetry.getStatus,
     null,

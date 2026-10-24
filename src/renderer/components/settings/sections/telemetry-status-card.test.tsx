@@ -27,6 +27,8 @@ const t = i18n.t.bind(i18n);
 
 const status = {
   level: 'full',
+  configuredLevel: 'full',
+  restartRequired: false,
   sentry: {
     enabled: true,
     initialized: true,
@@ -65,6 +67,7 @@ const status = {
     },
     sampledLogs: 2,
     rateLimitedLogs: 1,
+    suppressedErrors: 4,
     lastDropAt: 1_700_000_002_000,
   },
 };
@@ -86,6 +89,14 @@ describe('TelemetryStatusCard', () => {
     expect(screen.getByText(t('settings.obsTest'))).toBeDefined();
     const healthText = t('settings.obsHealth', { attempts: 6, failures: 1, dropped: 3 });
     expect(screen.getByText((content) => content.includes(healthText))).toBeDefined();
+  });
+
+  it('显示活动级别、待重启提示和 Sentry 抑制数', () => {
+    mocks.status = { ...status, configuredLevel: 'off', restartRequired: true };
+    render(<TelemetryStatusCard />);
+    expect(screen.getByText(t('settings.obsPendingRestart', { level: 'off' }))).toBeDefined();
+    expect(screen.getByText(t('settings.obsSuppressedErrors', { count: 4 }))).toBeDefined();
+    expect(screen.getByText('full')).toBeDefined();
   });
 
   it('加载中/无桥降级', () => {
