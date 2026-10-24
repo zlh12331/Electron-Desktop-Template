@@ -2,6 +2,12 @@ import { vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import '@/i18n';
 
+// reportError 会惰性 import electron-log；测试进程退出时 import 未完成会触发
+// "onUserConsoleLog pending" 的 teardown 竞态（threads 池在 ARM runner 上偶发）
+vi.mock('electron-log/renderer', () => ({
+  default: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), log: vi.fn() },
+}));
+
 type MockApi = {
   // biome-ignore lint/suspicious/noExplicitAny: 测试环境用 any 简化类型
   [domain: string]: any;
