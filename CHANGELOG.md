@@ -18,6 +18,14 @@
 复制下面的结构到新版本段（`##` 标题、版本号与日期由 release-please 生成，不要手改）：
 
 ```markdown
+## [0.1.1](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.1.0...v0.1.1) (2026-10-24)
+
+
+### 修复
+
+* **deps:** update all non-major dependencies ([#14](https://github.com/zlh12331/Electron-Desktop-Template/issues/14)) ([9db1e6f](https://github.com/zlh12331/Electron-Desktop-Template/commit/9db1e6f5121cc5a36071a7ccf85c816f9fd14754))
+* **test:** 消除渲染层测试 teardown 竞态 ([#11](https://github.com/zlh12331/Electron-Desktop-Template/issues/11)) ([28cead9](https://github.com/zlh12331/Electron-Desktop-Template/commit/28cead961b5440ded7308348de26e33b07a62ab9))
+
 ## [<version>](https://github.com/<owner>/<repo>/compare/v<prev>...v<version>) (<date>)
 
 > 一段话说清本版主线：解决了什么痛点、用户最该注意哪一处变化。两到三句，不写内部术语。
