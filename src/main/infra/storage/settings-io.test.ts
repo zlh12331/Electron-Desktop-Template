@@ -128,6 +128,20 @@ describe('settings-io（app_settings 全表 ↔ 版本化 JSON）', () => {
     expect(readAllSettings()).toEqual({ theme: 'light' });
   });
 
+  it('值级校验：白名单键含非法值 → INVALID_INPUT，库零写入（不产生半截导入）', () => {
+    writeSetting('theme', 'light');
+
+    expect(() =>
+      applySettingsImport({
+        version: 1,
+        exportedAt: Date.now(),
+        settings: { theme: 'neon', language: 'en' },
+      }),
+    ).toThrowError(expect.objectContaining({ code: ErrorCode.INVALID_INPUT }));
+
+    expect(readAllSettings()).toEqual({ theme: 'light' });
+  });
+
   it('原子性：白名单内任一值超尺寸 → 整批回滚，合法键也不落库（不产生半截导入）', () => {
     writeSetting('theme', 'light');
 
@@ -136,7 +150,10 @@ describe('settings-io（app_settings 全表 ↔ 版本化 JSON）', () => {
       applySettingsImport({
         version: 1,
         exportedAt: Date.now(),
-        settings: { shortcuts: { commandPalette: 'Ctrl+P' }, theme: oversized },
+        settings: {
+          shortcuts: { commandPalette: 'Ctrl+P' },
+          update: { skippedVersion: oversized },
+        },
       }),
     ).toThrowError(/设置值过大/);
 

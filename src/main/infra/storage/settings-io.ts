@@ -3,6 +3,7 @@ import {
   AppError,
   ErrorCode,
   SETTING_KEYS,
+  SETTING_VALUE_SCHEMAS,
   SETTINGS_EXPORT_VERSION,
   SettingsExportFileSchema,
 } from '@code-agent/shared/main';
@@ -39,13 +40,28 @@ export function applySettingsImport(payload: unknown): SettingsImportOutcome {
   }
   const whitelist = new Set<string>(SETTING_KEYS);
   const applied: AppliedSetting[] = [];
+  const invalid: Array<{ key: string; issues: unknown }> = [];
   let skipped = 0;
   for (const [key, value] of Object.entries(parsed.data.settings)) {
     if (!whitelist.has(key)) {
       skipped += 1;
       continue;
     }
-    applied.push({ key: key as SettingKey, value });
+    const settingKey = key as SettingKey;
+    const parsedValue = SETTING_VALUE_SCHEMAS[settingKey].safeParse(value);
+    if (!parsedValue.success) {
+      invalid.push({ key, issues: parsedValue.error.issues });
+      continue;
+    }
+    applied.push({ key: settingKey, value });
+  }
+  if (invalid.length > 0) {
+    throw new AppError(
+      ErrorCode.INVALID_INPUT,
+      `设置文件包含非法值（未写入任何设置）：${invalid.map((entry) => entry.key).join(', ')}`,
+      undefined,
+      { invalid },
+    );
   }
   writeSettings(applied);
   logger.info({ imported: applied.length, skipped }, '设置导入完成（白名单外键跳过）');

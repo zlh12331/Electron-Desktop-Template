@@ -432,11 +432,12 @@ function applyMainChange(
  * @param snapshot settings:getAll 返回的 key → JSON 值映射（已含迁移处理）
  */
 export function applySettingsSnapshot(snapshot: Readonly<Record<string, unknown>>): void {
-  const theme = (snapshot['theme'] as Theme | undefined) ?? DEFAULT_SETTINGS.theme;
+  const theme = asTheme(snapshot['theme']) ?? DEFAULT_SETTINGS.theme;
+  const language = asLanguage(snapshot['language']) ?? DEFAULT_SETTINGS.language;
   mirrorThemeForFirstPaint(theme);
   useSettingsStore.setState({
     theme,
-    language: (snapshot['language'] as AppLanguage | undefined) ?? DEFAULT_SETTINGS.language,
+    language,
     shortcuts: {
       ...DEFAULT_SETTINGS.shortcuts,
       ...((snapshot['shortcuts'] as Partial<KeyboardShortcuts> | undefined) ?? {}),

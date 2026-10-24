@@ -42,7 +42,7 @@ export const SettingsResetAllResSchema = z.object({
  * 渲染层 settings-store 的全部持久化分组（persistSetting 的 key 实参集合）。
  * 白名单外的一律拒绝——若 key 为自由字符串，渲染层可覆写主进程消费的任意
  * app_settings 键（如主进程内部配置组），且持久化后重启仍生效。
- * 本表同时是 settings:resetAll 的删除范围与设置导入的写入白名单。
+ * 本表同时是 settings:resetAll 的删除范围、设置导入的写入白名单，以及 SETTING_VALUE_SCHEMAS 的键集。
  */
 export const SETTING_KEYS = [
   'theme',
@@ -65,77 +65,112 @@ export const SETTING_KEYS = [
 /** settings:set 可写键白名单 TypeScript 类型 */
 export type SettingKey = (typeof SETTING_KEYS)[number];
 
-/** settings:set 入参（写穿透：渲染层内存态变更后同步落库） */
+/** 主题值域（与渲染层 Theme 对齐） */
+const ThemeSettingSchema = z.enum(['light', 'dark', 'system']);
+
+/** 界面语言值域（与渲染层 AppLanguage 对齐） */
+const LanguageSettingSchema = z.enum(['zh-CN', 'en']);
+
+/** 单个快捷键字符串（录键控件写入；空串会让冲突检测失去意义） */
+const ShortcutValueSchema = z.string().min(1).max(128);
+
+/** shortcuts 域值：字段可选，读侧与默认值合并（兼容旧版只导出部分字段的文件） */
+const ShortcutsSettingSchema = z.object({
+  commandPalette: ShortcutValueSchema.optional(),
+  toggleTheme: ShortcutValueSchema.optional(),
+  openSettings: ShortcutValueSchema.optional(),
+});
+
+/** update 域值：字段可选，读侧与默认值合并 */
+const UpdateSettingSchema = z.object({
+  autoCheck: z.boolean().optional(),
+  allowPrerelease: z.boolean().optional(),
+  skippedVersion: z.string().min(1).nullable().optional(),
+});
+
+/** window 域值：字段可选，主进程读取时仍有默认值兜底 */
+const WindowSettingSchema = z.object({
+  closeAction: z.enum(['quit', 'minimize']).optional(),
+});
+
+/** notification 域值：字段可选，缺失按开启处理 */
+const NotificationSettingSchema = z.object({
+  enabled: z.boolean().optional(),
+});
+
+/** 代理模式值域 */
+const PROXY_MODES = ['system', 'direct', 'fixed'] as const;
+
+/** proxy 域值：fixed 模式下 url 必须是合法 http(s) 地址 */
+const ProxySettingSchema = z
+  .object({
+    mode: z.string().refine((value) => (PROXY_MODES as readonly string[]).includes(value), {
+      message: `proxy.mode 仅支持 ${PROXY_MODES.join('/')}`,
+    }),
+    url: z.string().optional(),
+    bypass: z.array(z.string()).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.mode !== 'fixed') {
+      return;
+    }
+    let urlOk = false;
+    if (value.url !== undefined && value.url.length > 0) {
+      try {
+        const parsed = new URL(value.url);
+        urlOk = parsed.protocol === 'http:' || parsed.protocol === 'https:';
+      } catch {
+        urlOk = false;
+      }
+    }
+    if (!urlOk) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['url'],
+        message: 'proxy.mode=fixed 时 url 必须是合法 http(s) 代理地址（如 http://127.0.0.1:7890）',
+      });
+    }
+  });
+
+/** appearance 域值：zoom 必须是 ZOOM_LEVELS 的合法档位 */
+const AppearanceSettingSchema = z.object({
+  zoom: z.number().refine((value) => ZOOM_LEVELS.includes(value), {
+    message: `appearance.zoom 必须是合法缩放档位（${ZOOM_LEVELS.join('/')}）`,
+  }),
+});
+
+/**
+ * settings 各键的值级 schema（SETTING_KEYS 与 schema 一一对应，类型层面强制）
+ *
+ * 写边界（settings:set）与导入边界（settings:import）共用本表；读侧仍各自做默认值兜底。
+ */
+export const SETTING_VALUE_SCHEMAS: Readonly<Record<SettingKey, z.ZodType>> = {
+  theme: ThemeSettingSchema,
+  language: LanguageSettingSchema,
+  shortcuts: ShortcutsSettingSchema,
+  update: UpdateSettingSchema,
+  window: WindowSettingSchema,
+  notification: NotificationSettingSchema,
+  proxy: ProxySettingSchema,
+  appearance: AppearanceSettingSchema,
+};
+
+/** settings:set 入参（写穿透：渲染层内存态变更后同步落库；值级 schema 与导入共用） */
 export const SettingsSetReqSchema = z
   .object({
     key: z.enum(SETTING_KEYS),
     value: z.unknown(),
   })
   .superRefine((cfg, ctx) => {
-    // proxy 值级门禁：fixed 模式下 url 必须是合法 http(s) URL。本 schema 只覆盖
-    // settings:set 通道；导入路径（applySettingsImport 白名单直写）不过本 schema，
-    // 那里靠 resolver 的 fail-open 兜底——双防线，写拒在前保证无半生效状态。
-    if (cfg.key !== 'proxy') {
+    const parsed = SETTING_VALUE_SCHEMAS[cfg.key].safeParse(cfg.value);
+    if (parsed.success) {
       return;
     }
-    const value = cfg.value as { mode?: unknown; url?: unknown } | null | undefined;
-    if (value === null || value === undefined || typeof value !== 'object') {
+    for (const issue of parsed.error.issues) {
       ctx.addIssue({
         code: 'custom',
-        path: ['value'],
-        message: 'proxy 配置必须是非空对象（{mode, url?, bypass?}）',
-      });
-      return;
-    }
-    const validModes = ['system', 'direct', 'fixed'];
-    if (!validModes.includes(value.mode as string)) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['value'],
-        message: `proxy.mode 仅支持 ${validModes.join('/')}`,
-      });
-      return;
-    }
-    if (value.mode === 'fixed') {
-      let urlOk = false;
-      if (typeof value.url === 'string' && value.url.length > 0) {
-        try {
-          const parsed = new URL(value.url);
-          urlOk = parsed.protocol === 'http:' || parsed.protocol === 'https:';
-        } catch {
-          urlOk = false;
-        }
-      }
-      if (!urlOk) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['value'],
-          message:
-            'proxy.mode=fixed 时 url 必须是合法 http(s) 代理地址（如 http://127.0.0.1:7890）',
-        });
-      }
-    }
-  })
-  .superRefine((cfg, ctx) => {
-    // appearance 值级门禁：zoom 必须是合法档位（ZOOM_LEVELS 单一真源）。settings:set
-    // 通道防御；导入路径不过本 schema，靠渲染层读侧 clampZoom 归一——双防线。
-    if (cfg.key !== 'appearance') {
-      return;
-    }
-    const value = cfg.value as { zoom?: unknown } | null | undefined;
-    if (value === null || value === undefined || typeof value !== 'object') {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['value'],
-        message: 'appearance 配置必须是非空对象（{zoom}）',
-      });
-      return;
-    }
-    if (!ZOOM_LEVELS.includes(value.zoom as number)) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['value'],
-        message: `appearance.zoom 必须是合法缩放档位（${ZOOM_LEVELS.join('/')}）`,
+        path: ['value', ...issue.path],
+        message: `${cfg.key}: ${issue.message}`,
       });
     }
   });
@@ -199,7 +234,7 @@ export const SetTelemetryLevelResSchema = z.object({
  */
 export const SETTINGS_EXPORT_VERSION = 1;
 
-/** 设置导出文件 schema（version=1；导入逐键过 SETTING_KEYS 白名单后才写入） */
+/** 设置导出文件 schema（version=1；导入逐键过 SETTING_KEYS 白名单 + SETTING_VALUE_SCHEMAS 值校验后才写入） */
 export const SettingsExportFileSchema = z.object({
   version: z.literal(SETTINGS_EXPORT_VERSION),
   /** 导出时刻（Unix timestamp 毫秒） */
@@ -227,10 +262,11 @@ export const SettingsExportResSchema = z.object({
 /**
  * settings:import 响应 payload
  *
- * imported = 通过白名单校验并写入的键数；skipped = 白名单外被跳过的键数。
+ * imported = 通过白名单与值级校验并写入的键数；skipped = 白名单外被跳过的键数。
+ * 白名单内任一值非法时整批拒绝（INVALID_INPUT），不会产生半截导入。
  */
 export interface SettingsImportRes {
-  /** 通过白名单校验并写入的键数 */
+  /** 通过白名单与值级校验并写入的键数 */
   readonly imported: number;
   /** 白名单外被跳过的键数 */
   readonly skipped: number;
