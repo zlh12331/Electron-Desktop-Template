@@ -16,7 +16,7 @@ import {
   setAutostartEnabled,
 } from './infra/autostart/autostart';
 import { initMainI18n, t } from './infra/i18n';
-import { applyProxyChange } from './infra/network/proxy-applier';
+import { applyProxySetting, migrateProxyCredentials } from './infra/network/proxy-credentials';
 import { initDb } from './infra/storage/db';
 import { readAllSettings, readSetting, writeSetting } from './infra/storage/settings-pref';
 import { readTelemetryLevelSync } from './infra/storage/telemetry-pref';
@@ -153,7 +153,7 @@ app
           initDb();
         });
         initMainI18n(readSetting('language'));
-        void applyProxyChange(readSetting('proxy'));
+        await initProxyFromSettings();
         registerGlobalErrorHandlers();
         void recoverFromCrash();
 
@@ -334,6 +334,25 @@ app.on('before-quit', async (event) => {
   await flushPendingLogs();
   app.exit(0);
 });
+
+// 启动期代理初始化：旧 URL 凭据迁移到 keychain，再按运行时配置应用
+async function initProxyFromSettings(): Promise<void> {
+  const raw = readSetting('proxy');
+  try {
+    const sanitized = await migrateProxyCredentials(raw);
+    if (raw !== undefined && JSON.stringify(sanitized) !== JSON.stringify(raw)) {
+      writeSetting('proxy', sanitized);
+      logger.info({}, '代理凭据已迁移到系统密钥库（设置值已去除明文凭据）');
+    }
+    await applyProxySetting(sanitized);
+  } catch (error) {
+    logger.warn(
+      { error: String(error) },
+      '代理凭据迁移失败，按原配置启动（加密不可用时明文凭据仍可能保留）',
+    );
+    await applyProxySetting(raw);
+  }
+}
 
 // 渲染层已挂载直接广播；仍在加载则暂存，挂载后由 app:takePendingDeepLink 取走
 function deliverDeepLink(payload: DeepLinkPayload): void {

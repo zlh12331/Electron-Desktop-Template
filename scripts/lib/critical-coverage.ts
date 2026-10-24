@@ -27,11 +27,12 @@ export const CRITICAL_TARGETS: readonly CriticalTarget[] = [
   { layer: 'main', file: 'infra/network/proxy-applier.ts', lines: 90, branches: 85 },
   { layer: 'main', file: 'infra/storage/keychain.ts', lines: 85, branches: 80 },
   { layer: 'main', file: 'infra/file/user-grants.ts', lines: 90, branches: 85 },
+  { layer: 'main', file: 'infra/network/proxy-credentials.ts', lines: 80, branches: 75 },
   { layer: 'renderer', file: 'stores/persistent/settings-store.ts', lines: 90, branches: 85 },
   { layer: 'renderer', file: 'hooks/use-deep-link.ts', lines: 90, branches: 80 },
   { layer: 'renderer', file: 'lib/ipc.ts', lines: 85, branches: 85 },
-  { layer: 'shared', file: 'src/schemas/settings.ts', lines: 90, branches: 85 },
-  { layer: 'shared', file: 'src/constants/errors.ts', lines: 95, branches: 90 },
+  { layer: 'shared', file: 'schemas/settings.ts', lines: 90, branches: 85 },
+  { layer: 'shared', file: 'constants/errors.ts', lines: 95, branches: 90 },
 ];
 
 /** 计算百分比（total=0 视为 100，避免空文件永远失败） */
@@ -39,8 +40,13 @@ export function percent(covered: number, total: number): number {
   return total === 0 ? 100 : Math.round((covered / total) * 10000) / 100;
 }
 
-/** 解析 lcov：每个文件的 DA 行与 BRF/BRH 分支统计（SF 路径反斜杠归一） */
-export function parseLcovCoverage(text: string): Map<string, FileCoverage> {
+/**
+ * 解析 lcov：每个文件的 DA 行与 BRF/BRH 分支统计（SF 路径反斜杠归一）
+ *
+ * @param text lcov 文本
+ * @param prefix 可选路径前缀（shared 的 lcov 以 src/ 开头）
+ */
+export function parseLcovCoverage(text: string, prefix?: string): Map<string, FileCoverage> {
   const result = new Map<string, FileCoverage>();
   let current: {
     file: string;
@@ -60,8 +66,9 @@ export function parseLcovCoverage(text: string): Map<string, FileCoverage> {
   for (const line of text.split(/\r?\n/)) {
     if (line.startsWith('SF:')) {
       flush();
+      const file = line.slice(3).replaceAll('\\', '/');
       current = {
-        file: line.slice(3).replaceAll('\\', '/'),
+        file: prefix !== undefined && file.startsWith(prefix) ? file.slice(prefix.length) : file,
         lineTotal: 0,
         lineCovered: 0,
         brf: 0,

@@ -2,8 +2,14 @@
 import type { InferHandlers, IPC_DEFINITIONS } from '@code-agent/shared/main';
 import { t } from '../infra/i18n';
 import { proxiedFetch, setProxyFetchConfig } from '../infra/network/proxied-fetch';
-import { parseProxyConfig } from '../infra/network/proxy-resolver';
+import {
+  applyProxySetting,
+  clearProxyAuthCredentials,
+  enrichProxySetting,
+  resolveProxyRuntimeConfig,
+} from '../infra/network/proxy-credentials';
 import { readSetting } from '../infra/storage/settings-pref';
+import { broadcastSettingChanged } from '../main-events';
 import { logger } from '../utils/logger';
 import type { IpcHandlerContext } from './wrap';
 
@@ -18,8 +24,8 @@ export function createProxyHandlers(): InferHandlers<
 >['proxy'] {
   return {
     test: async (input) => {
-      // 先把待测配置装进全局 fetch（即测即用），非 fixed 模式（system/direct）无从测起
-      const cfg = parseProxyConfig(readSetting('proxy'));
+      // 先把待测配置装进全局 fetch（即测即用），keychain 凭据同端点时注入运行时 URL
+      const cfg = await resolveProxyRuntimeConfig(readSetting('proxy'));
       setProxyFetchConfig(cfg);
       if (cfg.mode !== 'fixed' || cfg.url === undefined) {
         logger.info({ mode: cfg.mode }, '代理连通性测试跳过（非 fixed 模式）');
@@ -46,6 +52,15 @@ export function createProxyHandlers(): InferHandlers<
       } finally {
         clearTimeout(timer);
       }
+    },
+
+    clearAuth: async () => {
+      await clearProxyAuthCredentials();
+      const current = readSetting('proxy');
+      await applyProxySetting(current);
+      broadcastSettingChanged('proxy', await enrichProxySetting(current));
+      logger.info({}, '代理凭据已清除');
+      return { ok: true };
     },
   };
 }

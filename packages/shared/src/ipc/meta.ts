@@ -84,6 +84,8 @@ export const IPC_META = {
   proxy: {
     // 代理连通性探测：主进程先重读库内配置注入 proxiedFetch 再探轻量端点；mode 非 fixed 返回 not-applicable
     test: request('proxy:test'),
+    // 清除已保存的代理凭据（keychain 保留键；渲染层只触发，不读取）
+    clearAuth: request('proxy:clearAuth'),
   },
 
   secrets: {

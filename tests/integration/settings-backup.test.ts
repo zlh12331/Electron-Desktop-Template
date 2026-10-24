@@ -10,7 +10,12 @@ import { describe, expect, it } from 'vitest';
 
 import { getMainLanguage } from '../../src/main/infra/i18n';
 import { closeDb, getDbPath, initDb, resetDb } from '../../src/main/infra/storage/db';
-import { readAllSettings, readSetting } from '../../src/main/infra/storage/settings-pref';
+import { getSecret } from '../../src/main/infra/storage/keychain';
+import {
+  readAllSettings,
+  readSetting,
+  writeSetting,
+} from '../../src/main/infra/storage/settings-pref';
 import { backupHandlers } from '../../src/main/ipc/backup.handler';
 import { settingsHandlers } from '../../src/main/ipc/settings.handler';
 import { setOpenDialogResult, withTempUserData } from './helpers/with-db';
@@ -72,6 +77,84 @@ describe('设置导入/重置的主进程语言同步', () => {
   });
 });
 
+describe('代理凭据：app_settings 不落明文，keychain 可恢复', () => {
+  it('settings:set 拆出凭据并只回派生状态', async () => {
+    await withTempUserData(async () => {
+      await settingsHandlers.set(
+        {
+          key: 'proxy',
+          value: {
+            mode: 'fixed',
+            url: 'http://alice:s3cret@proxy.example:8080',
+            bypass: ['corp.example'],
+          },
+        },
+        EMPTY_CTX,
+      );
+
+      expect(readSetting('proxy')).toEqual({
+        mode: 'fixed',
+        url: 'http://proxy.example:8080',
+        bypass: ['corp.example'],
+      });
+      expect(await getSecret('__proxy_auth')).toBe('http://alice:s3cret@proxy.example:8080');
+
+      const { settings } = await settingsHandlers.getAll({}, EMPTY_CTX);
+      expect(settings['proxy']).toMatchObject({
+        mode: 'fixed',
+        url: 'http://proxy.example:8080',
+        hasAuth: true,
+        authUsername: 'alice',
+      });
+    });
+  });
+
+  it('导入文件中的代理凭据同样加密，不写回 app_settings', async () => {
+    await withTempUserData(async () => {
+      const dir = mkdtempSync(join(tmpdir(), 'proxy-import-'));
+      const file = join(dir, 'settings.json');
+      writeFileSync(
+        file,
+        JSON.stringify({
+          version: SETTINGS_EXPORT_VERSION,
+          exportedAt: Date.now(),
+          settings: {
+            theme: 'light',
+            proxy: { mode: 'fixed', url: 'http://bob:p%40ss@proxy.example:9090' },
+          },
+        }),
+        'utf8',
+      );
+      setOpenDialogResult({ canceled: false, filePaths: [file] });
+      try {
+        const outcome = await settingsHandlers.importSettings(undefined, EMPTY_CTX);
+        expect(outcome.imported).toBe(2);
+        expect(readSetting('proxy')).toEqual({
+          mode: 'fixed',
+          url: 'http://proxy.example:9090',
+        });
+        expect(await getSecret('__proxy_auth')).toBe('http://bob:p%40ss@proxy.example:9090');
+        expect(JSON.stringify(readAllSettings()['proxy'])).not.toContain('bob');
+      } finally {
+        setOpenDialogResult({ canceled: true });
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it('resetAll 清除代理凭据', async () => {
+    await withTempUserData(async () => {
+      await settingsHandlers.set(
+        { key: 'proxy', value: { mode: 'fixed', url: 'http://alice:s3cret@proxy:8080' } },
+        EMPTY_CTX,
+      );
+      await settingsHandlers.resetAll({}, EMPTY_CTX);
+      expect(await getSecret('__proxy_auth')).toBeNull();
+      expect(readSetting('proxy')).toBeUndefined();
+    });
+  });
+});
+
 describe('backup 域：创建 → 列举', () => {
   it('create 产出备份项，list 能读到且按时间倒序', async () => {
     await withTempUserData(async () => {
@@ -83,6 +166,21 @@ describe('backup 域：创建 → 列举', () => {
       expect(names).toContain(first.name);
       expect(names).toContain(second.name);
       expect(backups.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it('restore 暂存恢复点，重启初始化后数据回到备份时刻', async () => {
+    await withTempUserData(async () => {
+      writeSetting('theme', 'light');
+      const { name } = await backupHandlers.create(undefined, EMPTY_CTX);
+      writeSetting('theme', 'dark');
+
+      await closeDb();
+      resetDb();
+      await backupHandlers.restore({ name }, EMPTY_CTX);
+
+      initDb();
+      expect(readSetting('theme')).toBe('light');
     });
   });
 });

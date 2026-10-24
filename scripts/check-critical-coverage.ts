@@ -28,7 +28,10 @@ function main(): number {
       coverage[layer] = new Map();
       continue;
     }
-    coverage[layer] = parseLcovCoverage(readFileSync(file, 'utf8'));
+    coverage[layer] = parseLcovCoverage(
+      readFileSync(file, 'utf8'),
+      layer === 'shared' ? 'src/' : undefined,
+    );
   }
 
   const issues = [

@@ -14,9 +14,17 @@ let lock: Promise<void> = Promise.resolve();
 
 let warnedEncryptionUnavailable = false;
 
+// 双下划线前缀为内部保留键（如代理凭据），不通过 secrets IPC 域暴露/改写
+const RESERVED_SECRET_PREFIX = '__';
+
 /** safeStorage 是否可用（Linux 无 libsecret 时为 false，届时密钥全部不可读） */
 export function isEncryptionAvailable(): boolean {
   return safeStorage.isEncryptionAvailable();
+}
+
+/** 是否为内部保留凭据键（secrets 域必须拒绝读写） */
+export function isReservedSecretKey(key: string): boolean {
+  return key.startsWith(RESERVED_SECRET_PREFIX);
 }
 
 // 简易互斥队列：新请求排在既有锁链尾部，返回的 release 释放自己的槽位
