@@ -402,6 +402,8 @@ jobs:
         shell: bash
         env:
           RELEASE_VERSION: ${{ needs.gate.outputs.version }}
+          WINDOWS_SIGNED: ${{ secrets.CSC_LINK != '' }}
+          MAC_SIGNED: ${{ secrets.APPLE_API_KEY != '' || secrets.APPLE_ID != '' || secrets.APPLE_KEYCHAIN != '' }}
         run: |
           VERSION="$RELEASE_VERSION"
           VERSION_ESCAPED=$(printf '%s' "$VERSION" | sed 's/\./\\./g')
@@ -414,6 +416,17 @@ jobs:
           ' CHANGELOG.md > release-body.md
           if [ ! -s release-body.md ]; then
             echo "## Release $VERSION" > release-body.md
+          fi
+          if [ "$WINDOWS_SIGNED" != "true" ] || [ "$MAC_SIGNED" != "true" ]; then
+            cat >> release-body.md <<'EOF'
+
+          > **未签名构建提示**
+          >
+          > - Windows 可能触发 SmartScreen；选择“更多信息 → 仍要运行”。
+          > - macOS 未签名/未公证，首次打开需在“系统设置 → 隐私与安全性”允许，或执行：
+          >   `xattr -dr com.apple.quarantine "/Applications/<应用名>.app"`。
+          > - macOS 自动更新未验证；建议手动下载安装。Windows/Linux 自动更新可尝试，但缺少代码签名信任链。
+          EOF
           fi
 
       - name: Create GitHub Release (tag + draft)
