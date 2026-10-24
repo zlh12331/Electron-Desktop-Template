@@ -152,6 +152,7 @@ export function installMockApi(): void {
     },
     proxy: {
       test: async () => ipcOk({ ok: true, kind: 'not-applicable' as const }),
+      clearAuth: async () => ipcOk({ ok: true }),
     },
     secrets: {
       isAvailable: async () => ipcOk({ available: true, platform: 'web' }),

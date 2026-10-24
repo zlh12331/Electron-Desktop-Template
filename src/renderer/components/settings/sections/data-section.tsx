@@ -30,7 +30,6 @@ export function DataSection(): React.ReactElement {
   const { t } = useTranslation();
   const [cache, setCache] = useState<UpdateCacheInfo | null>(null);
   const downloading = useUpdateStore((s) => s.status?.phase === 'downloading');
-  const proxy = useSettingsStore((s) => s.proxy);
 
   useEffect(() => {
     void (async (): Promise<void> => {
@@ -57,16 +56,6 @@ export function DataSection(): React.ReactElement {
   };
 
   const handleExportSettings = async (): Promise<void> => {
-    if (proxy.mode === 'fixed' && proxy.url?.includes('@') === true) {
-      const confirmed = await confirm({
-        title: t('settings.exportSettings'),
-        message: t('settings.exportProxyCredentialsWarning'),
-        danger: true,
-      });
-      if (!confirmed) {
-        return;
-      }
-    }
     try {
       const res = await exportSettingsFile();
       if (res.saved) {

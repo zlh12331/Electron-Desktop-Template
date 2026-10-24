@@ -117,10 +117,14 @@ interface NotificationSettings {
 interface ProxySettings {
   /** 代理模式 */
   readonly mode: 'system' | 'direct' | 'fixed';
-  /** 代理地址（仅 mode=fixed；如 http://127.0.0.1:7890） */
+  /** 代理地址（仅 mode=fixed；持久化值不含凭据，凭据在系统 keychain） */
   readonly url?: string;
   /** 不走代理的主机后缀（仅 mode=fixed；如 ['corp.example']） */
   readonly bypass?: readonly string[];
+  /** 主进程派生：keychain 中是否已有代理凭据（只读，不落库） */
+  readonly hasAuth?: boolean;
+  /** 主进程派生：已保存凭据的用户名（只读，不含密码） */
+  readonly authUsername?: string;
 }
 
 /**
@@ -362,6 +366,8 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
     if (proxy.mode !== 'fixed') {
       delete (proxy as { url?: string; bypass?: readonly string[] }).url;
       delete (proxy as { url?: string; bypass?: readonly string[] }).bypass;
+      delete (proxy as { hasAuth?: boolean }).hasAuth;
+      delete (proxy as { authUsername?: string }).authUsername;
     }
     set({ proxy });
     persistSetting('proxy', proxy);

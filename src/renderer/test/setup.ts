@@ -87,7 +87,10 @@ function createEmptyApi(): MockApi {
       }),
     },
     backup: {},
-    proxy: {},
+    proxy: {
+      test: async () => ({ data: { ok: false, kind: 'not-applicable' } }),
+      clearAuth: async () => ({ data: { ok: true } }),
+    },
     invalidation: {
       subscribeDomains: () => () => {},
     },

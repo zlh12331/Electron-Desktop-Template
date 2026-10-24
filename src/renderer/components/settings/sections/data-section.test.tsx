@@ -116,20 +116,7 @@ describe('DataSection', () => {
     );
   });
 
-  it('导出设置：代理 URL 含凭据 → 先确认；拒绝则不导出', async () => {
-    useSettingsStore.setState({
-      proxy: { mode: 'fixed', url: 'http://user:pass@proxy.example:8080' },
-    });
-    mocks.confirm.mockResolvedValue(false);
-    renderSection();
-
-    await userEvent.click(screen.getByRole('button', { name: t('settings.exportSettings') }));
-
-    await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce());
-    expect(mocks.exportSettings).not.toHaveBeenCalled();
-  });
-
-  it('导出设置：代理 URL 含凭据且确认 → 继续导出', async () => {
+  it('导出设置：代理 URL 含凭据也不再二次确认（主进程统一脱敏）', async () => {
     useSettingsStore.setState({
       proxy: { mode: 'fixed', url: 'http://user:pass@proxy.example:8080' },
     });
@@ -137,8 +124,8 @@ describe('DataSection', () => {
 
     await userEvent.click(screen.getByRole('button', { name: t('settings.exportSettings') }));
 
-    await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce());
     await waitFor(() => expect(mocks.exportSettings).toHaveBeenCalledOnce());
+    expect(mocks.confirm).not.toHaveBeenCalled();
   });
 
   it('导出设置：未保存（用户取消）→ 不 toast', async () => {
