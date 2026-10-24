@@ -12,7 +12,7 @@ export const InvalidationPayloadSchema = z.object({
   /** 受影响的域清单（至少一个；渲染层逐域前缀失效） */
   domains: z.array(z.string().min(1)).min(1),
   /** 引发失效的实体 id（可选上下文；失效指令以 domains 为准） */
-  sessionId: z.string().min(1).optional(),
+  entityId: z.string().min(1).optional(),
 });
 
 /** invalidation:event:domains 事件 payload：受影响域 + 可选实体上下文 */
@@ -20,7 +20,7 @@ export interface InvalidationPayload {
   /** 受影响的域清单（元素形如 'settings' / 'entity:<id>'） */
   readonly domains: readonly string[];
   /** 引发失效的实体 id（可选；供日志排障与未来按实体过滤） */
-  readonly sessionId?: string;
+  readonly entityId?: string;
 }
 
 // ────────── 失效域词表 ──────────

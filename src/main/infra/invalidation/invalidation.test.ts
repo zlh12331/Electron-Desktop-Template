@@ -39,7 +39,7 @@ describe('broadcastInvalidation', () => {
     mocks.windows = [];
   });
 
-  it('向全部存活窗口发送 invalidation:event:domains + payload（含 sessionId）', () => {
+  it('向全部存活窗口发送 invalidation:event:domains + payload（含 entityId）', () => {
     const w1 = makeWindow();
     const w2 = makeWindow();
     mocks.windows = [w1, w2];
@@ -49,18 +49,18 @@ describe('broadcastInvalidation', () => {
     for (const win of [w1, w2]) {
       expect(win.webContents.send).toHaveBeenCalledTimes(1);
       expect(win.sends[0]?.[0]).toBe('invalidation:event:domains');
-      expect(win.sends[0]?.[1]).toEqual({ domains: ['sessions', 'session:s1'], sessionId: 's1' });
+      expect(win.sends[0]?.[1]).toEqual({ domains: ['sessions', 'session:s1'], entityId: 's1' });
     }
   });
 
-  it('sessionId 缺省时 payload 不携带该字段（exactOptionalPropertyTypes 条件展开）', () => {
+  it('entityId 缺省时 payload 不携带该字段（exactOptionalPropertyTypes 条件展开）', () => {
     const win = makeWindow();
     mocks.windows = [win];
 
     broadcastInvalidation(['memory']);
 
     expect(win.sends[0]?.[1]).toEqual({ domains: ['memory'] });
-    expect(JSON.stringify(win.sends[0]?.[1])).not.toContain('sessionId');
+    expect(JSON.stringify(win.sends[0]?.[1])).not.toContain('entityId');
   });
 
   it('isDestroyed 窗口跳过（不再触碰其 webContents）', () => {

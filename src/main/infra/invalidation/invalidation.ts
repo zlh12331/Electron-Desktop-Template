@@ -9,9 +9,9 @@ import { logger } from '../../utils/logger';
 /**
  * 向所有窗口广播失效域（domains 空 / 无窗口时静默跳过）
  *
- * @param sessionId 可选——渲染层可据此只失效该会话相关的 queryKey
+ * @param entityId 可选——渲染层可据此只失效该实体相关的 queryKey
  */
-export function broadcastInvalidation(domains: readonly string[], sessionId?: string): void {
+export function broadcastInvalidation(domains: readonly string[], entityId?: string): void {
   if (domains.length === 0) {
     return;
   }
@@ -21,7 +21,7 @@ export function broadcastInvalidation(domains: readonly string[], sessionId?: st
   }
   const payload: InvalidationPayload = {
     domains,
-    ...(sessionId !== undefined ? { sessionId } : {}),
+    ...(entityId !== undefined ? { entityId } : {}),
   };
   for (const win of windows) {
     if (!win.isDestroyed()) {
@@ -29,7 +29,7 @@ export function broadcastInvalidation(domains: readonly string[], sessionId?: st
     }
   }
   logger.debug(
-    { domains, sessionId, channel: IPC_CHANNELS['INVALIDATION_EVENT_DOMAINS'] },
+    { domains, entityId, channel: IPC_CHANNELS['INVALIDATION_EVENT_DOMAINS'] },
     '失效域已广播',
   );
 }
