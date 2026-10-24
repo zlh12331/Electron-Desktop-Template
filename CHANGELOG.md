@@ -17,7 +17,7 @@
 
 - **数据库损坏自愈**：启动依次尝试 quick_check、健康备份恢复、归档重建；备份链串行化，手动备份不再与启动备份并发写。
 - **渲染层测试稳定性**：测试环境隔离 electron-log 惰性导入，Windows ARM runner 回退 forks 池，消除 worker teardown 假红。
-- **遥测初始化**：OpenTelemetry 统一到 3.0，修复 exporter 与 SDK 主版本错配时的初始化失败；单个信号异常不会影响其余信号与主流程。
+- **遥测初始化**：OpenTelemetry SDK 统一到 3.0，修复 exporter 与 SDK 主版本错配时的初始化失败；单个信号异常不会影响其余信号与主流程。
 - **发布/CI 边界**：修复跨平台路径断言、CodeQL 报告的端点推导 ReDoS 风险，以及文档契约对构建期生成物的误判。
 
 ### 性能
@@ -28,7 +28,7 @@
 ### 内部改进
 
 - 覆盖率显式纳入全部源码，新增覆盖率范围、关键模块阈值与 settings 子集硬门槛；shared 覆盖率下限收紧。
-- 依赖树更新到当前最新：Electron 44.9.3、Biome 2.6、OpenTelemetry 3.0、undici 8、js-yaml 5、markdown-it 15 等；`pnpm audit` 为 0 high / 0 critical。
+- 依赖树更新到当前最新：Electron 44.9.3、Biome 2.6、OpenTelemetry SDK 3.0、undici 8、js-yaml 5、markdown-it 15 等；`pnpm audit` 为 0 high / 0 critical。
 - Node 26.12.1 + pnpm 12.15.0 为唯一支持组合；major 人工评审、beta 禁令与 override 生命周期写入依赖策略。
 - 新增 Windows 视觉基线、生产启动趋势和上游模板同步指南；Renovate 配置迁移到 `matchPackageNames`。
 
