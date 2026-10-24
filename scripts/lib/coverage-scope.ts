@@ -95,7 +95,8 @@ export function parseLcovSourceFiles(text: string): string[] {
   return text
     .split(/\r?\n/)
     .filter((line) => line.startsWith('SF:'))
-    .map((line) => line.slice(3).split(sep).join('/'));
+    // lcov 由不同平台生成，统一把 Windows 反斜杠归一为 `/`（不能依赖 host sep）
+    .map((line) => line.slice(3).replaceAll('\\', '/'));
 }
 
 /** 按层规则比较源码与 lcov；返回未进入覆盖率的源码文件 */
