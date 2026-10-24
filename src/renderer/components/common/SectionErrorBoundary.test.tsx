@@ -18,6 +18,11 @@ function ExplodingChild({ attempt }: { readonly attempt: number }): ReactElement
   return <div data-testid="recovered">recovered</div>;
 }
 
+/** 非 Error 抛出（字符串）子组件 */
+function ThrowStringChild(): ReactElement {
+  throw 'plain string error';
+}
+
 describe('SectionErrorBoundary', () => {
   it('子组件正常：原样渲染', () => {
     render(
@@ -71,13 +76,10 @@ describe('SectionErrorBoundary', () => {
   });
 
   it('非 Error 错误（抛字符串）：fallback 显示 String(error) 文本', () => {
-    const ExplodingChild = (): ReactElement => {
-      throw 'plain string error';
-    };
     expect(() =>
       render(
         <SectionErrorBoundary>
-          <ExplodingChild />
+          <ThrowStringChild />
         </SectionErrorBoundary>,
       ),
     ).not.toThrow();
