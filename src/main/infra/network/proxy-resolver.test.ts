@@ -8,7 +8,9 @@ import {
   buildChromiumProxyConfig,
   buildProxyUrl,
   maskProxyUrl,
+  normalizeProxyHost,
   parseProxyConfig,
+  resolveProxyAuth,
   shouldBypass,
 } from './proxy-resolver';
 
@@ -36,6 +38,41 @@ describe('parseProxyConfig', () => {
     expect(parseProxyConfig({ mode: 'fixed', url: 'http://p:1', bypass: 'x' })).toEqual({
       mode: 'system',
     });
+  });
+});
+
+describe('resolveProxyAuth（Chromium login 事件凭据）', () => {
+  it('无凭据/缺失/非法 URL → null', () => {
+    expect(resolveProxyAuth(undefined)).toBeNull();
+    expect(resolveProxyAuth('')).toBeNull();
+    expect(resolveProxyAuth('http://proxy.example:8080')).toBeNull();
+    expect(resolveProxyAuth('not-a-url')).toBeNull();
+  });
+
+  it('解析用户名/密码、IPv6 主机与缺省端口', () => {
+    expect(resolveProxyAuth('http://user:p%40ss@[::1]:8080')).toEqual({
+      host: '::1',
+      port: 8080,
+      username: 'user',
+      password: 'p@ss',
+    });
+    expect(resolveProxyAuth('https://user:pass@PROXY.example')).toEqual({
+      host: 'proxy.example',
+      port: 443,
+      username: 'user',
+      password: 'pass',
+    });
+    expect(resolveProxyAuth('http://user:pass@proxy.example')).toEqual({
+      host: 'proxy.example',
+      port: 80,
+      username: 'user',
+      password: 'pass',
+    });
+  });
+
+  it('normalizeProxyHost：IPv6 去括号 + 小写', () => {
+    expect(normalizeProxyHost('[::1]')).toBe('::1');
+    expect(normalizeProxyHost('PROXY.EXAMPLE')).toBe('proxy.example');
   });
 });
 
