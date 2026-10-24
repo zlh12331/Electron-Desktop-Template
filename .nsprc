@@ -3,15 +3,5 @@
   "moderate": true,
   "high": true,
   "critical": true,
-  "report-type": "summary",
-  "allowlist": [
-    "GHSA-hp3w-g68c-fv3c"
-  ],
-  "packages": {
-    "sprintf-js": {
-      "reason": "GHSA-hp3w-g68c-fv3c（sprintf-js 无界精度 specifier DoS）：Vulnerable <=1.1.3 且上游无补丁版本（gh api advisories 实测 first_patched_version 为 null）；命中路径为 devDependency 传递链 electron-builder→app-builder-lib→@electron/get→global-agent→roarr→sprintf-js——构建期日志格式化用，非应用运行时依赖，DoS 面仅限本机构建环境。上游（roarr/global-agent 或 electron-builder）发布修复后应移除本条并复跑 audit",
-      "added": "2026-10-06",
-      "source": "beta.4 后 npm 生态集体披露（audit:registry 实测）"
-    }
-  }
+  "report-type": "summary"
 }
