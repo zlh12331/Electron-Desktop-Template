@@ -1,7 +1,6 @@
 # 34 · 网络代理（需求 → 设计 → 实施状态）
 
 > ⚠️ 模板裁剪提示（2026-10-22）：代理设置、解析与应用链（Node / Chromium 双栈）仍是现行实现；文中 AI 供应商 / IM 适配器出口清单已随业务剥离，接入新出口时按本文的接缝方式注入。
-
 - **状态**：**已实施**（2026-09-29；6834d4a5 → a5aecaf9 → 4c50994e → a1095521 →
   本提交；CP2 双路深读 4 fail 全部修复，分歧处置表见 §3.1；V1-V10 核对见 §3.2）
 - **判级**：四问全 yes（新增持久化结构 settings.proxy 键 + 跨进程副作用全覆盖 +
@@ -16,21 +15,21 @@
 
 网络出口全量清点（2026-09-29，逐文件核实 + Electron 运行时探针）：
 
-| 出口 | 网络栈 | 位置 | 现有注入缝 |
-|---|---|---|---|
-| AI 供应商 ×10 | Node fetch（undici 7.29） | `providers/registry.ts` BUILTIN_FACTORIES 十工厂集中 | `fetch?: FetchFunction`（AI SDK v7 实测） |
-| IM/Telegram | Node 全局 fetch | `im/adapters/telegram-adapter.ts` | `fetchFn` 缝（实测） |
-| IM/钉钉 HTTP | Node fetch + **全局 WebSocket** | `im/adapters/dingtalk-stream.ts` | `fetchFn`/`wsCtor` 缝（实测） |
-| IM/QQ | Node fetch（Gateway+API） | `im/adapters/qq-adapter.ts` + `qq-stream.ts` | `fetchFn`/`fetchTokenFn` 缝（实测） |
-| IM/企微+飞书 webhook | Node fetch | `im/adapters/webhook-channel.ts` postWebhook | **无缝**（模块级函数直调全局 fetch） |
-| IM/微信长轮询 | Node fetch | `im/adapters/weixin-stream.ts` | `fetchUpdatesFn` 缝（实测） |
-| IM/飞书长连接 | **axios**（@larksuiteoapi/node-sdk 自建实例） | `im/adapters/feishu-stream.ts` | 无；axios 原生读 `http_proxy/https_proxy` env |
-| MCP 远程 | SDK transport（sse/streamableHttp） | `ai/mcp/mcp-client.ts:67-69` | `fetch?: FetchLike`（SDK 实测）+ requestInit |
-| 自动更新 | **Chromium，独立分区 `electron-updater`**（ElectronHttpExecutor 实测） | `infra/update/update-service.ts` | session.fromPartition 分区 → setProxy 可覆盖 |
-| 浏览器预览 | Chromium，`browser-preview` 内存分区 | `infra/browser/preview-service.ts:81` | setProxy 可覆盖 |
-| 记忆引擎 healthcheck | fetch → **localhost** | `memory-hub-service.ts:437` | 无缝；**本地回环必须绕过代理** |
-| OTLP 遥测 | node http/https（非全局 fetch） | `telemetry/otel.ts:110` | 无缝；默认关闭不外发 |
-| 渲染层 | 零直连（全部经 window.api） | — | 无需处理 |
+| 出口                 | 网络栈                                                                 | 位置                                                 | 现有注入缝                                    |
+| -------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------- | --------------------------------------------- |
+| AI 供应商 ×10        | Node fetch（undici 7.29）                                              | `providers/registry.ts` BUILTIN_FACTORIES 十工厂集中 | `fetch?: FetchFunction`（AI SDK v7 实测）     |
+| IM/Telegram          | Node 全局 fetch                                                        | `im/adapters/telegram-adapter.ts`                    | `fetchFn` 缝（实测）                          |
+| IM/钉钉 HTTP         | Node fetch + **全局 WebSocket**                                        | `im/adapters/dingtalk-stream.ts`                     | `fetchFn`/`wsCtor` 缝（实测）                 |
+| IM/QQ                | Node fetch（Gateway+API）                                              | `im/adapters/qq-adapter.ts` + `qq-stream.ts`         | `fetchFn`/`fetchTokenFn` 缝（实测）           |
+| IM/企微+飞书 webhook | Node fetch                                                             | `im/adapters/webhook-channel.ts` postWebhook         | **无缝**（模块级函数直调全局 fetch）          |
+| IM/微信长轮询        | Node fetch                                                             | `im/adapters/weixin-stream.ts`                       | `fetchUpdatesFn` 缝（实测）                   |
+| IM/飞书长连接        | **axios**（@larksuiteoapi/node-sdk 自建实例）                          | `im/adapters/feishu-stream.ts`                       | 无；axios 原生读 `http_proxy/https_proxy` env |
+| MCP 远程             | SDK transport（sse/streamableHttp）                                    | `ai/mcp/mcp-client.ts:67-69`                         | `fetch?: FetchLike`（SDK 实测）+ requestInit  |
+| 自动更新             | **Chromium，独立分区 `electron-updater`**（ElectronHttpExecutor 实测） | `infra/update/update-service.ts`                     | session.fromPartition 分区 → setProxy 可覆盖  |
+| 浏览器预览           | Chromium，`browser-preview` 内存分区                                   | `infra/browser/preview-service.ts:81`                | setProxy 可覆盖                               |
+| 记忆引擎 healthcheck | fetch → **localhost**                                                  | `memory-hub-service.ts:437`                          | 无缝；**本地回环必须绕过代理**                |
+| OTLP 遥测            | node http/https（非全局 fetch）                                        | `telemetry/otel.ts:110`                              | 无缝；默认关闭不外发                          |
+| 渲染层               | 零直连（全部经 window.api）                                            | —                                                    | 无需处理                                      |
 
 **探针关键事实**（`.tmp` 实测，2026-09-29）：Electron 44 内嵌 **Node 24.20 / undici
 7.29.0**；全局 fetch **不认 `dispatcher` 选项**（传入自定义 dispatcher 被静默忽略）——
@@ -114,12 +113,12 @@ MCP stdio 子进程（本地管道无网络）；remote-control 本地 HTTP 服�
   依赖，用户面窄，v2 视需求）。
 - 待拍板项表（CP1 已按建议拍板的 D1-D3 + 遗留 D4-D7）：
 
-| # | 争议选择 | 建议 | 理由 |
-|---|---|---|---|
-| D4 | 模式枚举：system/direct/fixed 三选 vs 只做 fixed | 三选 | system=默认不改变现状（V1）；direct 是「系统有全局 VPN 但想绕开」的真实需求；fixed 是核心场景 |
-| D5 | 代理认证：v1 是否支持 user:pass@host | 支持 URL 内嵌凭据 | URL 规范自带（http://user:pass@host:port），undici ProxyAgent 与 Chromium proxyRules 均原生支持，零额外代码；不做独立用户名/密码字段（明文入库，URL 内嵌同样明文但少一套 UI）——凭据不入 keychain 的理由：代理凭据敏感度远低于 API Key，且 keychain 读取是异步会拖累 setProxy 同步语义 |
-| D6 | Chromium 栈 v1 是否也接 system 模式探测 | 直接透传 mode | mode=system → setProxy({mode:'system'})（Electron 默认行为，零代码）；mode=direct → setProxy({mode:'direct'})；fixed → proxyRules。三模式在 Chromium API 上是一等公民，无探测需求 |
-| D7 | 测试连接按钮的实现深度 | 真·TCP 探测 | 主进程经代理 fetch 一个轻量端点（如 https://api.deepseek.com 的 405 响应也算「通」），3s 超时；不做供应商级连通性矩阵（每家测太重） |
+| #   | 争议选择                                         | 建议              | 理由                                                                                                                                                                                                                                                                                  |
+| --- | ------------------------------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D4  | 模式枚举：system/direct/fixed 三选 vs 只做 fixed | 三选              | system=默认不改变现状（V1）；direct 是「系统有全局 VPN 但想绕开」的真实需求；fixed 是核心场景                                                                                                                                                                                         |
+| D5  | 代理认证：v1 是否支持 user:pass@host             | 支持 URL 内嵌凭据 | URL 规范自带（http://user:pass@host:port），undici ProxyAgent 与 Chromium proxyRules 均原生支持，零额外代码；不做独立用户名/密码字段（明文入库，URL 内嵌同样明文但少一套 UI）——凭据不入 keychain 的理由：代理凭据敏感度远低于 API Key，且 keychain 读取是异步会拖累 setProxy 同步语义 |
+| D6  | Chromium 栈 v1 是否也接 system 模式探测          | 直接透传 mode     | mode=system → setProxy({mode:'system'})（Electron 默认行为，零代码）；mode=direct → setProxy({mode:'direct'})；fixed → proxyRules。三模式在 Chromium API 上是一等公民，无探测需求                                                                                                     |
+| D7  | 测试连接按钮的实现深度                           | 真·TCP 探测       | 主进程经代理 fetch 一个轻量端点（如 https://api.deepseek.com 的 405 响应也算「通」），3s 超时；不做供应商级连通性矩阵（每家测太重）                                                                                                                                                   |
 
 ## 2 设计
 
@@ -291,20 +290,20 @@ env 五个应用点全部读同一 resolver 真源，无双份状态。**MCP 远
   映射）9/10 pass，V8 fail。
 - **分歧处置表**（全部按建议采纳；fail 修复已回写 §2 对应节）：
 
-| # | 来源 | 项 | 处置 | 落点 |
-|---|---|---|---|---|
-| 1 | 路1 fail | 反例 7 静默丢弃 | 采纳：补处置决策（窗口可接受 + 固定顺序注记 + 不造跨 session 事务） | §2.1 |
-| 2 | 路1 fail | import/resetAll「零代码」与 V7/V8 矛盾 | 采纳：四路径收口（set/import/resetAll/启动）统一走 applyProxyChange | §2.2 |
-| 3 | 路2 fail | 测试连接需新增 IPC | 采纳：新增 `proxy:test`（定义表三步 + 响应 schema） | §2.3 |
-| 4 | 路2 fail | V8 无断言计划 | 采纳：收口链测试扩四触发路径 | §2.7 |
-| 5 | 路1+2 | D5 Chromium 侧凭据依据存疑 | 采纳：依据修正——Chromium 走 app 'login' 事件，v1 补处理器；undici 侧原生支持不变 | §2.1 |
-| 6 | 路1 | ECONNREFUSED 被 ModelFallback 掩蔽 | 采纳：注记降级链最终错误仍透出 + 测试按钮为主归因路径 | §2.5 |
-| 7 | 路1 | SDK fetch 缝为探针声明 | 采纳：标注为实施期第一张红灯（红灯先行即首日证实/证伪） | §2.7 |
-| 8 | 路2 | MCP 长连接热切换语义未定义 | 采纳：注记「MCP 远程连接重建/重连后才生效，不做热切换」 | §2.9 |
-| 9 | 路2 | postWebhook 改造点未显式点名 | 采纳：§1.2 显式列入无缝出口改造点 | §1.2 |
-| 10 | 路2 | updater 分区主张实施首日复核 | 采纳：WP1 第一步复核三分区计数（探针已证，代码复核兜底） | §3.2 WP1 |
-| 11 | 路1+2 | i18n 键数「七键」实为约 14 | 采纳：实施期按实际清单双语同批，spec 不预写死计数 | §2.5 |
-| 12 | 路1 | D7 探测端点锚定第三方域名耦合 | 采纳：实施期换中立端点（如 https://www.gstatic.com/generate_204） | §2.5 D7 |
+| #   | 来源     | 项                                     | 处置                                                                             | 落点     |
+| --- | -------- | -------------------------------------- | -------------------------------------------------------------------------------- | -------- |
+| 1   | 路1 fail | 反例 7 静默丢弃                        | 采纳：补处置决策（窗口可接受 + 固定顺序注记 + 不造跨 session 事务）              | §2.1     |
+| 2   | 路1 fail | import/resetAll「零代码」与 V7/V8 矛盾 | 采纳：四路径收口（set/import/resetAll/启动）统一走 applyProxyChange              | §2.2     |
+| 3   | 路2 fail | 测试连接需新增 IPC                     | 采纳：新增 `proxy:test`（定义表三步 + 响应 schema）                              | §2.3     |
+| 4   | 路2 fail | V8 无断言计划                          | 采纳：收口链测试扩四触发路径                                                     | §2.7     |
+| 5   | 路1+2    | D5 Chromium 侧凭据依据存疑             | 采纳：依据修正——Chromium 走 app 'login' 事件，v1 补处理器；undici 侧原生支持不变 | §2.1     |
+| 6   | 路1      | ECONNREFUSED 被 ModelFallback 掩蔽     | 采纳：注记降级链最终错误仍透出 + 测试按钮为主归因路径                            | §2.5     |
+| 7   | 路1      | SDK fetch 缝为探针声明                 | 采纳：标注为实施期第一张红灯（红灯先行即首日证实/证伪）                          | §2.7     |
+| 8   | 路2      | MCP 长连接热切换语义未定义             | 采纳：注记「MCP 远程连接重建/重连后才生效，不做热切换」                          | §2.9     |
+| 9   | 路2      | postWebhook 改造点未显式点名           | 采纳：§1.2 显式列入无缝出口改造点                                                | §1.2     |
+| 10  | 路2      | updater 分区主张实施首日复核           | 采纳：WP1 第一步复核三分区计数（探针已证，代码复核兜底）                         | §3.2 WP1 |
+| 11  | 路1+2    | i18n 键数「七键」实为约 14             | 采纳：实施期按实际清单双语同批，spec 不预写死计数                                | §2.5     |
+| 12  | 路1      | D7 探测端点锚定第三方域名耦合          | 采纳：实施期换中立端点（如 https://www.gstatic.com/generate_204）                | §2.5 D7  |
 
 ### 3.2 实施记录
 
@@ -324,18 +323,18 @@ env 五个应用点全部读同一 resolver 真源，无双份状态。**MCP 远
 
 **V1-V10 逐条核对**（32 号 §5.9②；测试名对照 §2.7）：
 
-| V | 结论 | 证据 |
-|---|---|---|
-| V1 默认行为不变 | ✅ | resolver「V1 缺失→system」+ proxiedFetch「V1 未初始化直通全局 fetch」+ applier「V1 system 三分区 {mode:system} env 全清」 |
-| V2 fixed 经代理 | ✅ | proxiedFetch「V2 fixed → undici fetch + ProxyAgent dispatcher」（spy 断言）+ applier「V2 fixed 三分区 fixed_servers + env 双写」 |
-| V3 direct 直连 | ✅ | resolver「V3 direct→{mode:direct}」+ proxiedFetch「V3 direct 直连无 dispatcher」+ applier「V3 resetAll 回落」 |
-| V4 localhost 绕过 | ✅ | resolver「V4 localhost 家族恒绕过」+ proxiedFetch「V4 即使 fixed 也直连（不建 agent）」+ applier proxyBypassRules 强制 `<local>` 断言 |
-| V5 免重启生效 | ✅ | applier 五断言均含 resetAIProvider 调用断言（settings:set 收口链 → 工厂重建，CP2 第一路三层缓存链核实） |
-| V6 重启保持 | ✅ | SQLite 真源 + store 写穿透断言 + 启动路径 applyProxyChange（index.ts whenReady，initDb 后 IM 恢复前） |
-| V7 resetAll 回 system | ✅ | handler resetAll 显式 `applyProxyChange(undefined)`（CP2 fail 修复项落地）+ applier「V3 resetAll 语义三分区回落 + env 清空」 |
-| V8 导入即时生效 | ✅ | handler importSettings 显式 applyProxyChange（CP2 fail 修复项落地）+ store「applyMainChange 按域合并不回写」 |
-| V9 非法地址拒写 | ✅ | shared superRefine 门禁 3 断言（fixed 缺 url/非法协议/mode 未知）+ 组件 blur 前置校验「非法地址不入库」 |
-| V10 UI 三态 | ✅ | 组件五断言（三模式显隐/写穿透/blur 校验/测试成功文案/proxy:test 调用） |
+| V                     | 结论 | 证据                                                                                                                                  |
+| --------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| V1 默认行为不变       | ✅   | resolver「V1 缺失→system」+ proxiedFetch「V1 未初始化直通全局 fetch」+ applier「V1 system 三分区 {mode:system} env 全清」             |
+| V2 fixed 经代理       | ✅   | proxiedFetch「V2 fixed → undici fetch + ProxyAgent dispatcher」（spy 断言）+ applier「V2 fixed 三分区 fixed_servers + env 双写」      |
+| V3 direct 直连        | ✅   | resolver「V3 direct→{mode:direct}」+ proxiedFetch「V3 direct 直连无 dispatcher」+ applier「V3 resetAll 回落」                         |
+| V4 localhost 绕过     | ✅   | resolver「V4 localhost 家族恒绕过」+ proxiedFetch「V4 即使 fixed 也直连（不建 agent）」+ applier proxyBypassRules 强制 `<local>` 断言 |
+| V5 免重启生效         | ✅   | applier 五断言均含 resetAIProvider 调用断言（settings:set 收口链 → 工厂重建，CP2 第一路三层缓存链核实）                               |
+| V6 重启保持           | ✅   | SQLite 真源 + store 写穿透断言 + 启动路径 applyProxyChange（index.ts whenReady，initDb 后 IM 恢复前）                                 |
+| V7 resetAll 回 system | ✅   | handler resetAll 显式 `applyProxyChange(undefined)`（CP2 fail 修复项落地）+ applier「V3 resetAll 语义三分区回落 + env 清空」          |
+| V8 导入即时生效       | ✅   | handler importSettings 显式 applyProxyChange（CP2 fail 修复项落地）+ store「applyMainChange 按域合并不回写」                          |
+| V9 非法地址拒写       | ✅   | shared superRefine 门禁 3 断言（fixed 缺 url/非法协议/mode 未知）+ 组件 blur 前置校验「非法地址不入库」                               |
+| V10 UI 三态           | ✅   | 组件五断言（三模式显隐/写穿透/blur 校验/测试成功文案/proxy:test 调用）                                                                |
 
 **实施期实测补充**（32 号回审素材，全链路+主进程子系统形态）：
 - 探针先行价值实证：`.tmp` Electron 探针（全局 fetch 不认 dispatcher）直接决定了

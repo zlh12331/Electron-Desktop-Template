@@ -23,7 +23,6 @@ pnpm acceptance:nsis --installer release/xxx.exe --yes  # 单独验证已构建�
 并在改写首帧主题脚本时重算 CSP 哈希。这些路径在源仓库测试中不可见。
 
 2026-10-23 的验收实际抓到三类缺陷：
-
 - 初始化改了 `index.html` 的存储前缀，却没同步 `csp.ts` 哈希：派生项目 `check:brand` 通过、
   `check:csp-hash` 失败
 - 当前 Electron 包不再自带 postinstall，全新 `pnpm install` 后缺二进制，`pnpm dev` 报

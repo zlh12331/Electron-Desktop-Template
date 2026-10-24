@@ -1,7 +1,6 @@
 # 35 · 界面缩放（需求 → 设计 → 实施状态）
 
 > ⚠️ 模板裁剪提示（2026-10-22）：应用级缩放（设置 / 快捷键 / 持久化 / Windows overlay 联动）仍是现行实现；浏览器预览独立缩放段已随业务剥离。
-
 - **状态**：**已实施**（2026-09-29；55761cf3 → 89b787ce → ab73b9bb → d6794c21 →
   ce50fd62 → 本提交；CP2 双路 7 fail 全部修复采纳，处置表见 §3.1；V1-V9 核对 §3.2）
 - **判级**：四问三 yes（新增持久化 `app_settings`/`appearance` 键 + 跨进程副作用
@@ -11,16 +10,16 @@
 
 ## 0. 需求期实测基线（事实底座，全部代码实证）
 
-| 事实 | 位置 | 设计含义 |
-|---|---|---|
-| 应用级缩放唯一机制 = `webContents.setZoomFactor()`（DIP 缩放，等比缩放 CSS px） | Electron 44 API | 选 zoomFactor（线性）而非 zoomLevel（指数） |
-| 主窗口 webPreferences 未做任何 zoom 配置；Electron 默认 zoomFactor 恒 1，Ctrl+±/滚轮无 UI 感知 | window.ts:121-128 | 缩放需自建全链（设置/快捷键/持久化） |
-| **titleBarOverlay.height 是 DIP 固定值**（52px），CSS 顶栏随 zoomFactor 缩放 | window.ts:117 | 非 100% 缩放时窗口控件区与自绘顶栏错位——Windows 须联动重设 overlay |
-| `setTitleBarOverlay` 仅 Windows 支持运行时更新（Linux WCO 无此 API；macOS 无 overlay） | window-theme.ts:26 | overlay 联动限 win32 分支 |
-| 浏览器预览有独立 zoom（`BrowserZoom` 6 档、`browser.defaultZoom` 域、preview 分区独立 webContents） | preview-service.ts:129、settings-store.ts:163 | **严格隔离**：应用缩放不碰 preview 分区 |
-| 快捷键体系 react-hotkeys-hook；固定键区先例（'?' F1 / Ctrl+B / Ctrl+J）；用户可配置区 6 项 | use-keyboard-shortcuts.ts | Ctrl+=/-/0 走**固定键**区 |
-| `autoHideMenuBar: true` 且无应用菜单 | window.ts:100 | Ctrl+± 无菜单冲突，自建快捷键是唯一键盘入口 |
-| store 每域一份模式成熟（notification/proxy 先例）；window.handler 不存在（ipc/ 下无此文件） | 实测 | 同构复用；applyZoom handler 新建小文件 |
+| 事实                                                                                                | 位置                                          | 设计含义                                                           |
+| --------------------------------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------ |
+| 应用级缩放唯一机制 = `webContents.setZoomFactor()`（DIP 缩放，等比缩放 CSS px）                     | Electron 44 API                               | 选 zoomFactor（线性）而非 zoomLevel（指数）                        |
+| 主窗口 webPreferences 未做任何 zoom 配置；Electron 默认 zoomFactor 恒 1，Ctrl+±/滚轮无 UI 感知      | window.ts:121-128                             | 缩放需自建全链（设置/快捷键/持久化）                               |
+| **titleBarOverlay.height 是 DIP 固定值**（52px），CSS 顶栏随 zoomFactor 缩放                        | window.ts:117                                 | 非 100% 缩放时窗口控件区与自绘顶栏错位——Windows 须联动重设 overlay |
+| `setTitleBarOverlay` 仅 Windows 支持运行时更新（Linux WCO 无此 API；macOS 无 overlay）              | window-theme.ts:26                            | overlay 联动限 win32 分支                                          |
+| 浏览器预览有独立 zoom（`BrowserZoom` 6 档、`browser.defaultZoom` 域、preview 分区独立 webContents） | preview-service.ts:129、settings-store.ts:163 | **严格隔离**：应用缩放不碰 preview 分区                            |
+| 快捷键体系 react-hotkeys-hook；固定键区先例（'?' F1 / Ctrl+B / Ctrl+J）；用户可配置区 6 项          | use-keyboard-shortcuts.ts                     | Ctrl+=/-/0 走**固定键**区                                          |
+| `autoHideMenuBar: true` 且无应用菜单                                                                | window.ts:100                                 | Ctrl+± 无菜单冲突，自建快捷键是唯一键盘入口                        |
+| store 每域一份模式成熟（notification/proxy 先例）；window.handler 不存在（ipc/ 下无此文件）         | 实测                                          | 同构复用；applyZoom handler 新建小文件                             |
 
 ## 1 需求
 
@@ -86,13 +85,13 @@
   命令面板缩放命令、托盘缩放菜单、快捷键帮助对话框列举缩放键（v1 克制）。
 - 待拍板项表（CP1 按建议列拍板）：
 
-| # | 争议选择 | 建议 | 理由 |
-|---|---|---|---|
-| D1 | 应用时机：渲染层推送 vs 主进程拉取 | 渲染层写入驱动 + 主进程单点收口（CP2 路1 依据重写） | 原稿「渲染层直调最短路径/主进程拉取不值」与事实矛盾（执行必在主进程，且 applyZoom IPC 本就要建）；真实依据 = store 单真源写入驱动 + 单一 IPC 让 setZoomFactor 与 win32 overlay 原子完成 + 多窗口遍历天然（webFrame 方案三者皆缺） |
-| D2 | 档位集 | 11 档 Chrome/Chromium 缩放预设谱系 | 对齐浏览器成熟惯例（0.5/0.67/0.75/0.8/0.9/1/1.1/1.25/1.5/1.75/2 逐项吻合）；细档位给低视力用户台阶（CP2：非 VS Code 谱系，VS Code 是线性 10% 步进） |
-| D3 | Windows overlay 联动 | v1 做（win32 分支） | 不联动则非 100% 缩放时控件区与顶栏视觉断裂（52 DIP 固定 vs CSS 缩放），功能完整性质疑点 |
-| D4 | 快捷键形态 | 固定键 Ctrl+=/-/0，不进用户可配置清单 | 高频键盘操作；可配置清单 6 项已稳定，帮助对话框不跟随（v1 克制） |
-| D5 | UI 形态 | SettingRow + ui/select | 11 档 SegControl 溢出（11×~40px > 行宽）；下拉紧凑可扩展 |
+| #   | 争议选择                           | 建议                                                | 理由                                                                                                                                                                                                                              |
+| --- | ---------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | 应用时机：渲染层推送 vs 主进程拉取 | 渲染层写入驱动 + 主进程单点收口（CP2 路1 依据重写） | 原稿「渲染层直调最短路径/主进程拉取不值」与事实矛盾（执行必在主进程，且 applyZoom IPC 本就要建）；真实依据 = store 单真源写入驱动 + 单一 IPC 让 setZoomFactor 与 win32 overlay 原子完成 + 多窗口遍历天然（webFrame 方案三者皆缺） |
+| D2  | 档位集                             | 11 档 Chrome/Chromium 缩放预设谱系                  | 对齐浏览器成熟惯例（0.5/0.67/0.75/0.8/0.9/1/1.1/1.25/1.5/1.75/2 逐项吻合）；细档位给低视力用户台阶（CP2：非 VS Code 谱系，VS Code 是线性 10% 步进）                                                                               |
+| D3  | Windows overlay 联动               | v1 做（win32 分支）                                 | 不联动则非 100% 缩放时控件区与顶栏视觉断裂（52 DIP 固定 vs CSS 缩放），功能完整性质疑点                                                                                                                                           |
+| D4  | 快捷键形态                         | 固定键 Ctrl+=/-/0，不进用户可配置清单               | 高频键盘操作；可配置清单 6 项已稳定，帮助对话框不跟随（v1 克制）                                                                                                                                                                  |
+| D5  | UI 形态                            | SettingRow + ui/select                              | 11 档 SegControl 溢出（11×~40px > 行宽）；下拉紧凑可扩展                                                                                                                                                                          |
 
 ## 2 设计
 
@@ -166,8 +165,8 @@
 ### 2.4 状态管理
 
 - L2 Zustand persistent：settings-store `appearance` 域（`updateAppearance` 部分合并
-  + 写穿透；快照缺键回落 `{zoom:1}` 且**读侧 clampZoom 归一**——CP2 路2 fail-5
-  钉死归一点：快照合并处归一，handler 不再二次防御）。
+  - 写穿透；快照缺键回落 `{zoom:1}` 且**读侧 clampZoom 归一**——CP2 路2 fail-5
+    钉死归一点：快照合并处归一，handler 不再二次防御）。
 - **applyMainChange 不加 appearance 专属分支**（CP2 路2 D-1 采纳后的简化）：落
   既有「其余对象域按域合并」通用分支即可——应用单点是 AppShell 的
   useZoomEffect（订阅 store），广播合并后 effect 自动触发，无需在 store 内加分支
@@ -263,28 +262,27 @@ resetAll（快照回落）⑤ 启动链（bootstrap 首帧值 + useZoomEffect �
   依赖方向干净，但 D-1 单点方案更优。
 - **分歧处置表**（全部采纳；fail 修复已回写 §2 对应节）：
 
-| # | 来源 | 项 | 处置 | 落点 |
-|---|---|---|---|---|
-| 1 | 路1 fail | 首帧跳变矛盾 | 采纳：bootstrap render 前应用首帧值 + useZoomEffect 单点幂等 | §2.1/§2.5 |
-| 2 | 路1 fail | D1 依据过时 | 采纳：依据重写（store 单真源 + 原子收口 + 多窗口天然） | §1.6 D1 |
-| 3 | 路1 | ZOOM_LEVELS 落点张力 | 采纳：整体落 packages/shared/constants/zoom.ts | §2.1 |
-| 4 | 路1 | webFrame「必须走主进程」过强 | 采纳：改「设计选择」措辞 | §2.1 |
-| 5 | 路1 | 「superRefine 防导入」不准 | 采纳：改双防线措辞 | §2.3 |
-| 6 | 路1 | 键串 code 名疑点 | 采纳：Equal/Minus/Digit0 形态 + 实施首日真机验证 + 降级预案 | §2.3 |
-| 7 | 路1 | Ctrl+滚轮与单真源未实证 | 采纳：实施首日实测，若原生生效则 zoom-changed 回写对齐单真源 | §2.1 |
-| 8 | 路2 fail-1 | V1 自相矛盾 | 采纳：V1 改「缺失→1.0；损坏→最近档位归一」 | §1.3 |
-| 9 | 路2 fail-2/3 | 触发点缺失 + 断言缺口 | 采纳：D-1 单点 useZoomEffect 方案（一并消解） | §2.1/§2.4/§2.4.1/§2.7 |
-| 10 | 路2 fail-4 | 键串形态（同 6） | 采纳（同 6） | §2.3 |
-| 11 | 路2 fail-5 | 归一化调用点未钉死 | 采纳：快照合并处归一 + applyZoom 入口兜底 | §2.1/§2.4 |
-| 12 | 路2 | D2 档位集归属 | 采纳：改 Chrome 谱系 | §1.6 D2 |
-| 13 | 路2 | store 注释漂移 | 采纳：实施时登记「updater 纯 / action 层外呼」模式 | §2.4 |
-| 14 | 路1 | §2.1 行内自我修正段 | 采纳：已清理重写 | §2.1 |
-| 15 | 路2 | V8 断言论证注明 | 采纳：遍历集不含 WebContentsView 构造性隔离 | §2.7 |
+| #   | 来源         | 项                           | 处置                                                         | 落点                  |
+| --- | ------------ | ---------------------------- | ------------------------------------------------------------ | --------------------- |
+| 1   | 路1 fail     | 首帧跳变矛盾                 | 采纳：bootstrap render 前应用首帧值 + useZoomEffect 单点幂等 | §2.1/§2.5             |
+| 2   | 路1 fail     | D1 依据过时                  | 采纳：依据重写（store 单真源 + 原子收口 + 多窗口天然）       | §1.6 D1               |
+| 3   | 路1          | ZOOM_LEVELS 落点张力         | 采纳：整体落 packages/shared/constants/zoom.ts               | §2.1                  |
+| 4   | 路1          | webFrame「必须走主进程」过强 | 采纳：改「设计选择」措辞                                     | §2.1                  |
+| 5   | 路1          | 「superRefine 防导入」不准   | 采纳：改双防线措辞                                           | §2.3                  |
+| 6   | 路1          | 键串 code 名疑点             | 采纳：Equal/Minus/Digit0 形态 + 实施首日真机验证 + 降级预案  | §2.3                  |
+| 7   | 路1          | Ctrl+滚轮与单真源未实证      | 采纳：实施首日实测，若原生生效则 zoom-changed 回写对齐单真源 | §2.1                  |
+| 8   | 路2 fail-1   | V1 自相矛盾                  | 采纳：V1 改「缺失→1.0；损坏→最近档位归一」                   | §1.3                  |
+| 9   | 路2 fail-2/3 | 触发点缺失 + 断言缺口        | 采纳：D-1 单点 useZoomEffect 方案（一并消解）                | §2.1/§2.4/§2.4.1/§2.7 |
+| 10  | 路2 fail-4   | 键串形态（同 6）             | 采纳（同 6）                                                 | §2.3                  |
+| 11  | 路2 fail-5   | 归一化调用点未钉死           | 采纳：快照合并处归一 + applyZoom 入口兜底                    | §2.1/§2.4             |
+| 12  | 路2          | D2 档位集归属                | 采纳：改 Chrome 谱系                                         | §1.6 D2               |
+| 13  | 路2          | store 注释漂移               | 采纳：实施时登记「updater 纯 / action 层外呼」模式           | §2.4                  |
+| 14  | 路1          | §2.1 行内自我修正段          | 采纳：已清理重写                                             | §2.1                  |
+| 15  | 路2          | V8 断言论证注明              | 采纳：遍历集不含 WebContentsView 构造性隔离                  | §2.7                  |
 
 ### 3.2 实施记录
 
 **提交链**（每个独立可编译可回退）：
-
 1. `55761cf3` 35 号 spec（需求/设计/CP2 双路 7 fail 处置表 15 项全量成文）；
 2. `89b787ce` shared 地基：constants/zoom.ts（四纯函数，ZOOM_LEVELS 11 档）+
    SETTING_KEYS 登记 appearance + superRefine 档位门禁 + 白名单契约测试同步；
@@ -292,13 +290,12 @@ resetAll（快照回落）⑤ 启动链（bootstrap 首帧值 + useZoomEffect �
    definitions/handler/mock）+ window.handler（遍历/win32 overlay/销毁守卫）+
    store appearance 域（快照合并处 clampZoom 归一，CP2 fail-5 钉死点）；
 4. `d6794c21` 应用链：lib/zoom 薄壳 + main.tsx 首帧前应用（CP2 路1 fail 修复）
-   + use-zoom-effect 单点（CP2 路2 D-1 采纳，五入口构造性覆盖）+ Ctrl+Equal/
-   Minus/0 固定快捷键（v5 code 名实证）；
+   - use-zoom-effect 单点（CP2 路2 D-1 采纳，五入口构造性覆盖）+ Ctrl+Equal/
+     Minus/0 固定快捷键（v5 code 名实证）；
 5. `ce50fd62` UI：zoom-section（ui/select 11 档）+ GeneralSection 挂载 + i18n
    四键双语 + 组件四断言。
 
 **实施期实测补充**（32 号回审素材）：
-
 - **clampZoom 非有限数缺陷**（实施期实测）：NaN 比较全 false 使结果停在数组首项
   （返回 0.5 而非默认 1）——「缺失语义」与「越界钳制」的分野必须前置类型拦截。
   已修复（非有限数 → DEFAULT_ZOOM）+ 4 断言固化。教训：纯函数的「缺失」路径要在
@@ -314,17 +311,17 @@ resetAll（快照回落）⑤ 启动链（bootstrap 首帧值 + useZoomEffect �
 
 **V1-V9 逐条核对**（32 号 §5.9②；测试名对照 §2.7）：
 
-| V | 结论 | 证据 |
-|---|---|---|
-| V1 缺失 1 / 损坏归一 | ✅ | shared「缺失语义非有限数→1」4 断言 + 「损坏归一 0.93→0.9」+ store「快照缺失回落/损坏归一」 |
-| V2 125% 整体放大 | ✅ | handler「遍历全部窗口 setZoomFactor(1.25)」+ 组件「125% 回显」；窗口尺寸不变为构造性（无代码触 bounds） |
-| V3 各档即时生效 | ✅ | use-zoom-effect 订阅 store → applyZoom（handler 同步执行断言）+ 五断言全绿 |
-| V4 重启保持 | ✅ | store 写穿透 key 断言 + 快照合并（持久化半）；启动半 = main.tsx render 前 applyZoom（时序构造性，代码评审保证——bootstrap→snapshot→applyZoom 顺序在同一 await 链） |
-| V5 resetAll 回落 100% | ✅ | applySettingsSnapshot({}) → zoom 归 DEFAULT_ZOOM → useZoomEffect 触发应用（store V1 断言 + 单点链） |
-| V6 导入回显+应用 | ✅ | store「applyMainChange 按域合并且不回写」+ 通用分支落 store → useZoomEffect 应用（单点覆盖） |
-| V7 win32 overlay 联动 | ✅ | handler 4 断言（win32 65/非 win32 不调/100% 52/API 抛错不阻断）+ shared overlayHeightFor 数值 |
-| V8 预览缩放隔离 | ✅ | handler「仅遍历 BrowserWindow」构造性隔离断言（WebContentsView 非 BrowserWindow，不在集内） |
-| V9 Ctrl+±0 | ✅ | 键串 v5 源码实证 + use-keyboard-shortcuts 三固定绑定 + AppShell handlers（stepZoom/DEFAULT_ZOOM）+ shared stepZoom 边界钳制 |
+| V                     | 结论 | 证据                                                                                                                                                              |
+| --------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| V1 缺失 1 / 损坏归一  | ✅   | shared「缺失语义非有限数→1」4 断言 + 「损坏归一 0.93→0.9」+ store「快照缺失回落/损坏归一」                                                                        |
+| V2 125% 整体放大      | ✅   | handler「遍历全部窗口 setZoomFactor(1.25)」+ 组件「125% 回显」；窗口尺寸不变为构造性（无代码触 bounds）                                                           |
+| V3 各档即时生效       | ✅   | use-zoom-effect 订阅 store → applyZoom（handler 同步执行断言）+ 五断言全绿                                                                                        |
+| V4 重启保持           | ✅   | store 写穿透 key 断言 + 快照合并（持久化半）；启动半 = main.tsx render 前 applyZoom（时序构造性，代码评审保证——bootstrap→snapshot→applyZoom 顺序在同一 await 链） |
+| V5 resetAll 回落 100% | ✅   | applySettingsSnapshot({}) → zoom 归 DEFAULT_ZOOM → useZoomEffect 触发应用（store V1 断言 + 单点链）                                                               |
+| V6 导入回显+应用      | ✅   | store「applyMainChange 按域合并且不回写」+ 通用分支落 store → useZoomEffect 应用（单点覆盖）                                                                      |
+| V7 win32 overlay 联动 | ✅   | handler 4 断言（win32 65/非 win32 不调/100% 52/API 抛错不阻断）+ shared overlayHeightFor 数值                                                                     |
+| V8 预览缩放隔离       | ✅   | handler「仅遍历 BrowserWindow」构造性隔离断言（WebContentsView 非 BrowserWindow，不在集内）                                                                       |
+| V9 Ctrl+±0            | ✅   | 键串 v5 源码实证 + use-keyboard-shortcuts 三固定绑定 + AppShell handlers（stepZoom/DEFAULT_ZOOM）+ shared stepZoom 边界钳制                                       |
 
 **遗留（真机确认类）**：① Ctrl+滚轮原生缩放是否生效（zoom-changed 回写方案已设计
 未实现——实测若确认原生生效，按 §2.1 处置）；② Windows overlay 联动在非 100% 档位

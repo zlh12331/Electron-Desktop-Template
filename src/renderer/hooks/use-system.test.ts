@@ -8,6 +8,12 @@ import { LOGS_READ_QUERY_KEY, useLogsReadQuery } from './use-system';
 /** IPC 响应 envelope（unwrap 消费形状，与 use-sessions.test 的 ok 助手同构） */
 const ok = <T>(data: T) => ({ data });
 
+let queryClient: QueryClient;
+
+function Wrapper({ children }: { readonly children: ReactNode }): ReactNode {
+  return createElement(QueryClientProvider, { client: queryClient }, children);
+}
+
 /** 手动控制的 deferred（测试精确控制响应时序） */
 function createDeferred<T>() {
   let resolve!: (value: T) => void;
@@ -24,6 +30,7 @@ function logsRes(lines: string[]) {
 
 describe('use-system · useLogsReadQuery keepPreviousData', () => {
   beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     window.api.logs = { read: vi.fn() } as never;
   });
 
@@ -32,13 +39,6 @@ describe('use-system · useLogsReadQuery keepPreviousData', () => {
     const second = createDeferred<ReturnType<typeof ok>>();
     const read = window.api.logs.read as unknown as ReturnType<typeof vi.fn>;
     read.mockImplementationOnce(() => first.promise).mockImplementationOnce(() => second.promise);
-
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    function Wrapper({ children }: { readonly children: ReactNode }): ReactNode {
-      return createElement(QueryClientProvider, { client: queryClient }, children);
-    }
 
     type LogsProps = { lines: number; level: 'error' | undefined };
     const view = renderHook((props: LogsProps) => useLogsReadQuery(props.lines, props.level), {
@@ -73,12 +73,6 @@ describe('use-system · useLogsReadQuery keepPreviousData', () => {
     (window.api.logs.read as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(
       () => first.promise,
     );
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    function Wrapper({ children }: { readonly children: ReactNode }): ReactNode {
-      return createElement(QueryClientProvider, { client: queryClient }, children);
-    }
 
     const view = renderHook(() => useLogsReadQuery(200, undefined, true), {
       wrapper: Wrapper,
