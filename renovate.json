@@ -23,9 +23,11 @@
     {
       "description": "非 major 更新归一组，减少 PR 数量；Electron 已单独分组",
       "matchUpdateTypes": ["minor", "patch", "digest"],
-      "excludePackageNames": ["electron"],
       "groupName": "all non-major dependencies",
-      "groupSlug": "all-minor-patch"
+      "groupSlug": "all-minor-patch",
+      "matchPackageNames": [
+        "!electron"
+      ]
     },
     {
       "description": "主版本一律人工确认：TypeScript / Vite / electron-vite / React Router / i18next / Electron",
