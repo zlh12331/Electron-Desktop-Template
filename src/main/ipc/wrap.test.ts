@@ -41,6 +41,7 @@ vi.mock('../infra/telemetry/otel-metrics', () => ({
 
 import { AppError, ErrorCode } from '@code-agent/shared/main';
 import { ipcMain } from 'electron';
+import { logger } from '../utils/logger';
 import { wrap } from './wrap';
 
 type InternalHandler = (
@@ -85,6 +86,12 @@ describe('wrap', () => {
       { name: 'test' },
       expect.objectContaining({ traceId: 'trace-123' }),
     );
+    // 请求明细必须走 debug：生产 file 级别 info 不落盘，避免每次 IPC 两条 info
+    expect(vi.mocked(logger.debug)).toHaveBeenCalledWith(
+      expect.objectContaining({ traceId: 'trace-123', channel: 'test:channel' }),
+      'IPC 请求成功',
+    );
+    expect(vi.mocked(logger.info)).not.toHaveBeenCalled();
   });
 
   it('参数校验失败返回 { error }', async () => {
@@ -214,6 +221,8 @@ describe('wrap', () => {
     expect(result).toHaveProperty('error');
     const error = (result as { error: { code: string } }).error;
     expect(error.code).toBe(ErrorCode.INVALID_RESPONSE);
+    // 响应契约漂移是内部缺陷：必须进错误聚合，不能只写一行本地日志
+    expect(mockReportError).toHaveBeenCalled();
   });
 
   it('P0 收口：schema 未声明字段被 strip（边界生效，不只检查）', async () => {

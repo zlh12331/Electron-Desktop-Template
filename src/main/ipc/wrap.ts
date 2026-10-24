@@ -104,7 +104,11 @@ function parseOutput<TOutput>(
   if (parsed.success) {
     return { ok: true, value: parsed.data };
   }
-  logger.error({ traceId, channel, issues: parsed.error.issues }, 'IPC 响应契约校验失败');
+  reportError(parsed.error, {
+    message: 'IPC 响应契约校验失败',
+    fields: { traceId, channel, issues: parsed.error.issues },
+    tags: { channel, traceId, errorCode: ErrorCode.INVALID_RESPONSE },
+  });
   return {
     ok: false,
     error: new AppError(ErrorCode.INVALID_RESPONSE, undefined, parsed.error, {
@@ -145,7 +149,8 @@ export function wrap<TInput, TOutput>(
     const ctx: IpcHandlerContext = { traceId, sender: evt.sender };
     const startTime = performance.now();
     try {
-      logger.info({ traceId, channel }, 'IPC 请求开始');
+      // 请求明细走 debug（生产 file 级别 info 不落盘）；失败仍由 error 级保留
+      logger.debug({ traceId, channel }, 'IPC 请求开始');
       const output = parseOutput(
         await handler(parsedInput.value, ctx),
         resSchema,
@@ -156,17 +161,17 @@ export function wrap<TInput, TOutput>(
         return { error: output.error };
       }
       const durationMs = Math.round(performance.now() - startTime);
-      logger.info({ traceId, channel, durationMs }, 'IPC 请求成功');
+      logger.debug({ traceId, channel, durationMs }, 'IPC 请求成功');
       return { data: output.value };
     } catch (error: unknown) {
       const ipcError = toIpcError(error);
       const durationMs = Math.round(performance.now() - startTime);
-      logger.error(
-        { traceId, channel, errorCode: ipcError.code, durationMs },
-        'IPC 请求失败',
-        error,
-      );
-      reportError(error, { tags: { channel, traceId, errorCode: ipcError.code } });
+      // 单条本地日志 + Sentry 走同一出口，避免「IPC 请求失败」与「错误上报」双写
+      reportError(error, {
+        message: 'IPC 请求失败',
+        fields: { traceId, channel, errorCode: ipcError.code, durationMs },
+        tags: { channel, traceId, errorCode: ipcError.code },
+      });
       return { error: ipcError };
     }
   };
@@ -191,8 +196,11 @@ export function wrap<TInput, TOutput>(
     } catch (error: unknown) {
       // handleRequest 内部已归一业务错误；这里兜住包装层/遥测层的意外异常
       const ipcError = toIpcError(error);
-      logger.error({ traceId, channel, errorCode: ipcError.code }, 'IPC 包装层异常', error);
-      reportError(error, { tags: { channel, traceId, errorCode: ipcError.code } });
+      reportError(error, {
+        message: 'IPC 包装层异常',
+        fields: { traceId, channel, errorCode: ipcError.code },
+        tags: { channel, traceId, errorCode: ipcError.code },
+      });
       return { error: ipcError };
     } finally {
       recordIpcRequest(channel, outcome, performance.now() - startedAt);
