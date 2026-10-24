@@ -405,7 +405,7 @@ function applyMainChange(
     const language = asLanguage(value);
     if (language !== null) {
       set({ language });
-      changeLanguage(language);
+      void changeLanguage(language);
     }
     return;
   }

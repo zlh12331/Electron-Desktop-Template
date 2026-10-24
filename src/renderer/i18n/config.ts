@@ -62,14 +62,19 @@ const i18nOptions = {
 /** 初始化标志，防止重复 init */
 let initialized = false;
 
+/** 同步 <html lang>（语言切换时供屏幕阅读器与浏览器正确处理发音/断词） */
+function syncHtmlLang(lng: string): void {
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = lng;
+  }
+}
+
 /**
- * 初始化 i18next（同步可用，因为资源已内联）
+ * 初始化 i18next（资源已内联，初始化后即可查询文案）
  *
- * 在 I18nProvider 中调用一次，之后整个应用共享同一个 instance
- *
- * 使用链式 use() 注册插件：
- * - initReactI18next：让 React 组件能通过 useTranslation 响应语言变化
- * - LanguageDetector：自动从 localStorage / navigator 检测语言
+ * 以默认语言同步起步；SQLite 快照的真源应用发生在 main.tsx 首帧渲染前
+ * （见 changeLanguage）。LanguageDetector 只在未显式指定 lng 时参与检测，
+ * 模板不使用该路径，保留插件是为了浏览器模式与未来独立渲染入口。
  */
 export function initI18n(): typeof i18next {
   if (initialized) {
@@ -78,12 +83,6 @@ export function initI18n(): typeof i18next {
   initialized = true;
 
   void i18next.use(initReactI18next).use(LanguageDetector).init(i18nOptions);
-
-  const syncHtmlLang = (lng: string): void => {
-    if (typeof document !== 'undefined') {
-      document.documentElement.lang = lng;
-    }
-  };
   i18next.on('languageChanged', syncHtmlLang);
   if (i18next.language !== undefined) {
     syncHtmlLang(i18next.language);
@@ -107,11 +106,22 @@ export function getCurrentLanguage(): SupportedLanguage {
 }
 
 /**
- * 切换语言（同步操作，无需 await）
+ * 把任意持久化值收窄为受支持语言（损坏/缺失回落默认语言）
  *
- * 切换后 i18next 会自动写入 localStorage（由 detection.cachesLocalStorage 配置）
- * 同时触发所有 useTranslation 组件重渲染
+ * 启动快照来自 SQLite，不能假设历史数据一定合法。
  */
-export function changeLanguage(lng: SupportedLanguage): void {
-  void i18next.changeLanguage(lng);
+export function resolveLanguage(value: unknown): SupportedLanguage {
+  return value === 'en' || value === 'zh-CN' ? value : DEFAULT_LANGUAGE;
+}
+
+/**
+ * 切换语言并等待 i18next 完成应用
+ *
+ * 返回 Promise 是为了让启动路径能在首帧渲染前 await，避免先渲染中文再闪成英文；
+ * 切换后 i18next 会自动写入 localStorage（由 detection.cachesLocalStorage 配置），
+ * 并触发所有 useTranslation 组件重渲染。
+ */
+export async function changeLanguage(lng: SupportedLanguage): Promise<void> {
+  await i18next.changeLanguage(lng);
+  syncHtmlLang(lng);
 }

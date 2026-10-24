@@ -1,12 +1,12 @@
 import { ErrorCode } from '@code-agent/shared/renderer';
 import { renderHook } from '@testing-library/react';
-import i18next from 'i18next';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   changeLanguage,
   getCurrentLanguage,
   i18n,
   initI18n,
+  resolveLanguage,
   resources,
   SUPPORTED_LANGUAGES,
 } from './config';
@@ -14,7 +14,7 @@ import { useErrorMessage } from './use-translation';
 
 describe('i18n 批次8 缺口补全', () => {
   afterEach(async () => {
-    await i18next.changeLanguage('zh-CN');
+    await changeLanguage('zh-CN');
   });
 
   it('initI18n：幂等（重复调用不重建实例）', () => {
@@ -42,10 +42,20 @@ describe('i18n 批次8 缺口补全', () => {
     expect(getCurrentLanguage()).toBe('zh-CN');
   });
 
-  it('changeLanguage：切换后 getCurrentLanguage 更新', async () => {
-    await i18next.changeLanguage('en');
+  it('changeLanguage：切换后 getCurrentLanguage 与 html lang 同步更新', async () => {
+    await changeLanguage('en');
     expect(getCurrentLanguage()).toBe('en');
-    expect(changeLanguage('zh-CN')).toBeUndefined();
+    expect(document.documentElement.lang).toBe('en');
+    await expect(changeLanguage('zh-CN')).resolves.toBeUndefined();
+    expect(document.documentElement.lang).toBe('zh-CN');
+  });
+
+  it('resolveLanguage：只接受受支持语言，损坏值回落默认语言', () => {
+    expect(resolveLanguage('en')).toBe('en');
+    expect(resolveLanguage('zh-CN')).toBe('zh-CN');
+    expect(resolveLanguage('fr')).toBe('zh-CN');
+    expect(resolveLanguage(undefined)).toBe('zh-CN');
+    expect(resolveLanguage(123)).toBe('zh-CN');
   });
 
   it('useErrorMessage：已注册错误码命中 i18n 文案（非 key 本身）', () => {
