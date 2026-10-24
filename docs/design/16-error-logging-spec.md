@@ -1,7 +1,7 @@
 # 16. 错误与日志规范
 
 > 统一主进程（electron-log + traceId）、渲染层（ErrorBoundary + sonner）与观测（error-report 本地错误上报 + OTel）的错误处理约定。
-> 最后同步：2026-10-23（Sentry 重新接入为可选通道 + OTel logs/metrics 落地）
+> 最后同步：2026-10-24（日志覆盖矩阵 + IPC 级别/单出口收口）
 
 ---
 > 🔒 工程化强制：Biome noConsole 规则 + traceId 由 preload 自动附加（运行时强制，非人工约定）
@@ -42,8 +42,24 @@
 ### 2.3 日志纪律
 
 - 禁止记录：API Key/Token/密码（safeStorage 加密存储，日志只记掩码）
-- 禁止空 catch（必须按 unknown 缩小 + 记录）
+- 禁止在业务失败路径空 catch；清理/关闭/探针等 best-effort 路径允许静默，但必须注释说明为何可忽略
 - 网络失败的重试由消费方决定：TanStack Query 默认查询 1 次、mutation 0 次（`lib/query/query-client.ts`），需要退避的场景在 hook 内显式配置
+
+### 2.4 应用覆盖矩阵
+
+| 域 | info / warn / error 记录点 | 说明 |
+|---|---|---|
+| 启动 / 退出 | 启动完成耗时、Sentry/OTel 状态、CSP、托盘、退出清理 | 启动失败同时进 `reportError` 与原生错误框 |
+| IPC | 失败（error）；开始/成功仅 debug | 失败单条日志 + Sentry，不重复写「错误上报」；traceId 贯穿 |
+| 设置 | 按键更新、重置、导入/导出完成、遥测级别变更 | 只记键名/级别，不记值 |
+| 凭据 | 写入/删除键名、加密不可用、损坏抢救 | 从不记录明文与密文 |
+| 深链 / 单实例 | 协议注册结果、深链投递窗口数、第二实例唤起 | 不记录完整 URL |
+| 更新 | 检查开始/结果、发现版本、下载完成/取消/失败、安装请求、缓存清理 | 检查失败只 warn；下载失败额外进 Sentry |
+| 窗口 / 托盘 | 创建、隐藏启动、关窗动作、主框架加载失败、渲染崩溃、窗口状态读写失败 | 重复崩溃停止自动恢复有专门 error；加载失败同时进 Sentry |
+| 数据库 | 初始化、迁移、完整性、恢复、备份轮转/失败 | 损坏/迁移/备份失败额外进 Sentry |
+| 网络代理 | 配置应用（URL 脱敏）、连通性测试结果、分区设置失败 | 不记录代理 URL 的用户名密码段 |
+| 遥测 / 诊断 | 初始化状态、导出完成/失败、日志读取失败 | 诊断包导出期再做值级脱敏 |
+| 渲染层 | 错误经 Electron error / unhandledrejection / 三层 ErrorBoundary 上报 | 通用 console 禁用；仅错误转发，无通用业务日志 |
 
 ## 三、错误上报、Sentry 与 OTel
 
