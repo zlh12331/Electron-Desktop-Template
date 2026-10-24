@@ -259,6 +259,19 @@ function isPlaceholderPath(path: string): boolean {
   return /(?:^|\/)xxx(?:[./]|$)/i.test(path);
 }
 
+// 构建期生成、故意不入仓的产物：文档注释引用它们时不能按“源码文件必须存在”判失败
+const GENERATED_ARTIFACT_PATHS = new Set(['resources/build-info.json']);
+
+/**
+ * 是否为构建期生成的非入库产物
+ *
+ * @param path 仓库相对路径
+ * @returns true = 允许不存在于干净 checkout
+ */
+export function isGeneratedArtifact(path: string): boolean {
+  return GENERATED_ARTIFACT_PATHS.has(path);
+}
+
 /**
  * 校验文本中的代码路径引用是否存在
  *
@@ -275,7 +288,14 @@ export function checkPathRefs(
   const issues: DocsContractIssue[] = [];
   for (const match of text.matchAll(PATH_PATTERN)) {
     const path = match[1];
-    if (path === undefined || isPlaceholderPath(path) || exists(path)) continue;
+    if (
+      path === undefined ||
+      isPlaceholderPath(path) ||
+      isGeneratedArtifact(path) ||
+      exists(path)
+    ) {
+      continue;
+    }
     issues.push({
       file,
       line: lineOf(text, match.index ?? 0),

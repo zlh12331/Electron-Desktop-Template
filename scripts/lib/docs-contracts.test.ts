@@ -132,4 +132,8 @@ describe('checkPathRefs', () => {
     const text = 'src/renderer/routes/your-page.tsx\nsrc/main/ipc/<domain>.handler.ts';
     expect(checkPathRefs(text, 'doc.md', () => false)).toEqual([]);
   });
+
+  it('构建期生成物允许不存在于干净 checkout', () => {
+    expect(checkPathRefs('resources/build-info.json', 'doc.md', () => false)).toEqual([]);
+  });
 });
