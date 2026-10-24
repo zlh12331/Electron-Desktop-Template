@@ -78,7 +78,7 @@ describe('ThemeProvider 批次7 缺口补全', () => {
     expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 
-  it('matchMedia change：system 模式下监听并应用新主题', () => {
+  it('matchMedia change：system 模式下 class 与 context 同步更新', () => {
     let changeHandler: (() => void) | undefined;
     const addEventListener = vi.fn((_type: string, cb: () => void) => {
       changeHandler = cb;
@@ -96,17 +96,18 @@ describe('ThemeProvider 批次7 缺口补全', () => {
       }),
     });
     useSettingsStore.setState({ theme: 'system' });
-    render(
-      <ThemeProvider>
-        <div>内容</div>
-      </ThemeProvider>,
-    );
+    const { result } = renderHook(() => useTheme(), {
+      wrapper: ({ children }) => <ThemeProvider>{children}</ThemeProvider>,
+    });
+    expect(result.current.resolvedTheme).toBe('dark');
     expect(document.documentElement.classList.contains('dark')).toBe(true);
     expect(addEventListener).toHaveBeenCalled();
+
     matches = false;
     act(() => {
       changeHandler?.();
     });
+    expect(result.current.resolvedTheme).toBe('light');
     expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 

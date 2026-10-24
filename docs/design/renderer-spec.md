@@ -65,7 +65,7 @@
 | `ipc.ts` | `window.api` 类型化封装，`unwrap()` / `unwrapErrorMessage` 单一出口 |
 | `ipc-factories.ts` | `ipcOk` / `ipcErr` 构造 |
 | `query/query-client.ts` | TanStack QueryClient 单例 |
-| `settings-ops.ts` | 设置页动作桥接（导出导入 / 数据目录 / 诊断包 / 自启 / 代理测试 / 缓存） |
+| `settings-ops.ts` | 设置页动作桥接（导出导入 / 数据目录 / 诊断包 / 自启 / 代理测试 / 代理凭据清除 / 缓存） |
 | `settings-sections.ts` | 设置分区 id（叶子常量） |
 | `invalidation/` | 失效域 → queryKey 前缀映射与应用 |
 | `motion/` | transitions / variants 集中定义 |

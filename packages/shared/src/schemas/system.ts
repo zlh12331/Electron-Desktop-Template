@@ -1,7 +1,7 @@
 // system.ts：System / Logs 域 zod 契约单一真源（运行时可观测性）——system:getStatus（运行时状态）与
 // logs:read（日志读取）的请求-响应 schema 与类型
 // 消费方：IPC 定义表（packages/shared/src/ipc/definitions.ts）引用；主进程注册层
-// （src/main/ipc/register.ts → src/main/utils/wrap.ts）在调用前后校验入参与 handler 返回值，
+// （src/main/ipc/register.ts → src/main/ipc/wrap.ts）在调用前后校验入参与 handler 返回值，
 // resSchema 缺失时注册即抛错
 // 边界：只定义形状与值域——状态采集、日志尾部读取与级别过滤在 src/main/ipc/system.handler.ts
 
@@ -55,7 +55,7 @@ export type ReadLogsReq = z.infer<typeof ReadLogsReqSchema>;
  *
  * 数据源：环境类字段取自 Electron app（getVersion / isPackaged）与 process（versions / platform /
  * arch / pid / uptime），memory 与 cpu 为 Node.js process.memoryUsage() / process.cpuUsage() 原生输出。
- * 消费方是 DevPanel Metrics tab（src/renderer/hooks/use-system.ts 周期轮询），字段随 Node/Electron
+ * 消费方是关于页运行时区块（src/renderer/hooks/use-system.ts 周期轮询），字段随 Node/Electron
  * 语义走，勿在此换算单位。
  * 该方法无入参（定义表 schema 为 null），故本文件没有对应的请求 schema。
  */
@@ -131,7 +131,7 @@ export interface ReadLogsRes {
  *
  * 与上方 ReadLogsRes 手工保持同构——Res 类型是手写 interface（不像 Req 由 z.infer 派生），
  * 两者无编译期交叉校验，改一处须同步另一处。运行时以本 schema 为准：注册层核对 handler
- * 返回值，不符即 INVALID_RESPONSE（见 src/main/utils/wrap.ts）。校验只到形状层——
+ * 返回值，不符即 INVALID_RESPONSE（见 src/main/ipc/wrap.ts）。校验只到形状层——
  * `total` 与 `lines.length` 是否相等不校验，由 handler 保证。
  */
 export const ReadLogsResSchema = z.object({
@@ -146,7 +146,7 @@ export const ReadLogsResSchema = z.object({
  *
  * 与上方 SystemStatusRes 手工保持同构——Res 类型是手写 interface（不像 Req 由 z.infer 派生），
  * 两者无编译期交叉校验，改一处须同步另一处。运行时以本 schema 为准：注册层核对 handler
- * 返回值，不符即 INVALID_RESPONSE（见 src/main/utils/wrap.ts）。
+ * 返回值，不符即 INVALID_RESPONSE（见 src/main/ipc/wrap.ts）。
  */
 export const SystemStatusResSchema = z.object({
   appVersion: z.string(),

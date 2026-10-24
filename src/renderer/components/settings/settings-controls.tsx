@@ -156,7 +156,11 @@ export function SegControl({ value, options, onChange, className }: SegControlPr
       )}
     >
       {options.map((opt) => (
-        <ToggleGroupItem key={opt.value} value={opt.value} className="shrink px-[11px] py-1">
+        <ToggleGroupItem
+          key={opt.value}
+          value={opt.value}
+          className="shrink whitespace-nowrap px-[11px] py-1"
+        >
           {opt.label}
         </ToggleGroupItem>
       ))}

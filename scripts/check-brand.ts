@@ -154,6 +154,13 @@ function checkDevAppUpdate(issues: BrandIssue[], brand: BrandSource): void {
   expectContains(issues, file, text, `repo: ${brand.repo.name}`, 'repo.name');
 }
 
+/** 校验 NSIS 安装宏里的 Windows 协议（electron-builder 的 protocols 仅 macOS） */
+function checkInstallerProtocol(issues: BrandIssue[], brand: BrandSource): void {
+  const file = 'resources/installer.nsh';
+  const text = readIfExists(file);
+  expectContains(issues, file, text, `!define APP_PROTOCOL "${brand.protocol}"`, 'NSIS 协议');
+}
+
 /**
  * 校验运行时脚本与 GitHub 自动化里没有写死本仓库坐标与产物名
  *
@@ -225,6 +232,7 @@ function main(): void {
   checkPackageJson(issues, brand);
   checkIndexHtml(issues, brand);
   checkDevAppUpdate(issues, brand);
+  checkInstallerProtocol(issues, brand);
   checkRuntimeCoords(issues, brand);
   if (issues.length === 0) {
     console.log(`[check-brand] ✅ 品牌一致（${BRAND_SOURCE}）`);

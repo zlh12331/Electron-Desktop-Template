@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('electron', () => ({
   app: {
-    getPath: vi.fn(() => '/mock/user-data'),
+    getPath: vi.fn((name: string) => (name === 'logs' ? '/mock/logs' : '/mock/user-data')),
   },
   dialog: { showSaveDialog: vi.fn() },
   shell: { openExternal: vi.fn(), openPath: vi.fn() },
@@ -34,13 +34,25 @@ describe('app.handler', () => {
 
   it('openExternal（http）：调用 shell.openExternal 并返回 ok', async () => {
     const result = await appHandlers.openExternal({ url: 'https://example.com' }, EMPTY_CTX);
-    expect(shell.openExternal).toHaveBeenCalledWith('https://example.com');
+    expect(shell.openExternal).toHaveBeenCalledWith('https://example.com/');
     expect(result).toEqual({ ok: true });
   });
 
   it('openExternal（https）：允许', async () => {
     await appHandlers.openExternal({ url: 'https://deepseek.com' }, EMPTY_CTX);
-    expect(shell.openExternal).toHaveBeenCalledWith('https://deepseek.com');
+    expect(shell.openExternal).toHaveBeenCalledWith('https://deepseek.com/');
+  });
+
+  it('openExternal（大写 HTTP）：解析后按 http 放行并归一化', async () => {
+    await appHandlers.openExternal({ url: 'HTTP://EXAMPLE.COM/path' }, EMPTY_CTX);
+    expect(shell.openExternal).toHaveBeenCalledWith('http://example.com/path');
+  });
+
+  it('openExternal（畸形 URL）：拒绝并抛 INVALID_INPUT', async () => {
+    await expect(appHandlers.openExternal({ url: 'not a url' }, EMPTY_CTX)).rejects.toMatchObject({
+      code: ErrorCode.INVALID_INPUT,
+    });
+    expect(shell.openExternal).not.toHaveBeenCalled();
   });
 
   it('openExternal（javascript 协议）：拒绝并抛 INVALID_INPUT', async () => {
@@ -76,6 +88,7 @@ describe('app.handler', () => {
     expect(mockExport).toHaveBeenCalledWith({
       filePath: 'C:/diag/diagnostics-2026-09-04.zip',
       userDataPath: '/mock/user-data',
+      logsPath: '/mock/logs',
       autostart: { openAtLogin: false, supported: false, requiresApproval: false },
     });
     expect(result).toEqual({ saved: true, path: 'C:/diag/diagnostics-2026-09-04.zip' });

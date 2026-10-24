@@ -5,16 +5,26 @@ import { join } from 'node:path';
 import { type InferHandlers, type IPC_DEFINITIONS, SETTING_KEYS } from '@code-agent/shared/main';
 import { app, dialog } from 'electron';
 
-import { setMainLanguage, t } from '../infra/i18n';
-import { applyProxyChange } from '../infra/network/proxy-applier';
-import { applySettingsImport, buildSettingsExportFile } from '../infra/storage/settings-io';
+import { DEFAULT_MAIN_LANGUAGE, setMainLanguage, t } from '../infra/i18n';
+import {
+  applyProxySetting,
+  clearProxyAuthCredentials,
+  enrichProxySetting,
+  sanitizeProxySetting,
+} from '../infra/network/proxy-credentials';
+import {
+  applySettingsImport,
+  buildSettingsExportFile,
+  replaceSettingInImportPayload,
+  validateSettingsImport,
+} from '../infra/storage/settings-io';
 import { deleteSettings, readAllSettings, writeSetting } from '../infra/storage/settings-pref';
 import { readTelemetryLevelSync, writeTelemetryLevel } from '../infra/storage/telemetry-pref';
 import { broadcastSettingChanged } from '../main-events';
 import { readJsonImportFile } from '../utils/json-file';
 import { logger } from '../utils/logger';
-import type { IpcHandlerContext } from '../utils/wrap';
 import { syncTitleBarOverlayFromTheme } from '../window-theme';
+import type { IpcHandlerContext } from './wrap';
 
 /** settings 域 handler（模板版：无 API Key / 运行时模型 / 审批模式等业务项） */
 export const settingsHandlers: InferHandlers<
@@ -23,23 +33,32 @@ export const settingsHandlers: InferHandlers<
 >['settings'] = {
   getAll: async () => {
     const settings = readAllSettings();
+    if (settings['proxy'] !== undefined) {
+      settings['proxy'] = await enrichProxySetting(settings['proxy']);
+    }
     syncTitleBarOverlayFromTheme(settings['theme']);
     return { settings };
   },
 
   set: async (input) => {
     // 写透传 SQLite 后按键分发主进程侧副作用：主题（win32 overlay）、语言、代理
-    // 渲染层自身的响应式刷新走 SETTINGS_EVENT_CHANGED 广播（settings-store 订阅）
-    writeSetting(input.key, input.value);
-    if (input.key === 'theme') {
-      syncTitleBarOverlayFromTheme(input.value);
-    }
-    if (input.key === 'language') {
-      setMainLanguage(input.value);
-    }
+    // 代理值先拆出凭据存 keychain，再落无凭据 URL；广播派生状态供设置页回显
     if (input.key === 'proxy') {
-      await applyProxyChange(input.value);
+      const sanitized = await sanitizeProxySetting(input.value);
+      writeSetting('proxy', sanitized);
+      await applyProxySetting(sanitized);
+      broadcastSettingChanged('proxy', await enrichProxySetting(sanitized));
+    } else {
+      writeSetting(input.key, input.value);
+      if (input.key === 'theme') {
+        syncTitleBarOverlayFromTheme(input.value);
+      }
+      if (input.key === 'language') {
+        setMainLanguage(input.value);
+      }
     }
+    // 只记键名，不记值（值可能含代理凭据等敏感信息）
+    logger.info({ key: input.key }, '设置已更新');
     return { ok: true };
   },
 
@@ -74,13 +93,29 @@ export const settingsHandlers: InferHandlers<
       return { imported: 0, skipped: 0 };
     }
     const payload = await readJsonImportFile(filePath);
-    const outcome = applySettingsImport(payload);
+    // 先校验（不落库），再把代理凭据拆到 keychain，避免明文写进 app_settings
+    const preview = validateSettingsImport(payload);
+    const proxyEntry = preview.applied.find((entry) => entry.key === 'proxy');
+    const importPayload =
+      proxyEntry === undefined
+        ? payload
+        : replaceSettingInImportPayload(
+            payload,
+            'proxy',
+            await sanitizeProxySetting(proxyEntry.value),
+          );
+    const outcome = applySettingsImport(importPayload);
     for (const { key, value } of outcome.applied) {
       if (key === 'theme') {
         syncTitleBarOverlayFromTheme(value);
       }
+      if (key === 'language') {
+        setMainLanguage(value);
+      }
       if (key === 'proxy') {
-        await applyProxyChange(value);
+        await applyProxySetting(value);
+        broadcastSettingChanged('proxy', await enrichProxySetting(value));
+        continue;
       }
       broadcastSettingChanged(key, value);
     }
@@ -89,9 +124,11 @@ export const settingsHandlers: InferHandlers<
 
   resetAll: async () => {
     // 按白名单键清空（app_settings 表内其他键如 draft 不动），并重放副作用到默认态
+    await clearProxyAuthCredentials();
     deleteSettings(SETTING_KEYS);
     syncTitleBarOverlayFromTheme(undefined);
-    await applyProxyChange(undefined);
+    setMainLanguage(DEFAULT_MAIN_LANGUAGE);
+    await applyProxySetting(undefined);
     logger.info({}, '设置已全部恢复默认（app_settings 设置键已清空）');
     return { settings: {} };
   },
@@ -103,6 +140,7 @@ export const settingsHandlers: InferHandlers<
 
   setTelemetryLevel: async (input) => {
     await writeTelemetryLevel(input.level);
+    logger.info({ level: input.level }, '遥测级别已更新（重启生效）');
     return { ok: true, level: input.level };
   },
 };

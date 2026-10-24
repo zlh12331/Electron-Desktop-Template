@@ -11,14 +11,15 @@
     "./preload": "./src/preload.ts",
     "./renderer": "./src/renderer.ts",
     "./ipc/channels": "./src/ipc/channels.ts",
-    "./ipc/meta": "./src/ipc/meta.ts"
+    "./ipc/meta": "./src/ipc/meta.ts",
+    "./observability": "./src/observability/index.ts"
   },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@code-agent/tsconfig": "workspace:*",

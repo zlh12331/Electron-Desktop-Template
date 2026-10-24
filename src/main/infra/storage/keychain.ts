@@ -4,6 +4,7 @@
 import { promises as fs } from 'node:fs';
 import { AppError, ErrorCode } from '@code-agent/shared/main';
 import { safeStorage } from 'electron';
+import { reportError } from '../../utils/error-report';
 import { restrictFilePermissions } from '../../utils/file-permissions';
 import { logger } from '../../utils/logger';
 import { getKeychainPath } from './app-data';
@@ -13,9 +14,17 @@ let lock: Promise<void> = Promise.resolve();
 
 let warnedEncryptionUnavailable = false;
 
+// 双下划线前缀为内部保留键（如代理凭据），不通过 secrets IPC 域暴露/改写
+const RESERVED_SECRET_PREFIX = '__';
+
 /** safeStorage 是否可用（Linux 无 libsecret 时为 false，届时密钥全部不可读） */
 export function isEncryptionAvailable(): boolean {
   return safeStorage.isEncryptionAvailable();
+}
+
+/** 是否为内部保留凭据键（secrets 域必须拒绝读写） */
+export function isReservedSecretKey(key: string): boolean {
+  return key.startsWith(RESERVED_SECRET_PREFIX);
 }
 
 // 简易互斥队列：新请求排在既有锁链尾部，返回的 release 释放自己的槽位
@@ -104,16 +113,18 @@ async function readStore(): Promise<KeychainStore> {
   } catch {
     const { store: salvaged, candidates } = salvageEntries(content);
     const salvagedCount = Object.keys(salvaged).length;
-    logger.error(
-      {
+    const lostCount = Math.max(candidates - salvagedCount, 0);
+    reportError(new Error(`keychain.dat 已损坏（salvaged=${salvagedCount}, lost=${lostCount}）`), {
+      message: 'keychain.dat 已损坏——按条目抢救（salvaged/lost），原件保留为 .corrupt',
+      fields: {
         filePath,
         corrupted: true,
         recoverable: salvagedCount > 0,
         salvaged: salvagedCount,
-        lost: Math.max(candidates - salvagedCount, 0),
+        lost: lostCount,
       },
-      'keychain.dat 已损坏——按条目抢救（salvaged/lost），原件保留为 .corrupt',
-    );
+      tags: { scope: 'keychain', stage: 'salvage' },
+    });
     try {
       await fs.rename(filePath, `${filePath}.corrupt`);
     } catch {}

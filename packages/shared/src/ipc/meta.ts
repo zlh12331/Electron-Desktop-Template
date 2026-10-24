@@ -42,10 +42,12 @@ export const IPC_META = {
     // 开机自启：读写 OS 登录项而非 SQLite 设置——托盘菜单与设置页必须同源
     getLoginItemSettings: request('app:getLoginItemSettings'),
     setLoginItemSettings: request('app:setLoginItemSettings'),
-    // 退出应用：交给 app.quit 走完整善后链（关窗协商 → dispose 把残留 running 回合标 interrupted）
+    // 退出应用：交给 app.quit 走完整善后链（dispose 服务 → flush 遥测/日志）
     quit: request('app:quit'),
-    // 深链接事件：code-agent:// 协议唤起时主进程广播，渲染层据此导航
+    // 深链接事件：自定义协议唤起时主进程广播，渲染层据此导航
     subscribeDeepLink: event('app:event:deepLink'),
+    // 冷启动深链：渲染层挂载后主动取走（订阅晚于主进程广播时会丢事件）
+    takePendingDeepLink: request('app:takePendingDeepLink'),
     // 登录项变更事件：payload 为写入后的真实回读值（托盘菜单改自启 → 设置页回显）
     subscribeLoginItemChanged: event('app:event:loginItemChanged'),
   },
@@ -82,6 +84,8 @@ export const IPC_META = {
   proxy: {
     // 代理连通性探测：主进程先重读库内配置注入 proxiedFetch 再探轻量端点；mode 非 fixed 返回 not-applicable
     test: request('proxy:test'),
+    // 清除已保存的代理凭据（keychain 保留键；渲染层只触发，不读取）
+    clearAuth: request('proxy:clearAuth'),
   },
 
   secrets: {
@@ -100,6 +104,18 @@ export const IPC_META = {
 
   logs: {
     read: request('logs:read'),
+  },
+
+  telemetry: {
+    // 渲染层错误转发：主进程统一落日志 + Sentry（无 IPC 桥的浏览器模式走本地 electron-log）
+    captureError: request('telemetry:captureError'),
+    // Web Vitals 批量上报：主进程转为 OTel histogram（遥测级别非 full 时丢弃）
+    reportWebVitals: request('telemetry:reportWebVitals'),
+    rendererReady: request('telemetry:rendererReady'),
+    // 设置页可观测性状态卡：Sentry/OTel 启用态 + 管道健康
+    getStatus: request('telemetry:getStatus'),
+    // 连接测试：OTLP 真实探测；Sentry 仅校验 DSN 结构（不发送测试事件）
+    testConnection: request('telemetry:testConnection'),
   },
 
   devtools: {

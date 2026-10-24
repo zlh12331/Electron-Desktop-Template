@@ -5,7 +5,7 @@
 
 import type { LucideIcon } from 'lucide-react';
 import {
-  BarChart3,
+  Bell,
   Database,
   Info,
   Keyboard,
@@ -73,7 +73,7 @@ export const SETTINGS_SECTIONS: readonly SettingsNavGroup[] = [
       {
         id: 'notification',
         labelKey: 'settings.nav.notification',
-        icon: BarChart3,
+        icon: Bell,
         component: NotificationSection,
       },
     ],

@@ -4,6 +4,8 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { BrowserWindow, Rectangle } from 'electron';
 
+import { logger } from '../../utils/logger';
+
 /** 窗口状态持久化结构（x/y 缺省 = 交还 Electron 默认定位） */
 export interface WindowState {
   readonly x?: number;
@@ -58,7 +60,14 @@ export function loadWindowState(
       return { width, height, isMaximized };
     }
     return { x, y, width, height, isMaximized };
-  } catch {
+  } catch (error) {
+    // 文件缺失是首次启动的正常路径；解析/IO 失败才值得留下排障线索
+    if ((error as { code?: string }).code !== 'ENOENT') {
+      logger.warn(
+        { filePath, error: error instanceof Error ? error.message : String(error) },
+        '窗口状态读取失败，使用默认尺寸',
+      );
+    }
     return { width: defaults.width, height: defaults.height, isMaximized: false };
   }
 }
@@ -88,7 +97,12 @@ export function trackWindowState(win: BrowserWindow, filePath: string): () => vo
       const tmpPath = `${filePath}.tmp`;
       writeFileSync(tmpPath, JSON.stringify(state), 'utf8');
       renameSync(tmpPath, filePath);
-    } catch {}
+    } catch (error) {
+      logger.warn(
+        { filePath, error: error instanceof Error ? error.message : String(error) },
+        '窗口状态写入失败（下次启动使用默认尺寸）',
+      );
+    }
   };
 
   const schedulePersist = (): void => {

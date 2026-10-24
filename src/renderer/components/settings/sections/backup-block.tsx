@@ -82,7 +82,7 @@ export function BackupBlock(): ReactElement {
                   'text-2xs rounded px-1.5 py-px font-mono',
                   entry.healthy
                     ? 'bg-muted text-muted-foreground'
-                    : 'text-error-text bg-error-text/10',
+                    : 'bg-destructive text-destructive-foreground',
                 )}
               >
                 {entry.healthy ? t('settings.backupHealthy') : t('settings.backupCorrupt')}

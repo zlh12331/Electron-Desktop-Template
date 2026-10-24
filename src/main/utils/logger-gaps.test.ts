@@ -1,7 +1,7 @@
 // logger-gaps.test.ts：logger 分支补漏——initLogger 生产/开发分支、错误序列化、
 // 全局未处理拒绝、崩溃标记清理。window-state 的边界用例已随模块移到
 // src/main/infra/storage/window-state.test.ts（测试与源码同目录）。
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -29,7 +29,13 @@ vi.mock('electron', () => ({
   app: mocks.mockApp,
 }));
 
-import { clearCrashMarker, initLogger, logger, registerGlobalErrorHandlers } from './logger';
+import {
+  clearCrashMarker,
+  initLogger,
+  logger,
+  readCrashMarker,
+  registerGlobalErrorHandlers,
+} from './logger';
 
 let tempDir: string;
 
@@ -44,6 +50,7 @@ describe('logger 分支补漏', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    rmSync(tempDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
   });
 
   describe('logger', () => {
@@ -91,6 +98,25 @@ describe('logger 分支补漏', () => {
         expect.objectContaining({ markerPath: expect.any(String) }),
         '已清除崩溃标记',
       );
+    });
+
+    it('readCrashMarker：合法标记返回字段；损坏/缺字段返回 null', () => {
+      const markerPath = join(tempDir, '.crash-marker');
+      writeFileSync(
+        markerPath,
+        JSON.stringify({ timestamp: 1_700_000_000_000, message: 'boom', stack: 'at x' }),
+        'utf8',
+      );
+      expect(readCrashMarker()).toEqual({
+        timestamp: 1_700_000_000_000,
+        message: 'boom',
+        stack: 'at x',
+      });
+
+      writeFileSync(markerPath, '{not-json', 'utf8');
+      expect(readCrashMarker()).toBeNull();
+      writeFileSync(markerPath, JSON.stringify({ message: 'missing timestamp' }), 'utf8');
+      expect(readCrashMarker()).toBeNull();
     });
   });
 });

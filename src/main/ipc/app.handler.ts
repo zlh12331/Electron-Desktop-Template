@@ -9,7 +9,9 @@ import {
 } from '@code-agent/shared/main';
 import { app, dialog, shell } from 'electron';
 
+import { takePendingDeepLink } from '../deep-link';
 import { exportDiagnosticsPackage } from '../diagnostics';
+import { readBuildInfo } from '../infra/app-info';
 import {
   createAutostartDeps,
   readAutostartState,
@@ -17,31 +19,7 @@ import {
 } from '../infra/autostart/autostart';
 import { t } from '../infra/i18n';
 import { logger } from '../utils/logger';
-import type { IpcHandlerContext } from '../utils/wrap';
-
-// 构建信息从打包时注入的 build-info.json 读（CI 产物）；读不到按 dev 兜底
-interface BuildInfo {
-  readonly version?: string;
-  readonly channel?: string;
-  readonly commitSha?: string;
-  readonly buildTime?: string;
-}
-
-function readBuildInfo(): BuildInfo {
-  try {
-    const candidates = app.isPackaged
-      ? [join(process.resourcesPath, 'build-info.json')]
-      : [join(app.getAppPath(), 'resources', 'build-info.json')];
-    for (const file of candidates) {
-      const data = require('node:fs').readFileSync(file, 'utf-8');
-      const parsed = JSON.parse(data) as BuildInfo;
-      if (typeof parsed === 'object' && parsed !== null) {
-        return parsed;
-      }
-    }
-  } catch {}
-  return { channel: 'dev' };
-}
+import type { IpcHandlerContext } from './wrap';
 
 export const appHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContext>['app'] = {
   getStatus: async () => {
@@ -65,11 +43,17 @@ export const appHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContex
   },
 
   openExternal: async (input) => {
-    // 协议白名单：shell.openExternal 对 file:/自定 scheme 会被系统关联程序处理，只放行 http/https
-    if (!input.url.startsWith('http://') && !input.url.startsWith('https://')) {
+    // 先解析再判协议：避免前缀匹配放过畸形串；file:/自定义 scheme 交系统关联程序处理，一律拒绝
+    let parsed: URL;
+    try {
+      parsed = new URL(input.url);
+    } catch {
+      throw new AppError(ErrorCode.INVALID_INPUT, 'URL 格式非法');
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       throw new AppError(ErrorCode.INVALID_INPUT, '仅允许 http/https 协议');
     }
-    await shell.openExternal(input.url);
+    await shell.openExternal(parsed.href);
     return { ok: true };
   },
 
@@ -77,6 +61,10 @@ export const appHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContex
     const dir = app.getPath('userData');
     const error = await shell.openPath(dir);
     return { ok: error.length === 0 };
+  },
+
+  takePendingDeepLink: async () => {
+    return { payload: takePendingDeepLink() };
   },
 
   getLoginItemSettings: async () => {
@@ -109,6 +97,7 @@ export const appHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContex
       await exportDiagnosticsPackage({
         filePath,
         userDataPath: app.getPath('userData'),
+        logsPath: app.getPath('logs'),
         autostart,
       });
       logger.info({ filePath, autostart }, '诊断包导出完成');

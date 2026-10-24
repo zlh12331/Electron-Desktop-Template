@@ -5,7 +5,7 @@ import type { InferHandlers, IPC_DEFINITIONS } from '@code-agent/shared/main';
 import { app } from 'electron';
 
 import { logger } from '../utils/logger';
-import type { IpcHandlerContext } from '../utils/wrap';
+import type { IpcHandlerContext } from './wrap';
 
 // 日志尾部默认 200 行，硬上限 2000（主进程日志面板拉全量会把日志文件整个读进内存）
 const DEFAULT_LINES = 200;

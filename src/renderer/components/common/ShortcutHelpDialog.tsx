@@ -37,8 +37,6 @@ export const FIXED_SHORTCUTS: readonly ShortcutItem[] = [
   { descriptionKey: 'shortcutHelp.item.zoomIn', keys: 'Ctrl + =' },
   { descriptionKey: 'shortcutHelp.item.zoomOut', keys: 'Ctrl + -' },
   { descriptionKey: 'shortcutHelp.item.zoomReset', keys: 'Ctrl + 0' },
-  { descriptionKey: 'shortcutHelp.item.sendMessage', keys: 'Enter' },
-  { descriptionKey: 'shortcutHelp.item.newline', keys: 'Shift + Enter' },
   { descriptionKey: 'shortcutHelp.item.closeDialog', keys: 'Esc' },
 ];
 
@@ -80,7 +78,7 @@ export function ShortcutHelpDialog({ open, onClose }: ShortcutHelpDialogProps): 
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 px-5 py-4 text-xs leading-[1.9]">
           {items.map((item) => (
             <div key={item.descriptionKey} className="flex items-center gap-1.5">
-              <kbd className="text-primary border-border bg-muted inline-flex shrink-0 items-center rounded-[calc(var(--radius)-5px)] border px-1.5 py-px font-mono text-2xs">
+              <kbd className="text-accent-text border-border bg-muted inline-flex shrink-0 items-center rounded-[calc(var(--radius)-5px)] border px-1.5 py-px font-mono text-2xs">
                 {item.keys}
               </kbd>
               <span className="text-muted-foreground truncate">{t(item.descriptionKey)}</span>

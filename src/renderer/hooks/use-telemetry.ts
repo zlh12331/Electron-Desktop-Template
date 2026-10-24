@@ -1,4 +1,8 @@
-import type { TelemetryLevel } from '@code-agent/shared/renderer';
+import type {
+  TelemetryLevel,
+  TelemetryStatusRes,
+  TelemetryTestConnectionRes,
+} from '@code-agent/shared/renderer';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useTranslation } from '@/i18n/use-translation';
@@ -6,6 +10,9 @@ import { unwrap } from '@/lib/ipc';
 
 /** Query key */
 export const TELEMETRY_LEVEL_QUERY_KEY = ['telemetry-level'] as const;
+
+/** 运行状态 query key */
+export const TELEMETRY_STATUS_QUERY_KEY = ['telemetry-status'] as const;
 
 /** 浏览器模式（dev 预览）默认级别：不外发任何数据，与 off 语义一致 */
 const FALLBACK_LEVEL: TelemetryLevel = 'off';
@@ -52,11 +59,48 @@ export function useSetTelemetryLevel() {
     },
     onSuccess: (_data, level) => {
       void queryClient.invalidateQueries({ queryKey: TELEMETRY_LEVEL_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: TELEMETRY_STATUS_QUERY_KEY });
       toast.success(t('common.telemetryUpdated', { level }));
     },
     onError: (error) => {
       const message = error instanceof Error ? error.message : String(error);
       toast.error(t('common.telemetryUpdateFailed', { message }));
+    },
+  });
+}
+
+/**
+ * 遥测运行状态（设置页状态卡）
+ *
+ * 浏览器模式返回 null（没有 IPC 桥，无法读取主进程状态）。
+ */
+export function useTelemetryStatusQuery() {
+  return useQuery({
+    queryKey: TELEMETRY_STATUS_QUERY_KEY,
+    queryFn: async (): Promise<TelemetryStatusRes | null> => {
+      if (!hasBridge()) return null;
+      const response = await window.api.telemetry.getStatus();
+      return unwrap<TelemetryStatusRes>(response);
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: false,
+  });
+}
+
+/** 连接测试：OTLP 真实探测 + Sentry 配置校验 */
+export function useTestTelemetryConnection() {
+  const { t } = useTranslation();
+  return useMutation({
+    mutationFn: async (): Promise<TelemetryTestConnectionRes> => {
+      if (!hasBridge()) throw new Error('window.api unavailable');
+      const response = await window.api.telemetry.testConnection();
+      return unwrap<TelemetryTestConnectionRes>(response);
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(t('common.telemetryTestFailed', { message }));
     },
   });
 }

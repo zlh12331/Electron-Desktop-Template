@@ -60,7 +60,7 @@ export interface SectionErrorBoundaryProps {
   readonly name?: string;
   /**
    * 重置键：任一元素变化时自动清除错误状态并重渲染 children
-   * （对齐参考项目 ErrorBoundary 的 resetKey 语义——切换 tab/会话后不残留上个区块的错误）
+   * （对齐参考项目 ErrorBoundary 的 resetKey 语义——切换 tab/路由后不残留上个区块的错误）
    */
   readonly resetKeys?: readonly unknown[];
 }

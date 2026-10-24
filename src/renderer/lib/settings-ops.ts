@@ -155,3 +155,15 @@ export async function testProxyConnection(): Promise<ProxyTestRes> {
   }
   return unwrap(await window.api.proxy.test({}));
 }
+
+/**
+ * 清除系统 keychain 中保存的代理凭据
+ *
+ * @throws Error 无桥（[NO_BRIDGE]）或 IPC 失败
+ */
+export async function clearProxyAuth(): Promise<void> {
+  if (!hasIpcBridge()) {
+    throw new Error('[NO_BRIDGE] window.api unavailable');
+  }
+  unwrap(await window.api.proxy.clearAuth());
+}

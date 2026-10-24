@@ -8,6 +8,7 @@ import type {
   ExportDiagnosticsRes,
   LoginItemChangedPayload,
   LoginItemSettingsRes,
+  TakePendingDeepLinkRes,
 } from '../../schemas/app';
 import {
   AppInfoResSchema,
@@ -18,6 +19,7 @@ import {
   LoginItemSettingsResSchema,
   OkResSchema,
   SetLoginItemSettingsReqSchema,
+  TakePendingDeepLinkResSchema,
 } from '../../schemas/app';
 import { IPC_META } from '../meta';
 import { withPayload, withSchema } from '../with-schema';
@@ -57,11 +59,18 @@ export const appDomain = {
     {} as ExportDiagnosticsRes,
     ExportDiagnosticsResSchema,
   ),
-  // 协议唤起事件（code-agent://）：主进程收到外链唤起后广播，payload 由渲染层消费
+  // 协议唤起事件：主进程收到外链唤起后广播，payload 由渲染层消费
   subscribeDeepLink: withPayload(
     IPC_META.app.subscribeDeepLink,
     {} as DeepLinkPayload,
     DeepLinkPayloadSchema,
+  ),
+  // 冷启动深链：渲染层挂载后主动取走，避免订阅前广播丢失
+  takePendingDeepLink: withSchema(
+    IPC_META.app.takePendingDeepLink,
+    null,
+    {} as TakePendingDeepLinkRes,
+    TakePendingDeepLinkResSchema,
   ),
   // 开机自启变更事件：写入后广播真实回读值——托盘与设置页两个入口靠它互相回显
   subscribeLoginItemChanged: withPayload(

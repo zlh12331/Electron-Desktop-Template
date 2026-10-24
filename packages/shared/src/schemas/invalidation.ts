@@ -1,6 +1,6 @@
 // invalidation.ts：失效域契约——invalidation:event:domains 事件 payload + 域词表
-// 域元素形如 'settings' / 'entity:<id>'：渲染层 split(':') 得 queryKey 前缀，前半段与渲染层
-// QUERY_KEY_ROOTS 的键对齐（src/renderer/lib/query/keys.ts）。失效「知识」收敛在写入端声明，
+// 域元素形如 'settings' / 'entity:<id>'：渲染层 split(':') 得 queryKey 前缀并逐域失效
+//（实现见 src/renderer/lib/invalidation/invalidation.ts）。失效「知识」收敛在写入端声明，
 // 收发实现分处 src/main/infra/invalidation/ 与 src/renderer/lib/invalidation/，本文件只定义契约。
 
 import { z } from 'zod';
@@ -12,7 +12,7 @@ export const InvalidationPayloadSchema = z.object({
   /** 受影响的域清单（至少一个；渲染层逐域前缀失效） */
   domains: z.array(z.string().min(1)).min(1),
   /** 引发失效的实体 id（可选上下文；失效指令以 domains 为准） */
-  sessionId: z.string().min(1).optional(),
+  entityId: z.string().min(1).optional(),
 });
 
 /** invalidation:event:domains 事件 payload：受影响域 + 可选实体上下文 */
@@ -20,7 +20,7 @@ export interface InvalidationPayload {
   /** 受影响的域清单（元素形如 'settings' / 'entity:<id>'） */
   readonly domains: readonly string[];
   /** 引发失效的实体 id（可选；供日志排障与未来按实体过滤） */
-  readonly sessionId?: string;
+  readonly entityId?: string;
 }
 
 // ────────── 失效域词表 ──────────

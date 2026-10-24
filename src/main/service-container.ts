@@ -14,7 +14,8 @@ const createUpdateToken = (): InstanceType<typeof CancellationToken> => new Canc
 
 import { closeDb, resetDb } from './infra/storage/db';
 import { type IUpdateService, UpdateService } from './infra/update/update-service';
-import { clearCrashMarker, hasCrashMarker, logger } from './utils/logger';
+import { reportError } from './utils/error-report';
+import { clearCrashMarker, logger, readCrashMarker } from './utils/logger';
 
 class ServiceContainer {
   // ───── 惰性单例字段：null = 未构造，首次 get* 才实例化；set* 仅供测试注入替换 ─────
@@ -93,9 +94,17 @@ function createDisposeStep(
  * 接入业务表后应在 runStep 内补对应恢复动作。
  */
 export async function recoverFromCrash(): Promise<void> {
-  const wasCrash = hasCrashMarker();
-  if (wasCrash) {
-    logger.warn({}, '检测到上次进程异常退出（崩溃标记），执行崩溃恢复');
+  const marker = readCrashMarker();
+  if (marker !== null) {
+    const crashedAt = new Date(marker.timestamp).toISOString();
+    logger.warn({ crashedAt, message: marker.message }, '检测到上次进程异常退出（崩溃标记）');
+    const recovered = new Error(`上次进程异常退出：${marker.message}`);
+    if (marker.stack !== undefined) {
+      recovered.stack = marker.stack;
+    }
+    reportError(recovered, {
+      tags: { scope: 'crash-recovery', 'crash.previous': 'true', 'crash.timestamp': crashedAt },
+    });
   }
   try {
     // 业务恢复钩子占位（模板无业务状态需要修复）

@@ -23,11 +23,11 @@ describe('ShortcutHelpDialog', () => {
     expect(screen.queryByText(t('shortcutHelp.title'))).toBeNull();
   });
 
-  it('正向：open=true → 渲染标题与固定快捷键（Ctrl + B / Enter / Esc）', () => {
+  it('正向：open=true → 渲染标题与固定快捷键（Ctrl + B / Ctrl + 0 / Esc）', () => {
     render(<ShortcutHelpDialog open onClose={() => {}} />);
     expect(screen.getAllByText(t('shortcutHelp.title')).length).toBeGreaterThan(0);
     expect(screen.getByText('Ctrl + B')).toBeDefined();
-    expect(screen.getByText('Enter')).toBeDefined();
+    expect(screen.getByText('Ctrl + 0')).toBeDefined();
     expect(screen.getByText('Esc')).toBeDefined();
   });
 
@@ -48,7 +48,7 @@ describe('ShortcutHelpDialog', () => {
   it('固定键与可自定义键共存：两者都在同一双列网格中', () => {
     render(<ShortcutHelpDialog open onClose={() => {}} />);
     expect(screen.getByText('? / F1')).toBeDefined();
-    expect(screen.getByText('Shift + Enter')).toBeDefined();
+    expect(screen.getByText('Ctrl + J')).toBeDefined();
     expect(screen.getByText(t('shortcutHelp.item.openSettings'), { exact: false })).toBeDefined();
   });
 

@@ -41,7 +41,7 @@
 
 | 数据 | 真源 | 谁改 | 渲染层缓存 | 失效点 |
 |---|---|---|---|---|
-| 日志文件 | `userData/logs/main.log` | electron-log | L3（`logs:read`，按行数/级别分 key） | 手动刷新 |
+| 日志文件 | 平台日志目录 `main.log`（Win/Linux `userData/logs`，macOS `~/Library/Logs/<appName>`） | electron-log | L3（`logs:read`，按行数/级别分 key） | 手动刷新 |
 | 数据库备份 | `userData/backups/` | 启动备份 + `backup:create` | L3（`backup:list`） | create/restore mutation 后 invalidate |
 
 渲染层对这类数据**只有缓存，没有所有权**——永远以 IPC 重查为准，不做本地合并。

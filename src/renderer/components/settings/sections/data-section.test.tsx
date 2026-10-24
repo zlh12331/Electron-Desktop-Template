@@ -65,7 +65,7 @@ beforeEach(() => {
   mocks.resetAll.mockResolvedValue({});
   mocks.openDataDir.mockResolvedValue({ ok: true });
   useUpdateStore.setState({ status: null });
-  useSettingsStore.setState({ language: 'zh-CN' });
+  useSettingsStore.setState({ language: 'zh-CN', proxy: { mode: 'system' } });
 });
 
 describe('DataSection', () => {
@@ -114,6 +114,18 @@ describe('DataSection', () => {
     expect(mocks.toastSuccess).toHaveBeenCalledWith(
       t('settings.exportSuccess', { path: 'C:/out/settings.json' }),
     );
+  });
+
+  it('导出设置：代理 URL 含凭据也不再二次确认（主进程统一脱敏）', async () => {
+    useSettingsStore.setState({
+      proxy: { mode: 'fixed', url: 'http://user:pass@proxy.example:8080' },
+    });
+    renderSection();
+
+    await userEvent.click(screen.getByRole('button', { name: t('settings.exportSettings') }));
+
+    await waitFor(() => expect(mocks.exportSettings).toHaveBeenCalledOnce());
+    expect(mocks.confirm).not.toHaveBeenCalled();
   });
 
   it('导出设置：未保存（用户取消）→ 不 toast', async () => {

@@ -1,4 +1,5 @@
 import { SETTING_KEYS, type SettingKey } from '@code-agent/shared/renderer';
+import { reportError } from '@/lib/error-report';
 import { unwrap } from '@/lib/ipc';
 import { SETTINGS_STORAGE_KEY } from '@/lib/theme-init';
 import { migrateShortcuts, type Theme } from '@/stores/persistent/settings-store';
@@ -74,7 +75,9 @@ export async function bootstrapSettings(): Promise<{
         };
       }
       return { theme: 'dark', snapshot: {} };
-    } catch {}
+    } catch (error) {
+      reportError(error, { tags: { scope: 'settings-bootstrap' } });
+    }
   }
 
   if (legacy?.state !== undefined) {

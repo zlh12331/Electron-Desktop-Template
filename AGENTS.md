@@ -19,18 +19,30 @@ pnpm test:main
 pnpm test:renderer
 pnpm test:integration
 pnpm test:scripts
+pnpm test:coverage          # 覆盖率 + 范围/关键模块/settings 硬门槛
 
 # E2E（@playwright/test 升级后需 npx playwright install）
-pnpm test:e2e               # 浏览器模式
+pnpm test:e2e               # 浏览器模式（含 a11y 扫描）
+pnpm test:a11y              # 无障碍扫描（WCAG 2.1 AA，axe）
 pnpm test:e2e:electron      # Electron 真实窗口
+pnpm test:visual            # Windows 视觉基线（独立配置，避免 Linux 字体假红）
 pnpm test:smoke             # 生产构建 smoke（需先 build:dist）
 
+# 模板底座验收（仓库外副本；--nsis 会真实安装/卸载测试应用）
+pnpm acceptance:derived
+pnpm acceptance:nsis --installer <path-to.exe> --yes
+
 # 质量门禁
-pnpm check:static           # 静态审计 16 项（见下）
+pnpm check:static           # 静态审计 19 项（见下）
 pnpm check:tokens           # 设计令牌：裸色/hex/字号/间距双写
 pnpm check:i18n             # i18n：缺失 + 双语一致 + 冗余（默认 --strict）
 pnpm check:brand            # 品牌一致性：app.config.json ↔ 生成物与构建配置
 pnpm check:schema-drift     # schema.ts ↔ drizzle/ 迁移漂移
+pnpm check:observability-config # 可观测性变量注册表 ↔ 代码/.env/文档/CI
+pnpm check:observability-slo    # SLO 定义 ↔ 指标注册表/运行手册
+pnpm observability:doctor    # 脱敏生效配置 + 格式校验 + OTLP 探测（--release 发布断言）
+pnpm observability:smoke     # 真实 Electron → 本地 OTLP 三类信号到达（需先 pnpm build）
+pnpm observability:collector-smoke # 隔离本地 Collector：持久队列 SIGKILL 恢复与尾采样（需 Docker）
 pnpm check:secrets-git      # gitleaks 扫 <远端 main>..HEAD（pre-push 与 CI 用）
 pnpm check:secrets          # gitleaks 扫工作区全量文件（手动排查用，含未提交改动）
 pnpm knip                   # 死代码 / 死依赖（CI 卡关）
@@ -48,7 +60,7 @@ pnpm docs:types             # TypeDoc 契约文档
 pnpm tokens:build           # Style Dictionary 生成 tokens.css
 ```
 
-`check:static` 覆盖：tokens + i18n + comments（过期注释/失效文件引用）+ tsdoc（export 符号 TSDoc 棘轮）+ file-size（净行 ≤600）+ functions（形参 ≤4 / 函数体 ≤200）+ complexity（认知复杂度 ≤15）+ coverage-floors + docs + docs-scripts + test-boundary + csp-hash + css-vars + animations + ui-consistency + brand，全部棘轮只收紧。
+`check:static` 覆盖：tokens + i18n + comments（过期注释/失效文件引用）+ tsdoc（export 符号 TSDoc 棘轮）+ file-size（净行 ≤600）+ functions（形参 ≤4 / 函数体 ≤200）+ complexity（认知复杂度 ≤15）+ coverage-floors + observability-config（变量注册表/文档/CI 一致）+ observability-slo（SLO 定义与指标名/手册一致）+ docs + docs-scripts + docs-contracts（IPC 计数/门禁数/ErrorCode/路径引用）+ test-boundary + csp-hash + css-vars + animations + ui-consistency + brand，全部棘轮只收紧。
 
 本地全量验证：`pnpm verify:local`（质量层）/ `pnpm verify:local:full`（追加构建与打包）。
 
@@ -94,6 +106,8 @@ tools/           → 独立 TS 子包（depcruise / typedoc）
 - **动效统一走 `src/renderer/lib/motion/`**，不散写 CSS transition。
 - **网页承载必须用 `WebContentsView`**（独立 session 分区），不能回渲染层 iframe（CSP/XFO 三层拦截）。
 - **dev 环境**：userData 重定向到 `.electron-user-data/`；开启 CDP 9222；`.env` 由 `process.loadEnvFile()` 加载。
+- **全新安装**：根 `postinstall` 先安装并校验 Electron 二进制，再重编 `better-sqlite3`；失败会显式退出。`pnpm dev` 报 `Electron uninstall` 说明安装钩子未执行。
+- **依赖策略**：只支持 Node 26 LTS；安全补丁、major 评审、beta 禁令与 override 生命周期见 [dependency-policy.md](docs/guides/dependency-policy.md)。
 
 ## 数据库
 
@@ -114,7 +128,9 @@ tools/           → 独立 TS 子包（depcruise / typedoc）
 - 业务逻辑不 mock：测试真实实现（DI 注入 fake）；基础设施（electron / 原生模块）可 stub。
 - 测试与源码 colocation：`*.test.ts(x)`；集成测试在 `tests/integration/`。
 - 覆盖率下限真源 = `scripts/coverage-floors.json`（棘轮，只收紧）。
+- `pnpm test:coverage` 额外执行：`check:coverage-scope`（未进入 lcov 的源码必须显式登记为入口/E2E 责任）、`check:critical-coverage`（db/CSP/IPC/更新/凭据等按文件阈值）、`coverage:settings --check`（settings 子集硬卡）。
 - 纯函数适合用 fast-check 属性测试补强。
+- 模板底座改动（`init-template` / `postinstall` / 打包 / 发版基线）必须按 [派生验收指南](docs/guides/template-acceptance.md)在干净副本验证；源仓库 `verify:local` 全绿不代表派生项目可用。
 
 ## 扩展点速查
 
@@ -132,8 +148,11 @@ tools/           → 独立 TS 子包（depcruise / typedoc）
 ## 外部服务 / 凭据
 
 - 凭据用 Electron `safeStorage` 加密（Windows DPAPI / macOS Keychain / Linux libsecret）。
-- 遥测为 OpenTelemetry 单通道：`OTEL_EXPORTER_OTLP_ENDPOINT` 未配置即不外发。
-- 报障走 GitHub Issue + 诊断包导出（无云端上报依赖）。
+- 错误/崩溃上报（Sentry）：`SENTRY_DSN` 未配置即完整 no-op；发布 CI 可用 `SENTRY_AUTH_TOKEN` / `SENTRY_ORG` / `SENTRY_PROJECT` 上传 source map（缺失时明确跳过）。
+- 遥测（OpenTelemetry）：`OTEL_EXPORTER_OTLP_ENDPOINT` 未配置时打包版不外发，dev 仅 Console trace；完整级别/指标/日志清单见 [23 可观测性](docs/design/23-otel-spec.md)。
+- 遥测级别 `off` / `error-only` / `full` 由设置页控制（写 `telemetry-pref.json`，重启生效）；本地日志始终写，诊断包导出时脱敏。
+- 报障走 GitHub Issue + 诊断包导出（无云端上报依赖）。本地 SigNoz / Sentry 配置见 [observability-runbook.md](docs/guides/observability-runbook.md)。
+- 配置改了先跑 `pnpm observability:doctor --offline`；发布前 CI 会跑 `--release --offline` 断言。配置真源在 `packages/shared/src/observability/env.ts`。
 
 ## 构建产物 & Git
 

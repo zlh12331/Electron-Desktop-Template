@@ -82,7 +82,7 @@ export function ShortcutPicker({ value, onChange, className }: ShortcutPickerPro
       onClick={() => setRecording((prev) => !prev)}
       className={cn(
         'border-border bg-background text-foreground hover:border-primary h-[30px] min-w-[92px] cursor-pointer rounded-md border px-2.5 font-mono text-xs transition-colors',
-        recording && 'border-primary text-primary',
+        recording && 'border-primary text-accent-text',
         className,
       )}
       title={recording ? t('settings.shortcutPressKeys') : value}

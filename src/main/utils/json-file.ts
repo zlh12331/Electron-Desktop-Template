@@ -1,4 +1,4 @@
-// json-file.ts：JSON 导入文件读取（会话导入等场景）——大小护栏 + AppError 归一
+// json-file.ts：JSON 导入文件读取（设置/业务数据导入等场景）——大小护栏 + AppError 归一
 import { readFile, stat } from 'node:fs/promises';
 import { AppError, ErrorCode } from '@code-agent/shared/main';
 

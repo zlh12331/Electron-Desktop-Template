@@ -1,4 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  AggregationTemporality,
+  InMemoryMetricExporter,
+  MeterProvider,
+  PeriodicExportingMetricReader,
+} from '@opentelemetry/sdk-metrics';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 const { mockFromWebContents, mockIpcMainHandle, mockReportError } = vi.hoisted(() => ({
@@ -7,11 +13,12 @@ const { mockFromWebContents, mockIpcMainHandle, mockReportError } = vi.hoisted((
   mockReportError: vi.fn(),
 }));
 
-vi.mock('./error-report', () => ({
+vi.mock('../utils/error-report', () => ({
   reportError: mockReportError,
 }));
 
 vi.mock('electron', () => ({
+  app: { getAppMetrics: () => [] },
   ipcMain: {
     handle: mockIpcMainHandle,
   },
@@ -21,7 +28,7 @@ vi.mock('electron', () => ({
   },
 }));
 
-vi.mock('./logger', () => ({
+vi.mock('../utils/logger', () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -32,10 +39,12 @@ vi.mock('./logger', () => ({
 
 import { AppError, ErrorCode } from '@code-agent/shared/main';
 import { ipcMain } from 'electron';
+import { initOtelMetrics, resetOtelMetrics } from '../infra/telemetry/otel-metrics';
+import { logger } from '../utils/logger';
 import { wrap } from './wrap';
 
 type InternalHandler = (
-  event: { sender: unknown },
+  event: { sender: unknown; senderFrame?: unknown },
   input: unknown,
   traceId?: string,
 ) => Promise<unknown>;
@@ -48,13 +57,81 @@ function getRegisteredHandler(): InternalHandler {
   return firstCall[1] as unknown as InternalHandler;
 }
 
+const topFrame = {};
 const allowedSender = {
   getURL: () => 'file:///C:/app/out/renderer/index.html',
+  mainFrame: topFrame,
 };
+const allowedEvent = { sender: allowedSender, senderFrame: topFrame };
 
 describe('wrap', () => {
+  let provider: MeterProvider;
+  let exporter: InMemoryMetricExporter;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+    provider = new MeterProvider({
+      readers: [new PeriodicExportingMetricReader({ exporter, exportIntervalMillis: 60_000 })],
+    });
+    initOtelMetrics(provider.getMeter('wrap-test'));
+  });
+
+  afterEach(async () => {
+    resetOtelMetrics();
+    await provider.shutdown();
+  });
+
+  async function expectMetricClasses(classes: Record<string, number>): Promise<void> {
+    await provider.forceFlush();
+    const metrics = exporter
+      .getMetrics()
+      .flatMap((r) => r.scopeMetrics)
+      .flatMap((s) => s.metrics);
+    for (const name of ['ipc.server.requests', 'ipc.server.request.duration']) {
+      const points = metrics.find((m) => m.descriptor.name === name)?.dataPoints;
+      expect(points).toHaveLength(Object.keys(classes).length);
+      for (const [failureClass, count] of Object.entries(classes)) {
+        const point = points?.find((p) => p.attributes['failureClass'] === failureClass);
+        expect(point?.attributes).toEqual({
+          channel: 'test:channel',
+          outcome: failureClass === 'none' ? 'success' : 'error',
+          failureClass,
+        });
+        if (name === 'ipc.server.requests') expect(point?.value).toBe(count);
+        else expect(point?.value).toMatchObject({ count });
+      }
+    }
+  }
+
+  it('完整错误码按保守值域分类，业务与系统分别计数且不含错误信息', async () => {
+    mockFromWebContents.mockReturnValue({ id: 1 });
+    let failure: unknown;
+    wrap('test:channel', null, async () => {
+      if (failure !== undefined) throw failure;
+      return 'ok';
+    });
+    const handler = getRegisteredHandler();
+    await handler(allowedEvent, undefined);
+    for (const code of Object.values(ErrorCode)) {
+      failure = new AppError(code, `private-message-${code}`);
+      await handler(allowedEvent, undefined);
+    }
+    failure = new Error('private raw error');
+    await handler(allowedEvent, undefined);
+    expect(Object.values(ErrorCode)).toHaveLength(14);
+    await expectMetricClasses({ none: 1, validation: 2, business: 4, system: 9 });
+  });
+
+  it('sender、入参校验和响应契约失败各记一次对应分类', async () => {
+    mockFromWebContents.mockReturnValue(null);
+    wrap('test:channel', null, async () => 'bad-response', z.literal('ok'));
+    const handler = getRegisteredHandler();
+    await handler(allowedEvent, undefined);
+    mockFromWebContents.mockReturnValue({ id: 1 });
+    await handler(allowedEvent, { unwanted: true });
+    await handler(allowedEvent, undefined);
+    await expectMetricClasses({ validation: 2, system: 1 });
   });
 
   it('成功时返回 { data }', async () => {
@@ -68,7 +145,7 @@ describe('wrap', () => {
 
     const registeredHandler = getRegisteredHandler();
 
-    const mockEvent = { sender: allowedSender };
+    const mockEvent = allowedEvent;
     const result = await registeredHandler(mockEvent, { name: 'test' }, 'trace-123');
 
     expect(result).toEqual({ data: { id: 1, name: 'test' } });
@@ -76,6 +153,12 @@ describe('wrap', () => {
       { name: 'test' },
       expect.objectContaining({ traceId: 'trace-123' }),
     );
+    // 请求明细必须走 debug：生产 file 级别 info 不落盘，避免每次 IPC 两条 info
+    expect(vi.mocked(logger.debug)).toHaveBeenCalledWith(
+      expect.objectContaining({ traceId: 'trace-123', channel: 'test:channel' }),
+      'IPC 请求成功',
+    );
+    expect(vi.mocked(logger.info)).not.toHaveBeenCalled();
   });
 
   it('参数校验失败返回 { error }', async () => {
@@ -88,7 +171,7 @@ describe('wrap', () => {
     wrap('test:channel', schema, handler);
 
     const registeredHandler = getRegisteredHandler();
-    const mockEvent = { sender: allowedSender };
+    const mockEvent = allowedEvent;
     const result = await registeredHandler(mockEvent, { name: '' }, 'trace-456');
 
     expect(result).toHaveProperty('error');
@@ -106,13 +189,40 @@ describe('wrap', () => {
     wrap('test:channel', schema, handler);
 
     const registeredHandler = getRegisteredHandler();
-    const mockEvent = { sender: allowedSender };
+    const mockEvent = allowedEvent;
     const result = await registeredHandler(mockEvent, { name: 'test' }, undefined);
 
     expect(result).toHaveProperty('error');
     const error = (result as { error: { code: string } }).error;
     expect(error.code).toBe(ErrorCode.IPC_SENDER_INVALID);
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('子 frame 调用返回 IPC_SENDER_INVALID', async () => {
+    mockFromWebContents.mockReturnValue({ id: 1 });
+    wrap('test:channel', null, async () => 'ok');
+    const registeredHandler = getRegisteredHandler();
+
+    const result = await registeredHandler(
+      { sender: allowedSender, senderFrame: { parent: topFrame } },
+      undefined,
+    );
+
+    expect(result).toMatchObject({ error: { code: ErrorCode.IPC_SENDER_INVALID } });
+  });
+
+  it('file URL 带 query/hash 不被视为合法 sender', async () => {
+    mockFromWebContents.mockReturnValue({ id: 1 });
+    wrap('test:channel', null, async () => 'ok');
+    const registeredHandler = getRegisteredHandler();
+    const sender = {
+      getURL: () => 'file:///C:/app/out/renderer/index.html?spoof=1',
+      mainFrame: topFrame,
+    };
+
+    const result = await registeredHandler({ sender, senderFrame: topFrame }, undefined);
+
+    expect(result).toMatchObject({ error: { code: ErrorCode.IPC_SENDER_INVALID } });
   });
 
   it('handler 抛出 AppError 返回 { error }', async () => {
@@ -125,7 +235,7 @@ describe('wrap', () => {
     wrap('test:channel', schema, handler);
 
     const registeredHandler = getRegisteredHandler();
-    const mockEvent = { sender: allowedSender };
+    const mockEvent = allowedEvent;
     const result = await registeredHandler(mockEvent, { name: 'test' }, undefined);
 
     expect(result).toHaveProperty('error');
@@ -144,7 +254,7 @@ describe('wrap', () => {
     wrap('test:channel', schema, handler);
 
     const registeredHandler = getRegisteredHandler();
-    const mockEvent = { sender: allowedSender };
+    const mockEvent = allowedEvent;
     const result = await registeredHandler(mockEvent, { name: 'test' }, undefined);
 
     expect(result).toHaveProperty('error');
@@ -163,7 +273,7 @@ describe('wrap', () => {
     wrap('test:channel', schema, handler);
 
     const registeredHandler = getRegisteredHandler();
-    const mockEvent = { sender: allowedSender };
+    const mockEvent = allowedEvent;
     await registeredHandler(mockEvent, { name: 'test' }, undefined);
 
     const ctx = handler.mock.calls[0]?.[1] as { traceId: string } | undefined;
@@ -185,7 +295,7 @@ describe('wrap', () => {
     wrap('test:channel', null, handler, resSchema);
 
     const registeredHandler = getRegisteredHandler();
-    const result = await registeredHandler({ sender: allowedSender }, undefined, undefined);
+    const result = await registeredHandler(allowedEvent, undefined, undefined);
 
     expect(result).toEqual({ data: { sessionId: 'session-1' } });
   });
@@ -200,11 +310,13 @@ describe('wrap', () => {
     wrap('test:channel', null, handler, resSchema);
 
     const registeredHandler = getRegisteredHandler();
-    const result = await registeredHandler({ sender: allowedSender }, undefined, undefined);
+    const result = await registeredHandler(allowedEvent, undefined, undefined);
 
     expect(result).toHaveProperty('error');
     const error = (result as { error: { code: string } }).error;
     expect(error.code).toBe(ErrorCode.INVALID_RESPONSE);
+    // 响应契约漂移是内部缺陷：必须进错误聚合，不能只写一行本地日志
+    expect(mockReportError).toHaveBeenCalled();
   });
 
   it('P0 收口：schema 未声明字段被 strip（边界生效，不只检查）', async () => {
@@ -225,7 +337,7 @@ describe('wrap', () => {
     wrap('test:channel', null, handler, resSchema);
 
     const registeredHandler = getRegisteredHandler();
-    const result = (await registeredHandler({ sender: allowedSender }, undefined, undefined)) as {
+    const result = (await registeredHandler(allowedEvent, undefined, undefined)) as {
       data: { config: Record<string, unknown> };
     };
 
@@ -243,7 +355,7 @@ describe('wrap', () => {
     wrap('test:channel', null, handler);
 
     const registeredHandler = getRegisteredHandler();
-    const result = (await registeredHandler({ sender: allowedSender }, undefined, undefined)) as {
+    const result = (await registeredHandler(allowedEvent, undefined, undefined)) as {
       data: unknown;
     };
 
@@ -260,7 +372,7 @@ describe('wrap', () => {
     wrap('test:channel', schema, handler);
 
     const registeredHandler = getRegisteredHandler();
-    await registeredHandler({ sender: allowedSender }, { name: 'x' }, 'bad id\\nINJECTED');
+    await registeredHandler(allowedEvent, { name: 'x' }, 'bad id\\nINJECTED');
 
     const ctx = handler.mock.calls[0]?.[1] as { traceId: string } | undefined;
     if (!ctx) {
@@ -297,7 +409,7 @@ describe('wrap', () => {
     wrap('test:channel', null, handler);
 
     const registeredHandler = getRegisteredHandler();
-    const result = await registeredHandler({ sender: allowedSender }, { sneaky: true }, undefined);
+    const result = await registeredHandler(allowedEvent, { sneaky: true }, undefined);
 
     expect(handler).not.toHaveBeenCalled();
     const error = (result as { error: { code: string } }).error;

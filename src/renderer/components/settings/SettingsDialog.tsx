@@ -1,10 +1,11 @@
 import { ArrowLeft, Settings as SettingsIcon } from 'lucide-react';
-import type { ReactElement } from 'react';
+import type { ReactElement, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { SectionErrorBoundary } from '@/components/common/SectionErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { useTranslation } from '@/i18n/use-translation';
 import { DEFAULT_SETTINGS_SECTION } from '@/lib/settings-sections';
+import { resolveNextTabIndex } from '@/lib/settings-tabs';
 import { cn } from '@/lib/utils';
 import { useUiStore } from '@/stores/transient/ui-store';
 import { SETTINGS_SECTION_MAP, SETTINGS_SECTIONS } from './sections/registry';
@@ -15,6 +16,25 @@ export interface SettingsDialogProps {
   readonly open: boolean;
   /** 开关回调 */
   readonly onOpenChange: (open: boolean) => void;
+}
+
+/** 设置导航的 roving focus：方向键移动焦点，Enter/Space 由原生 button 激活 */
+function handleTabNavigation(event: ReactKeyboardEvent<HTMLDivElement>): void {
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+    return;
+  }
+  event.preventDefault();
+  const buttons = Array.from(
+    event.currentTarget.querySelectorAll<HTMLButtonElement>('button[data-nav-item="true"]'),
+  );
+  if (buttons.length === 0) {
+    return;
+  }
+  const activeEl = document.activeElement as HTMLElement | null;
+  // biome-ignore lint/complexity/useIndexOf: activeEl 为 HTMLElement，indexOf 需窄化断言，findIndex 类型安全
+  const currentIndex = buttons.findIndex((btn) => btn === activeEl);
+  const nextIndex = resolveNextTabIndex(event.key, currentIndex, buttons.length);
+  buttons[nextIndex]?.focus();
 }
 
 /**
@@ -56,26 +76,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps): Rea
             className="bg-muted/30 overflow-y-auto overflow-x-hidden border-r px-2 py-3"
             role="tablist"
             aria-label={t('settings.sectionsAriaLabel')}
-            onKeyDown={(e) => {
-              if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-              e.preventDefault();
-              const buttons = Array.from(
-                e.currentTarget.querySelectorAll<HTMLButtonElement>('button[data-nav-item="true"]'),
-              );
-              if (buttons.length === 0) return;
-              const activeEl = document.activeElement as HTMLElement | null;
-              // biome-ignore lint/complexity/useIndexOf: activeEl 为 HTMLElement，indexOf 需断言，findIndex 类型安全
-              const currentIndex = buttons.findIndex((btn) => btn === activeEl);
-              const nextIndex =
-                e.key === 'ArrowDown'
-                  ? currentIndex === -1 || currentIndex === buttons.length - 1
-                    ? 0
-                    : currentIndex + 1
-                  : currentIndex <= 0
-                    ? buttons.length - 1
-                    : currentIndex - 1;
-              buttons[nextIndex]?.focus();
-            }}
+            aria-orientation="vertical"
+            onKeyDown={handleTabNavigation}
           >
             {SETTINGS_SECTIONS.map((group) => (
               <div key={group.labelKey} className="mb-1">
@@ -91,6 +93,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps): Rea
                       type="button"
                       role="tab"
                       aria-selected={isActive}
+                      id={`settings-tab-${item.id}`}
+                      aria-controls="settings-panel"
+                      tabIndex={isActive ? 0 : -1}
                       data-nav-item="true"
                       onClick={() => setActiveSection(item.id)}
                       className={cn(
@@ -108,7 +113,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps): Rea
             ))}
           </div>
 
-          <div className="overflow-y-auto overflow-x-hidden px-5 py-[18px]">
+          <div
+            id="settings-panel"
+            role="tabpanel"
+            aria-labelledby={`settings-tab-${activeSection}`}
+            className="overflow-y-auto overflow-x-hidden px-5 py-[18px]"
+          >
             <SectionErrorBoundary name={`settings:${activeSection}`} resetKeys={[activeSection]}>
               {ActiveComponent === undefined ? null : <ActiveComponent drawerOpen={open} />}
             </SectionErrorBoundary>

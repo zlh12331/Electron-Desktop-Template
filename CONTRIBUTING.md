@@ -43,7 +43,7 @@ pnpm verify:local:full  # 追加产物层（构建/体积/编译/两套 E2E/打�
 pnpm check:secrets-git    # 密钥扫描（gitleaks git，扫 <远端 main>..HEAD）
 pnpm typecheck            # tsc --build + tsc -p scripts/tsconfig.json（注意：不是 --noEmit，本项目用 project references）
 pnpm lint                 # biome check .（含格式化与 import 排序）
-pnpm check:static         # 静态审计 16 项（tokens/i18n/注释/tsdoc/文件大小/函数体/复杂度/覆盖率下限/文档/文档脚本表/测试边界/CSP/CSS 变量/动画/UI 一致性/品牌）
+pnpm check:static         # 静态审计 19 项（tokens/i18n/注释/tsdoc/文件大小/函数体/复杂度/覆盖率下限/可观测性配置/可观测性 SLO/文档/文档脚本表/文档契约/测试边界/CSP/CSS 变量/动画/UI 一致性/品牌）
 pnpm tokens:check         # 令牌生成物一致性（tokens/aurora.json ↔ tokens.css）
 pnpm knip                 # 死代码 / 死依赖检测
 pnpm depcruise            # 依赖方向与循环依赖
@@ -157,14 +157,17 @@ BREAKING CHANGE: 旧字段 `modelConfig` 不再被读取，需迁移到 `models`
 - 测试文件与源码**同目录**：`**/*.test.ts` / `*.test.tsx`；集成测试放 `tests/integration/`；
   E2E 在 `e2e/`。
 - Vitest globals 已开启（`describe`/`it`/`expect` 无需 import）。
-- **覆盖率下限是棘轮门禁**（`scripts/coverage-floors.json`），改动后覆盖率不能下降。
+- **覆盖率下限是棘轮门禁**（`scripts/coverage-floors.json`），改动后覆盖率不能下降；`pnpm test:coverage` 还会跑范围门禁、关键模块阈值与 settings 子集硬卡。
+- **依赖升级规则**见 [docs/guides/dependency-policy.md](docs/guides/dependency-policy.md)（Node 26 LTS、major 人工评审、override 生命周期）。
 
 ```bash
 pnpm test:main          # 单层
 pnpm test:renderer
 pnpm test:integration
+pnpm test:coverage      # 覆盖率 + 范围/关键模块/settings 硬门槛
 pnpm test:e2e           # 浏览器 E2E
 pnpm test:e2e:electron  # 真实 Electron 窗口
+pnpm test:visual        # Windows 视觉基线
 ```
 
 ## 六、提 PR 的流程
@@ -172,7 +175,7 @@ pnpm test:e2e:electron  # 真实 Electron 窗口
 1. **Fork** 仓库（或如果你有权限，从 `main` 切一个描述性分支）
 2. 开发，确保上面所有门禁本地通过
 3. 推送并开 PR，描述里写明改了什么、为什么
-4. CI 会跑 5 项必需检查（质量门禁 / 三平台单测 / 集成测试 / 浏览器 E2E / 三平台 Electron E2E），**全绿才能合并**
+4. CI 会跑 6 项必需检查（质量门禁 / 六平台单测 / 集成测试 / 浏览器 E2E / 六平台 Electron E2E / PR 标题），**全绿才能合并**
 5. 合并采用 **squash**（保持线性历史）
 
 PR 会被自动请求给 @zlh12331 审阅。请耐心等待——这是个人维护的项目。
@@ -185,6 +188,18 @@ PR 会被自动请求给 @zlh12331 审阅。请耐心等待——这是个人维
 ```bash
 pnpm build:win:x64 && pnpm check:native-arch && pnpm test:smoke
 ```
+
+### 模板底座改动的额外要求
+
+涉及 `scripts/init-template.ts`、`scripts/postinstall-rebuild.mjs`、品牌 / 打包 / 发版基线的 PR，
+合并前执行派生验收，并把关键结果贴到 PR：
+
+```bash
+pnpm acceptance:derived
+# 动了 NSIS / 安装器时再加：pnpm acceptance:derived --nsis（仅 Windows）
+```
+
+详见 [docs/guides/template-acceptance.md](docs/guides/template-acceptance.md)。
 
 ## 六·五、Label 体系
 

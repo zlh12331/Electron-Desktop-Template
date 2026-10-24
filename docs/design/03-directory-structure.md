@@ -6,14 +6,15 @@
 
 ```
 .
-├── .github/workflows/        # CI（PR 门禁）与 CD（三平台构建 + 发布）
+├── .github/workflows/        # CI（PR 门禁）与 CD（六架构构建 + 发布）
 ├── app.config.json           # 品牌与身份单一真源（改这里 → pnpm brand:sync）
 ├── docs/
 │   ├── design/               # 设计规范（长期有效）
-│   ├── guides/               # 操作指南（CI/CD、开源运维）
+│   ├── guides/               # 操作指南（CI/CD、派生验收、开源运维）
 │   └── history/              # 实施记录（一次性归档）
 ├── drizzle/                  # 数据库迁移（schema.ts 派生产物，禁止手写）
 ├── e2e/                      # Playwright：浏览器模式 / Electron / 生产 smoke
+├── observability/            # 本地 SigNoz 声明、SLO 契约、Collector 中继与尾采样
 ├── packages/
 │   ├── shared/               # @code-agent/shared：IPC 契约、schema、常量
 │   └── tsconfig/             # @code-agent/tsconfig：TS 预设三档
@@ -26,7 +27,7 @@
 ├── tests/integration/        # 集成测试（真实 SQLite + 临时 userData）
 ├── tools/                    # 独立 TS 子包：depcruise / typedoc
 ├── biome.json                # lint + format
-├── electron-builder.yml      # 打包（三平台）
+├── electron-builder.yml      # 打包（三平台 × x64/arm64）
 ├── electron.vite.config.ts   # 构建
 ├── knip.json                 # 死代码 / 死依赖
 ├── pnpm-workspace.yaml       # workspace + 构建脚本决策
@@ -48,6 +49,7 @@ src/main/
 ├── quit-state.ts             # 退出状态位
 ├── diagnostics.ts            # 诊断包导出
 ├── infra/
+│   ├── app-info.ts           # build-info.json 读取（关于页/OTel resource/Sentry tags）
 │   ├── autostart/            # 开机自启（三平台）
 │   ├── file/                 # 用户手势授权表（对话框选中的路径）
 │   ├── i18n/                 # 主进程文案（托盘等）
@@ -55,11 +57,11 @@ src/main/
 │   ├── network/              # 代理解析与应用（Node/Chromium 双栈）
 │   ├── storage/              # SQLite + 本地持久化：db / 迁移 / 设置 / 备份 / keychain / window-state
 │   │   └── tables/           # 表定义（core 通用表；业务表按域新增）
-│   ├── telemetry/            # OpenTelemetry + 事件循环/内存监控
+│   ├── telemetry/            # Sentry + OpenTelemetry（trace/metrics/logs）+ 事件循环/内存监控 + 脱敏
 │   └── update/               # electron-updater 封装
-├── ipc/                      # 按域的 handler + 统一注册器
+├── ipc/                      # 按域的 handler + 统一注册器 + wrap（sender/契约/span/metrics）
 ├── security/                 # CSP 等安全基线
-└── utils/                    # logger / wrap / error-report / file-permissions / json-file
+└── utils/                    # logger / error-report / telemetry-flush / file-permissions / json-file
 ```
 
 **扩展点**：新增业务服务 = `infra/<domain>/` 新建模块 → `service-container.ts` 加 lazy accessor 与 dispose 步骤 → `ipc/<domain>.handler.ts` → `index.ts` 注册 → shared 侧加 IPC 域（见 19 号规范）。
@@ -99,6 +101,7 @@ packages/shared/src/
 ├── renderer.ts               # 渲染层出口（schema 一律 type-only）
 ├── preload.ts                # preload 出口（零第三方依赖）
 ├── constants/                # brand（生成物）/ errors / protocol / zoom
+├── observability/            # 配置注册表（env）/ 纯解析 / 指标契约 / SLO 类型 / OTLP 探测
 ├── ipc/
 │   ├── meta.ts               # channel 元数据（零依赖）
 │   ├── domains/              # 按域定义 + index.ts 域册
@@ -114,5 +117,5 @@ packages/shared/src/
 
 - 单测与源码 colocation：`*.test.ts(x)`
 - 集成测试：`tests/integration/`（真实 SQLite，Electron SDK 替身）
-- E2E：`e2e/`（浏览器 / Electron / 生产 smoke）
+- E2E：`e2e/`（浏览器 / Electron / 生产 smoke）；本地可观测性另有 `observability:smoke` 与需 Docker 的 `observability:collector-smoke`
 - 门禁入口：`pnpm verify:local`；完整打包验证 `pnpm verify:local:full`

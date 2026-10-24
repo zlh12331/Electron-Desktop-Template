@@ -92,7 +92,7 @@ flowchart LR
 - 通道命名：`域:动作`（请求）、`域:stream:事件`（流式）、`域:event:名称`（状态事件）；全表见 [19-ipc-spec.md](19-ipc-spec.md)
 - 错误约定：返回 `{ data } | { error: { code, message } }`，渲染层统一 `unwrap()`（`lib/ipc.ts`）按 code 查 i18n
 
-## 二、UI 设计体系（TraeWork）
+## 二、UI 设计体系（Template）
 
 唯一真源：`src/renderer/styles/tokens.css`（CSS 变量）+ `styles/index.css`（`@import` 各域 + `@theme`）。原则：**所有颜色/尺寸走 CSS 变量（令牌），禁止硬编码**。
 
@@ -202,7 +202,7 @@ stateDiagram-v2
 
 | 分区 | 组件 | 消费的真源 |
 |---|---|---|
-| 常规 | `general-section` | 语言 / 关窗行为 / 开机自启 / 数据目录 / 遥测（组合页） |
+| 常规 | `general-section` | 语言 / 关窗行为 / 开机自启 / 遥测（组合页；数据目录在「数据」分区） |
 | 外观 | `zoom-section` | `appearance.zoom` → `window:applyZoom` |
 | 通知 | `notification-section` | `notification.enabled` → 主进程 `tray.ts` 读取 |
 | 数据 | `data-section` | 导出/导入设置、打开数据目录、更新缓存、数据库备份 |

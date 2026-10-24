@@ -8,6 +8,7 @@
 //         [--artifact-base My-App] [--executable my-app] [--dry-run]
 // 幂等：重复执行同一组参数不产生额外改动（每步都是「替换已知旧值」或「写定值」）。
 
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -125,7 +126,13 @@ export function buildInitInput(raw: {
 
   const executableName = raw.executableName ?? deriveExecutableName(productName);
   if (!/^[a-z0-9][a-z0-9-]*$/.test(executableName)) {
-    throw new Error(`可执行名推导失败：${executableName}（需小写字母数字与连字符）`);
+    // 中文等非 ASCII 产品名推导结果为空：必须引导用户显式给可执行名，而不是只报格式错误
+    if (raw.executableName === undefined) {
+      throw new Error(
+        `产品名「${productName}」无法推导可执行名（需小写字母数字与连字符）。请显式传 --executable，例如 --executable my-app`,
+      );
+    }
+    throw new Error(`--executable 格式非法：${executableName}（需小写字母数字与连字符）`);
   }
   const artifactBaseName = raw.artifactBaseName ?? deriveArtifactBaseName(executableName);
 
@@ -307,23 +314,60 @@ function writeDevAppUpdate(root: string, input: InitInput, dryRun: boolean): Rew
   );
 }
 
-/** 改写 index.html（标题 + 首帧主题存储键） */
+/** 改写首页品牌并同步首帧脚本的 CSP 哈希。 */
 function writeIndexHtml(
   root: string,
   input: InitInput,
   previous: PreviousBrand,
   dryRun: boolean,
-): RewriteResult {
+): RewriteResult[] {
+  const file = 'src/renderer/index.html';
+  const current = readIfExists(root, file);
+  if (current === null) {
+    return [{ file, changed: false }];
+  }
+  const html = current
+    .replace(/<title>.*<\/title>/, `<title>${input.productName}</title>`)
+    .replaceAll(
+      `localStorage.getItem('${previous.storagePrefix}:theme')`,
+      `localStorage.getItem('${input.storagePrefix}:theme')`,
+    );
+  const inline = html.match(/<head>[\s\S]*?<script>([\s\S]*?)<\/script>/)?.[1];
+  if (inline === undefined) {
+    throw new Error(`${file} 缺失首帧主题脚本，无法同步 CSP 哈希`);
+  }
+  const hash = `sha256-${createHash('sha256').update(inline).digest('base64')}`;
+  return [
+    writeIfChanged(root, file, html, dryRun),
+    rewriteText(
+      root,
+      'src/main/security/csp.ts',
+      (text) => text.replace(/'sha256-[A-Za-z0-9+/=]+'/, `'${hash}'`),
+      dryRun,
+    ),
+  ];
+}
+
+/**
+ * 改写 NSIS 安装器的协议定义
+ *
+ * electron-builder 的 `protocols` 只对 macOS 生效；Windows 协议由安装宏注册/卸载，
+ * 因此派生项目必须同步 installer.nsh 内的协议，不能只改 electron-builder.yml。
+ */
+function writeInstallerProtocol(root: string, input: InitInput, dryRun: boolean): RewriteResult {
+  const file = 'resources/installer.nsh';
+  const current = readIfExists(root, file);
+  if (current === null) {
+    return { file, changed: false };
+  }
+  if (!/^!define APP_PROTOCOL ".*"$/m.test(current)) {
+    throw new Error(`${file} 缺失 !define APP_PROTOCOL，无法同步 Windows 协议`);
+  }
   return rewriteText(
     root,
-    'src/renderer/index.html',
+    file,
     (text) =>
-      text
-        .replace(/<title>.*<\/title>/, `<title>${input.productName}</title>`)
-        .replaceAll(
-          `localStorage.getItem('${previous.storagePrefix}:theme')`,
-          `localStorage.getItem('${input.storagePrefix}:theme')`,
-        ),
+      text.replace(/^!define APP_PROTOCOL ".*"$/m, `!define APP_PROTOCOL "${input.protocol}"`),
     dryRun,
   );
 }
@@ -504,7 +548,8 @@ export function runInitTemplate(
     writePackageJson(root, input, dryRun),
     writeElectronBuilder(root, input, previous, dryRun),
     writeDevAppUpdate(root, input, dryRun),
-    writeIndexHtml(root, input, previous, dryRun),
+    ...writeIndexHtml(root, input, previous, dryRun),
+    writeInstallerProtocol(root, input, dryRun),
     ...writeLocales(root, input, dryRun),
     writeLicense(root, input, dryRun),
     writeCodeowners(root, input, previous, dryRun),

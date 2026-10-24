@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path';
 import {
   applyTighten,
   type CoverageFloorsFile,
+  findMetricShortfalls,
   FLOORS_TABLE_HEADER,
   LAYER_CONFIGS,
   LAYER_KEYS,
@@ -366,5 +367,16 @@ describe('接线校验能抓到真实回归', () => {
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
+  });
+});
+
+describe('findMetricShortfalls', () => {
+  it('返回低于 floor 的指标', () => {
+    expect(
+      findMetricShortfalls(
+        { statements: 90, branches: 70, functions: 80, lines: 90 },
+        { statements: 80, branches: 75, functions: 80, lines: 85 },
+      ),
+    ).toEqual(['branches']);
   });
 });

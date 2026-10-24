@@ -2,12 +2,13 @@ import { useMutation } from '@tanstack/react-query';
 import { Network } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useErrorMessage, useTranslation } from '@/i18n/use-translation';
 import { unwrapErrorMessage } from '@/lib/ipc';
-import { testProxyConnection } from '@/lib/settings-ops';
+import { clearProxyAuth, testProxyConnection } from '@/lib/settings-ops';
 import { useSettingsStore } from '@/stores/persistent/settings-store';
 import { SegControl, SettingRow } from '../settings-controls';
 
@@ -36,7 +37,14 @@ export function ProxySection(): ReactElement {
     },
     onError: (error) => {
       setTestResult({ ok: false, kind: 'target-unreachable' });
-      unwrapErrorMessage(error, getErrorMessage);
+      toast.error(unwrapErrorMessage(error, getErrorMessage));
+    },
+  });
+
+  const clearAuthMutation = useMutation({
+    mutationFn: clearProxyAuth,
+    onError: (error) => {
+      toast.error(unwrapErrorMessage(error, getErrorMessage));
     },
   });
 
@@ -91,6 +99,21 @@ export function ProxySection(): ReactElement {
               <p className="text-muted-foreground mt-1 text-xs leading-[1.5]">
                 {t('settings.proxyUrlDesc')}
               </p>
+              {proxy.hasAuth === true && (
+                <div className="mt-2 flex items-center justify-between gap-2 border-t pt-2">
+                  <p className="text-muted-foreground text-xs leading-[1.5]">
+                    {t('settings.proxyAuthSaved', { username: proxy.authUsername ?? '-' })}
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={clearAuthMutation.isPending}
+                    onClick={() => clearAuthMutation.mutate()}
+                  >
+                    {t('settings.proxyAuthClear')}
+                  </Button>
+                </div>
+              )}
             </div>
 
             <SettingRow

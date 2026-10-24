@@ -11,7 +11,7 @@ describe('smoke: packages/shared 统一导出', () => {
     expect(IPC_CHANNELS.APP_GET_STATUS).toBe('app:getStatus');
     expect(IPC_CHANNELS.APP_OPEN_EXTERNAL).toBe('app:openExternal');
     // 仅在协议破坏性变更时递增；渲染层启动时与主进程 app:getStatus 回传值比对（src/renderer/hooks/use-protocol-check.ts）
-    expect(IPC_PROTOCOL_VERSION).toBe(1);
+    expect(IPC_PROTOCOL_VERSION).toBe(2);
   });
 
   it('可使用 AppError', () => {
@@ -22,7 +22,7 @@ describe('smoke: packages/shared 统一导出', () => {
 
   it('可引用类型（编译时校验）', () => {
     // 真正的断言是类型注解（字段名/类型写错即 tsc 报错）；'data' in 收窄是渲染层消费 IpcResponse 的既有判别约定
-    const status = { ready: true, protocolVersion: 1 };
+    const status = { ready: true, protocolVersion: 2 };
     const resp: IpcResponse<typeof status> = { data: status };
     expect('data' in resp).toBe(true);
     expect(resp.data?.ready).toBe(true);

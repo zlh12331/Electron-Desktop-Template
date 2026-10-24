@@ -1,0 +1,47 @@
+# Use a dedicated project name; never share this volume with SigNoz.
+services:
+  storage-init:
+    image: busybox:1.37.0
+    user: "0:0"
+    read_only: true
+    network_mode: none
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 32m
+    # Only initializes this project's NEW volume root, not host files or other volumes.
+    command: [sh, -ec, "chmod 0700 /var/lib/otelcol; chown 10001:10001 /var/lib/otelcol"]
+    volumes:
+      - queue:/var/lib/otelcol
+    restart: "no"
+
+  collector:
+    image: otel/opentelemetry-collector-contrib:0.163.2
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    environment:
+      GOMEMLIMIT: 320MiB
+      OTLP_UPSTREAM_ENDPOINT: ${OTLP_UPSTREAM_ENDPOINT:-http://host.docker.internal:4318}
+    # Optional tail sampling: append --config=/etc/otelcol/tail-sampling.yaml.
+    # The application head sampler must be 1 for ALL candidates to reach tail sampling.
+    command: [--config=/etc/otelcol/collector.yaml]
+    ports:
+      - "127.0.0.1:14318:4318"
+      - "127.0.0.1:18888:8888"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ./collector.yaml:/etc/otelcol/collector.yaml:ro
+      - ./tail-sampling.yaml:/etc/otelcol/tail-sampling.yaml:ro
+      - queue:/var/lib/otelcol
+    depends_on:
+      storage-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+volumes:
+  queue:

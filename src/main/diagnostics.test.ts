@@ -3,9 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import AdmZip from 'adm-zip';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { exportDiagnosticsPackage, redactSensitive } from './diagnostics';
+import { exportDiagnosticsPackage } from './diagnostics';
 import { closeDb, initDb, resetDb } from './infra/storage/db';
 import { writeSetting } from './infra/storage/settings-pref';
+import { redactSensitive } from './infra/telemetry/redact';
 
 const mocks = vi.hoisted(() => ({
   mockGetPath: vi.fn(() => '/tmp/diagnostics-default'),
@@ -25,10 +26,38 @@ vi.mock('./utils/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
+vi.mock('./infra/telemetry/sentry', () => ({
+  getSentryStatus: () => ({
+    enabled: false,
+    initialized: false,
+    reason: 'no-dsn',
+    release: null,
+    environment: null,
+  }),
+}));
+
+vi.mock('./infra/telemetry/otel', () => ({
+  getTelemetryRuntimeStatus: () => ({
+    level: 'full',
+    enabled: false,
+    tracing: false,
+    metrics: false,
+    logs: false,
+    endpointConfigured: false,
+  }),
+}));
+
 let tempUserData: string;
+const tempDirs: string[] = [];
+
+function makeTempDir(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  tempDirs.push(dir);
+  return dir;
+}
 
 function setupTempEnvironment(): void {
-  tempUserData = mkdtempSync(join(tmpdir(), 'diag-'));
+  tempUserData = makeTempDir('diag-');
   mocks.mockGetPath.mockReturnValue(tempUserData);
   initDb();
   writeSetting('theme', 'dark');
@@ -44,7 +73,9 @@ beforeEach(() => {
 afterEach(async () => {
   await closeDb();
   resetDb();
-  rmSync(tempUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  for (const dir of tempDirs.splice(0)) {
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  }
 });
 
 describe('redactSensitive', () => {
@@ -69,10 +100,7 @@ describe('redactSensitive', () => {
     };
     const result = redactSensitive(input) as Record<string, unknown>;
     expect(result['model']).toBe('deepseek-flash');
-    expect((result['credentials'] as Record<string, unknown>)['apiKey']).toBe('[REDACTED]');
-    expect((result['credentials'] as Record<string, unknown>)['baseUrl']).toBe(
-      'https://api.example.com',
-    );
+    expect(result['credentials']).toBe('[REDACTED]');
     expect((input.credentials as { apiKey: string }).apiKey).toBe('sk-secret');
   });
 
@@ -85,14 +113,22 @@ describe('redactSensitive', () => {
 
 describe('exportDiagnosticsPackage', () => {
   it('打包：manifest/settings（脱敏）/logs 三件套齐全', async () => {
-    const logsDir = join(tempUserData, 'logs');
-    mkdirSync(logsDir, { recursive: true });
+    // 日志目录与 userData 分离：证明导出按 logsPath（app.getPath('logs')）收集，
+    // 而不是沿用 userData/logs 的 macOS 错误假设
+    const logsDir = makeTempDir('diag-logs-');
     writeFileSync(join(logsDir, 'main.log'), '2026-09-04 info ready\n', 'utf8');
     writeFileSync(join(logsDir, 'main.old.log'), 'rotated\n', 'utf8');
+    const decoyDir = join(tempUserData, 'logs');
+    mkdirSync(decoyDir, { recursive: true });
+    writeFileSync(join(decoyDir, 'decoy.log'), 'should not be packaged\n', 'utf8');
 
-    const target = join(mkdtempSync(join(tmpdir(), 'diag-out-')), 'pack.zip');
+    const target = join(makeTempDir('diag-out-'), 'pack.zip');
 
-    await exportDiagnosticsPackage({ filePath: target, userDataPath: tempUserData });
+    await exportDiagnosticsPackage({
+      filePath: target,
+      userDataPath: tempUserData,
+      logsPath: logsDir,
+    });
 
     const zip = new AdmZip(target);
     const names = zip
@@ -103,6 +139,7 @@ describe('exportDiagnosticsPackage', () => {
     expect(names).toContain('settings.json');
     expect(names).toContain('logs/main.log');
     expect(names).toContain('logs/main.old.log');
+    expect(names).not.toContain('logs/decoy.log');
 
     const manifest = JSON.parse(zip.readAsText('manifest.json')) as Record<string, unknown>;
     expect(manifest['appVersion']).toBe('1.0.0');
@@ -112,18 +149,19 @@ describe('exportDiagnosticsPackage', () => {
     const settings = JSON.parse(zip.readAsText('settings.json')) as Record<string, unknown>;
     expect(settings['theme']).toBe('dark');
     expect(settings['model']).toBe('deepseek-flash');
-    expect((settings['credentials'] as { apiKey: string }).apiKey).toBe('[REDACTED]');
-    expect((settings['credentials'] as { baseUrl: string }).baseUrl).toBe(
-      'https://api.example.com',
-    );
-    expect(settings['tokens']).toEqual(['[REDACTED]', '[REDACTED]']);
+    expect(settings['credentials']).toBe('[REDACTED]');
+    expect(settings['tokens']).toBe('[REDACTED]');
   });
 
   it('打包：日志目录缺失时降级为空日志段，不抛错', async () => {
-    const target = join(mkdtempSync(join(tmpdir(), 'diag-out-')), 'pack.zip');
+    const target = join(makeTempDir('diag-out-'), 'pack.zip');
 
     await expect(
-      exportDiagnosticsPackage({ filePath: target, userDataPath: tempUserData }),
+      exportDiagnosticsPackage({
+        filePath: target,
+        userDataPath: tempUserData,
+        logsPath: join(tempUserData, 'missing-logs'),
+      }),
     ).resolves.toBeUndefined();
 
     const zip = new AdmZip(target);

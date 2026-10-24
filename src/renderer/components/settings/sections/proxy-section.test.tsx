@@ -14,6 +14,7 @@ const setSpy = vi.fn(async () => ({ data: { ok: true } }));
 const testSpy = vi.fn(async () => ({
   data: { ok: true, kind: 'ok', message: undefined },
 }));
+const clearAuthSpy = vi.fn(async () => ({ data: { ok: true } }));
 
 function renderSection(): void {
   const client = new QueryClient({
@@ -29,7 +30,7 @@ function renderSection(): void {
 beforeEach(() => {
   vi.clearAllMocks();
   Object.defineProperty(window, 'api', {
-    value: { settings: { set: setSpy }, proxy: { test: testSpy } },
+    value: { settings: { set: setSpy }, proxy: { test: testSpy, clearAuth: clearAuthSpy } },
     writable: true,
     configurable: true,
   });
@@ -91,5 +92,16 @@ describe('ProxySection', () => {
       expect(screen.getByText(t('settings.proxyTestSuccess'))).toBeDefined();
     });
     expect(testSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('已保存凭据：显示用户名与清除入口，清除调用 proxy:clearAuth', async () => {
+    useSettingsStore.setState({
+      proxy: { mode: 'fixed', url: 'http://p:1', hasAuth: true, authUsername: 'alice' },
+    });
+    renderSection();
+
+    expect(screen.getByText(t('settings.proxyAuthSaved', { username: 'alice' }))).toBeDefined();
+    await userEvent.click(screen.getByRole('button', { name: t('settings.proxyAuthClear') }));
+    await waitFor(() => expect(clearAuthSpy).toHaveBeenCalledTimes(1));
   });
 });

@@ -1,7 +1,7 @@
 # 17 · 安全规范（Electron 生产级基线）
 
 > 对齐 Electron 官方安全清单与 OWASP 桌面应用实践，按模板当前实现（sandbox / CSP / safeStorage / zod / fuses）制定。
-> 最后同步：2026-10-22（模板版：命令与实现路径按当前代码订正）
+> 最后同步：2026-10-24（补充代理凭据例外与 Action pin 策略）
 
 ---
 > 🔒 工程化强制：`check:csp-hash`（CSP 内联哈希）+ `check:secrets-git`（pre-push / CI）+ `check:secrets`（全仓自查）+ `check:devtools`（产物不含 devtools）
@@ -16,10 +16,11 @@
 
 ## 二、CSP 与导航
 
-- **CSP**：`src/main/security/csp.ts` 对 `defaultSession` 统一注入；产线 `script-src` 只认自身、wasm 与**一个内联脚本哈希**（`check:csp-hash` 卡关——改 CSP 或 `index.html` 内联脚本必须同步重算）。
+- **CSP**：`src/main/security/csp.ts` 对 `defaultSession` 统一注入；产线 `script-src` 只认自身、wasm 与**一个内联脚本哈希**（`check:csp-hash` 卡关——改 CSP 或 `index.html` 内联脚本必须同步重算）。`init:template` 改写 `storagePrefix` 时会同步重算该哈希，回归见 `scripts/init-template.test.ts`。
 - **开发期**放宽项（Vite HMR / React DevTools）只在 `!app.isPackaged` 生效，禁止进产线策略。
 - **导航**：`will-navigate` 拦截站外跳转；`setWindowOpenHandler` 统一改为系统浏览器打开；外链只走 `app:openExternal`。
-- **权限**：`setPermissionRequestHandler` 白名单式收口，渲染层系统权限请求一律拒绝（当前无任何授权项）。
+- **权限**：`setPermissionRequestHandler` 与 `setPermissionCheckHandler` 双收口，渲染层系统权限请求/查询一律拒绝（当前无任何授权项）。
+- **IPC 来源**：仅接受主 frame（`senderFrame === sender.mainFrame`）且 URL 白名单；`file:` 入口拒绝 query/hash，避免同后缀路径伪造。
 
 ## 三、密钥与凭据
 
@@ -30,15 +31,17 @@
    - pre-push 与 CI：`pnpm check:secrets-git`（只扫待推送区间；未安装即失败）
    - 手动排查：`pnpm check:secrets`（`gitleaks dir .`，含未提交内容与本地缓存）
    - ⚠️ **不要删除 `useDefault`**：gitleaks 一旦找到配置文件就替代默认规则集，缺这一行等于规则数归零、三道闸门全部静默空转（2026-09-22 实测修复）。
-4. **`.env`**：仅主进程 `process.loadEnvFile()` 在 whenReady 前加载；文件不入仓。
-5. **测试密钥**：用显式 fake 值（`fake-token` 风格）；日志禁止输出密钥（只记掩码 / 存在性）。
+4. **代理凭据**：URL 内嵌的用户名/密码在 `settings:set` / 导入 / 启动迁移时拆出，经 `safeStorage` 存入 keychain 保留键（`__proxy_auth`），`app_settings` 只保无凭据 URL。设置导出与诊断包均脱敏 URL；渲染层只拿到 `hasAuth` / `authUsername` 派生状态，`secrets` 域拒绝访问保留键。加密不可用时拒绝保存凭据（不回退明文）。
+5. **`.env`**：仅主进程 `process.loadEnvFile()` 在 whenReady 前加载；文件不入仓。
+6. **测试密钥**：用显式 fake 值（`fake-token` 风格）；日志禁止输出密钥（只记掩码 / 存在性）。
 
 ## 四、输入验证与文件访问
 
-1. **IPC**：所有入参过 zod（定义表单一真源，`register.ts` 统一 wrap），响应契约同样校验。
-2. **文件路径**：用户经系统对话框选中的路径写入 `infra/file/user-grants.ts`（realpath 规范化 + LRU 200 条）；业务读取用户文件前查询 `isUserGrantedRead`，不自行拼接路径。
-3. **SQL**：Drizzle 绑定参数，禁止字符串拼接（18-data-layer-spec）。
-4. **外部数据**：设置导入文件在边界校验后才落库；未知字段按白名单丢弃。
+1. **IPC**：所有入参过 zod（定义表单一真源，`register.ts` 统一 wrap），响应契约同样校验；来源必须是主 frame 且通过 URL 白名单。
+2. **文件路径**：`dialog:pickFiles` 选中的**文件**写入 `infra/file/user-grants.ts`（realpath 规范化 + LRU 200 条）；`dialog:pickDirectory` 只返回目录路径、不登记授权（目录粒度会放大到其下全部文件）。业务读取用户文件前查询 `isUserGrantedRead`，不自行拼接路径。
+3. **外链**：`app:openExternal` 先 `new URL()` 解析，再只放行 `http:`/`https:`；拒绝 `file:`、自定义 scheme 与畸形字符串。
+4. **SQL**：Drizzle 绑定参数，禁止字符串拼接（18-data-layer-spec）。
+5. **外部数据**：设置导入文件先过版本与白名单，再逐键过值级 zod schema；任一白名单键的值非法则整批拒绝、库零写入；白名单外字段丢弃。
 
 ## 五、渲染层安全
 
@@ -57,6 +60,7 @@
 - 版本更新主轨 = Renovate（`renovate.json`：周末批次、非 major 合并、electron major 人工评审、`minimumReleaseAge`）。
 - Dependabot 只保留**安全更新**（`open-pull-requests-limit: 0`），避免与 Renovate 双轨重复 PR。
 - pnpm 安装侧发布年龄闸（`minimumReleaseAge: 1440`）拦截「发布不足 24h」的版本，防依赖投毒。
+- GitHub Actions 第三方 action 统一 pin 到 commit SHA（注释保留版本号），由 Renovate 的 `helpers:pinGitHubActionDigests` 维护 digest；发布工作流权限最高，不允许 tag 浮动。
 
 ## 八、检查清单
 

@@ -82,6 +82,11 @@ export default defineConfig({
         },
       },
     },
+    // Sentry DSN 构建期注入（发布 CI 通过 SENTRY_DSN 提供）；运行时 SENTRY_DSN 优先覆盖。
+    // DSN 是公开的客户端标识而非密钥；未配置时注入空串，sentry.ts 保持完整 no-op
+    define: {
+      ['__SENTRY_DSN__']: JSON.stringify(process.env['SENTRY_DSN'] ?? ''),
+    },
   },
   preload: {
     build: {

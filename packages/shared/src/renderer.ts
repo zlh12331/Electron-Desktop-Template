@@ -47,5 +47,6 @@ export type { SettingKey } from './schemas/settings';
 // settings:set 可写键白名单：渲染层侧用于启动时逐键过滤旧 localStorage 遗留设置再迁移落库
 export { SETTING_KEYS } from './schemas/settings';
 export type * from './schemas/system';
+export type * from './schemas/telemetry';
 export type * from './schemas/update';
 export type * from './schemas/window';

@@ -64,11 +64,11 @@ jobs:
             build-mode: none
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # 初始化 CodeQL 数据库；config-file 指向排除 vendored 路径的配置
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
@@ -77,6 +77,6 @@ jobs:
       # javascript-typescript 与 actions 均为解释型/无构建语言，build-mode: none 即无需构建步骤
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
           category: '/language:${{ matrix.language }}'

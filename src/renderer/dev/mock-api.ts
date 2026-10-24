@@ -61,6 +61,7 @@ export function installMockApi(): void {
       quit: async () => ipcOk({ ok: true }),
       subscribeDeepLink: () => () => {},
       subscribeLoginItemChanged: () => () => {},
+      takePendingDeepLink: async () => ipcOk({ payload: null }),
     },
     window: {
       applyZoom: async () => ipcOk({ ok: true }),
@@ -87,8 +88,71 @@ export function installMockApi(): void {
       importSettings: async () => ipcOk({ imported: 0, skipped: 0 }),
       subscribeChanged: () => () => {},
     },
+    telemetry: {
+      captureError: async () => ipcOk({ accepted: false }),
+      reportWebVitals: async () => ipcOk({ accepted: 0 }),
+      rendererReady: async () => ipcOk({ accepted: false }),
+      getStatus: async () =>
+        ipcOk({
+          level: 'off' as const,
+          configuredLevel: 'off' as const,
+          restartRequired: false,
+          sentry: {
+            enabled: false,
+            initialized: false,
+            reason: 'telemetry-off' as const,
+            release: null,
+            environment: null,
+          },
+          otel: {
+            enabled: false,
+            tracing: false,
+            metrics: false,
+            logs: false,
+            endpointConfigured: false,
+          },
+          health: {
+            traces: {
+              attempts: 0,
+              failures: 0,
+              lastSuccessAt: null,
+              lastFailureAt: null,
+              lastError: null,
+            },
+            metrics: {
+              attempts: 0,
+              failures: 0,
+              lastSuccessAt: null,
+              lastFailureAt: null,
+              lastError: null,
+            },
+            logs: {
+              attempts: 0,
+              failures: 0,
+              lastSuccessAt: null,
+              lastFailureAt: null,
+              lastError: null,
+            },
+            sampledLogs: 0,
+            rateLimitedLogs: 0,
+            suppressedErrors: 0,
+            lastDropAt: null,
+          },
+        }),
+      testConnection: async () =>
+        ipcOk({
+          sentry: { configured: false, valid: false, message: '未配置 DSN' },
+          otlp: {
+            checked: false,
+            reason: 'off' as const,
+            message: '浏览器 mock 不探测',
+            results: [],
+          },
+        }),
+    },
     proxy: {
       test: async () => ipcOk({ ok: true, kind: 'not-applicable' as const }),
+      clearAuth: async () => ipcOk({ ok: true }),
     },
     secrets: {
       isAvailable: async () => ipcOk({ available: true, platform: 'web' }),

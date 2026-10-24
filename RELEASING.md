@@ -103,16 +103,40 @@ pnpm check:changelog-polish   # 验证通过后再合并 Release PR
 
 ## 五、签名与分发
 
-模板默认**不配置签名也能发版**：未检测到 `CSC_LINK` 时 `CSC_IDENTITY_AUTO_DISCOVERY=false`，
-产物为未签名包，适合自用与内测，不适合公开分发。
+**当前发布口径：三平台未签名包。** 未检测到 `CSC_LINK` 时 `CSC_IDENTITY_AUTO_DISCOVERY=false`，
+产物为未签名包，适合自用、内测与模板演示，**不适合面向普通用户的正式分发**。
 
-公开分发前配置：
+未签名安装包的用户侧限制：
+
+- **Windows**：可能触发 SmartScreen，选择「更多信息 → 仍要运行」。
+- **macOS**：未签名/未公证，首次打开需在「系统设置 → 隐私与安全性」允许，或手动清隔离属性：
+
+  ```bash
+  xattr -dr com.apple.quarantine "/Applications/<应用名>.app"
+  ```
+
+- **自动更新**：macOS 未签名包的 Squirrel.Mac 更新未验证，建议手动下载安装；Windows/Linux 可尝试，但缺少代码签名信任链。
+
+`release.yml` 会在检测到 Windows 或 macOS 签名凭据缺失时，自动把上述提示追加到 GitHub Release 正文，避免用户下载后才遇到拦截。
+
+后续要转为正式分发，配置：
 
 - Windows / macOS 代码签名：`CSC_LINK` + `CSC_KEY_PASSWORD`
 - macOS 公证：`APPLE_API_KEY` + `APPLE_API_KEY_ID` + `APPLE_API_ISSUER`
   （或 `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` + `APPLE_TEAM_ID`）
 
-未配置时 CD 不会因此失败；是否在发布说明中标注「未签名」由维护者决定。
+### 5.1 可观测性（可选）
+
+发布构建会自动尝试上传 Sentry source map；以下 Secrets 任一缺失时脚本打印跳过原因并继续构建：
+
+- `SENTRY_DSN`：构建期注入的默认 DSN（运行时环境变量可覆盖；不配则错误上报 no-op）
+- `SENTRY_AUTH_TOKEN` + `SENTRY_ORG` + `SENTRY_PROJECT`：source map 上传凭据
+
+原生调试符号默认不上传；需要原生崩溃完整符号化时设置仓库变量 `SENTRY_UPLOAD_DEBUG_FILES=1`
+（会显著增加 CI 时间与 Sentry 存储）。CD 在构建前执行 `pnpm observability:doctor --release --offline`：
+上传凭据半配置会直接 fail，全缺/全配都放行。详见 [可观测性运行手册](docs/guides/observability-runbook.md)。
+
+未配置时 CD 不会因此失败；`release.yml` 会根据签名凭据是否存在自动追加「未签名构建提示」。
 
 ## 六、预发布（可选，模板默认关闭）
 

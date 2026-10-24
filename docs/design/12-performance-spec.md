@@ -1,7 +1,7 @@
 # 12. 性能规范
 
-> 面向模板现状的性能门槛与纪律。数字为 2026-10-21 实测；随构建产物变化，以 `pnpm check:bundle` 输出为准。
-> 最后同步：2026-10-21
+> 面向模板现状的性能门槛与纪律。数字为 2026-10-24 实测；随构建产物变化，以 `pnpm check:bundle` 输出为准。
+> 最后同步：2026-10-24
 
 ---
 > 工程化强制：`pnpm check:bundle`（构建产物门槛，超限卡关）+ `pnpm analyze:bundle`（体积报告）
@@ -18,10 +18,10 @@
 
 | 指标 | 门槛 | 当前实测 | 说明 |
 |---|---|---|---|
-| 单个 chunk | ≤ 5120 KB | 1125 KB（SettingsDialog） | 路由级 lazy 已把页面拆出主包 |
-| 渲染层总包（JS 合计） | ≤ 16384 KB | 3307 KB | 20 个 chunk |
-| 首载同步体积 | ≤ 3072 KB | 2101 KB | `index.html` 的 script/modulepreload 合计，即 Electron 首帧必须下载的 JS |
-| 主进程 bundle | 告警线 5120 KB | 471 KB | 只告警不卡关 |
+| 单个 chunk | ≤ 5120 KB | 1138 KB（SettingsDialog） | 路由级 lazy 已把页面拆出主包 |
+| 渲染层总包（JS 合计） | ≤ 16384 KB | 3348 KB | 20 个 chunk |
+| 首载同步体积 | ≤ 3072 KB | 2123 KB | `index.html` 的 script/modulepreload 合计，即 Electron 首帧必须下载的 JS |
+| 主进程 bundle | 告警线 5120 KB | 563 KB | 只告警不卡关 |
 
 门槛写在 `scripts/check-bundle.ts` 顶部的三个常量里，改门槛需同步改本节。
 
@@ -85,6 +85,9 @@
 | 层 | 命令 | 卡关位置 |
 |---|---|---|
 | 构建产物体积 | `pnpm check:bundle` | `verify:local:full` |
+| 生产启动到可交互 | `pnpm test:smoke`（`smoke.prod.spec.ts`，<10s） | CD smoke |
+| 启动耗时趋势 | `smoke.prod.spec.ts` 写入 `stats/startup-history.json`（保留 30 次，环比 >20% 告警） | 本地 / CD |
+| 视觉基线 | `pnpm test:visual`（首页亮/暗 + 设置通用页，Windows 专用） | CI visual job |
 | React Compiler 生效 | `pnpm check:compiler` | 同上 |
 | React DevTools 可注入 | `pnpm check:devtools` | 同上 |
 | 死代码 / 死依赖 | `pnpm knip` | CI quality |
@@ -105,7 +108,7 @@ pnpm preview          # 启动构建产物，配合 DevTools Performance 面板�
 
 ### 4.3 接入业务后的建议
 
-模板本身没有性能基准套件。接入业务时按需补：
+模板的自动预算为 bundle 体积、生产启动 <10s、启动趋势告警与 3 张 Windows 视觉基线；**没有 FCP/LCP/INP 硬门槛**。视觉基线固定 Windows 平台，避免 Linux 字体抗锯齿造成长期假红；接入业务后按需扩充页面与真实用户指标预算：
 
 - **主进程**：SQLite 查询（万级行 + `EXPLAIN` 验证索引命中）、外部进程吞吐
 - **渲染层**：长列表 DOM 规模、滚动长任务、首载 JS 体积趋势

@@ -13,6 +13,7 @@ import { closeDb, type DrizzleDB, initDb, resetDb } from '../../../src/main/infr
 interface ItState {
   userData: string;
   dialogResult: { canceled: boolean; filePath?: string };
+  openDialogResult: { canceled: boolean; filePaths?: string[] };
 }
 
 function getItState(): ItState {
@@ -22,6 +23,11 @@ function getItState(): ItState {
 /** 设置 dialog 返回结果（exportAll 用例用；默认取消） */
 export function setDialogResult(result: { canceled: boolean; filePath?: string }): void {
   getItState().dialogResult = result;
+}
+
+/** 设置 open dialog 返回结果（设置导入用例用；默认取消） */
+export function setOpenDialogResult(result: { canceled: boolean; filePaths?: string[] }): void {
+  getItState().openDialogResult = result;
 }
 
 /**

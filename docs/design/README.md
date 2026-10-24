@@ -42,7 +42,7 @@
 |---|---|---|---|
 | 17 | [安全规范](17-security-spec.md) | Electron 生产级基线：进程隔离 / CSP / 凭据 / 依赖 | check:csp-hash / check:secrets-git |
 | 16 | [错误与日志](16-error-logging-spec.md) | AppError、traceId、ErrorBoundary 分层与本地优先上报 | — |
-| 23 | [可观测性](23-otel-spec.md) | OTel 单通道、span 约定、与日志的分工 | — |
+| 23 | [可观测性](23-otel-spec.md) | L4：Sentry 错误/崩溃、OTel trace/metrics/logs、Web Vitals、遥测级别与脱敏边界 | — |
 
 ## 五、流程
 
@@ -53,6 +53,6 @@
 ## 六、维护约定
 
 1. **同 PR 同步**：代码改动涉及某篇规范时，同一 PR 内更新文档；源码注释中的文档引用一并核对。
-2. **门禁兜底**：`check:comments`（注释与代码漂移、失效文件引用、不存在的 `pnpm` 命令）、`check:docs-scripts`（文档脚本表 ↔ package.json）、`tokens:check`（令牌生成物一致性）。
+2. **门禁兜底**：`check:comments`（注释与代码漂移、失效文件引用、不存在的 `pnpm` 命令）、`check:docs-scripts`（文档脚本表 ↔ package.json）、`check:docs-contracts`（IPC 计数/域清单、静态门禁数、ErrorCode 符号与代码路径引用）、`tokens:check`（令牌生成物一致性）。
 3. **编号规则**：既有编号保留（历史 ID，有缺号）；新增规范用主题命名、不带编号，如 `release-versioning-spec.md`。
 4. **新功能落位**：按 32 号流程产出 `docs/history/NN-<slug>-spec.md`，在 [history/README](../history/README.md) 登记。彻底过时的一次性交付直接删除（git 历史可追回），不设归档目录。

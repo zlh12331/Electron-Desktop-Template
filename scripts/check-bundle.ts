@@ -119,7 +119,7 @@ function main(): number {
     if (mainKib > MAIN_WARN_KB) {
       console.warn(
         `[check-bundle] ⚠️ 主进程 bundle ${mainKib.toFixed(0)}KB > ${MAIN_WARN_KB}KB（告警不卡关）：` +
-          '主进程运行时依赖（@cursorless/tree-sitter-wasms/gpt-tokenizer/lark SDK 等）体积需收敛',
+          '主进程运行时依赖（Sentry / OpenTelemetry / 更新与数据库驱动等）体积需收敛',
       );
     } else {
       console.log(

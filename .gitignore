@@ -62,6 +62,7 @@ test-results/
 .e2e-user-data-update/
 # 静默启动 E2E 专用 userData（electron-hidden-start.spec.ts）
 .e2e-user-data-hidden/
+.e2e-user-data-deeplink/
 
 # Electron 打包
 *.exe
@@ -89,3 +90,6 @@ release/
 
 # 工具运行时状态（钩子会话锁等机器生成文件，任何目录下的 .mimosa/ 都不入仓）
 .mimosa/
+
+# Foundry 本地部署锁（由 cast 生成，含解析后的完整配置，不入仓）
+observability/**/*.lock

@@ -1,0 +1,27 @@
+# Collector config overlay, loaded AFTER collector.yaml. Never loaded by default.
+# Set the client's head sampler to 1 explicitly to retain all error/slow candidates.
+# This overlay does NOT change the application's default 20% head sampling.
+# Tail decisions and batch buffers are in memory; the exporter queue is durable.
+processors:
+  tail_sampling:
+    decision_wait: 30s
+    num_traces: 5000
+    expected_new_traces_per_sec: 100
+    policies:
+      - name: errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      - name: slow
+        type: latency
+        latency:
+          threshold_ms: 1000
+      - name: baseline
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 10
+
+service:
+  pipelines:
+    traces:
+      processors: [memory_limiter, tail_sampling, batch]

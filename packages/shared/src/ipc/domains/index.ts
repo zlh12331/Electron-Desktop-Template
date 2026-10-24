@@ -13,6 +13,7 @@ import { proxyDomain } from './proxy';
 import { secretsDomain } from './secrets';
 import { settingsDomain } from './settings';
 import { systemDomain } from './system';
+import { telemetryDomain } from './telemetry';
 import { updateDomain } from './update';
 import { windowDomain } from './window';
 
@@ -24,6 +25,7 @@ export const IPC_DOMAINS = {
   settings: settingsDomain,
   system: systemDomain,
   logs: logsDomain,
+  telemetry: telemetryDomain,
   devtools: devtoolsDomain,
   backup: backupDomain,
   update: updateDomain,

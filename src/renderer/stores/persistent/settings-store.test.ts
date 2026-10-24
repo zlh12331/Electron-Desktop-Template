@@ -169,6 +169,20 @@ describe('settings-store.notification 域', () => {
   });
 });
 
+describe('settings-store.snapshot 基础值容错', () => {
+  it('损坏 theme/language 回落默认，不让非法值进入主题循环或 i18n', () => {
+    applySettingsSnapshot({ theme: 'neon', language: 'fr-FR' });
+    expect(useSettingsStore.getState().theme).toBe(DEFAULTS.theme);
+    expect(useSettingsStore.getState().language).toBe(DEFAULTS.language);
+  });
+
+  it('合法 theme/language 正常应用', () => {
+    applySettingsSnapshot({ theme: 'system', language: 'en' });
+    expect(useSettingsStore.getState().theme).toBe('system');
+    expect(useSettingsStore.getState().language).toBe('en');
+  });
+});
+
 describe('settings-store.proxy 域（34 号网络代理）', () => {
   beforeEach(() => {
     Object.defineProperty(window, 'api', {

@@ -208,6 +208,8 @@ describe('keychain', () => {
           lost: 1,
         }),
         expect.stringContaining('已损坏'),
+        expect.any(Error),
+        { context: { scope: 'keychain', stage: 'salvage' }, message: '错误上报' },
       );
       expect(existsSync(`${keychainFile()}.corrupt`)).toBe(true);
       const rewritten = JSON.parse(readFileSync(keychainFile(), 'utf8')) as Record<string, unknown>;
@@ -225,6 +227,8 @@ describe('keychain', () => {
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.objectContaining({ corrupted: true, recoverable: false, salvaged: 0, lost: 1 }),
         expect.stringContaining('已损坏'),
+        expect.any(Error),
+        { context: { scope: 'keychain', stage: 'salvage' }, message: '错误上报' },
       );
       expect(existsSync(keychainFile())).toBe(false);
       expect(existsSync(`${keychainFile()}.corrupt`)).toBe(true);

@@ -31,6 +31,8 @@ export default defineConfig({
       provider: 'v8',
       // lcov 供 CI 覆盖率聚合与本地覆盖率可视化工具读取（编辑器按 coverage/lcov.info 定位），去掉即失去该能力
       reporter: ['text', 'html', 'lcov'],
+      // 显式 include：未被测试导入的契约模块也计入分母
+      include: ['src/**/*.ts'],
       thresholds: {
         statements: sharedFloor.statements,
         branches: sharedFloor.branches,

@@ -13,6 +13,7 @@ import { expect, test } from '@playwright/test';
 import { _electron as electron } from 'playwright';
 
 import { closeElectronApp } from './helpers/close-electron';
+import { recordStartupMeasurement } from './helpers/startup-history';
 
 // 产物名取自品牌真源（app.config.json → brand.ts），与 electron-builder.yml 的
 // productName / linux.executableName 同源——改品牌只需跑 init:template，无需改本文件
@@ -212,6 +213,24 @@ test.describe('生产构建冒烟测试', () => {
     console.log(
       `[perf:startup] 生产启动分段：launch ${t1 - t0}ms / firstWindow ${t2 - t1}ms / dom ${t3 - t2}ms / React 首屏 ${t4 - t3}ms / 可交互 ${t5 - t4}ms / 合计 ${total}ms`,
     );
+    const trend = recordStartupMeasurement({
+      launchMs: t1 - t0,
+      firstWindowMs: t2 - t1,
+      domMs: t3 - t2,
+      firstPaintMs: t4 - t3,
+      interactiveMs: t5 - t4,
+      totalMs: total,
+    });
+    // 环比只告警不卡关：CI 共享 runner 的单次抖动不足以否定构建；绝对预算仍由下一行硬卡
+    if (trend.deltaPct !== null && Math.abs(trend.deltaPct) > 20) {
+      console.warn(
+        `[perf:startup] ⚠️ 合计耗时环比 ${trend.deltaPct > 0 ? '+' : ''}${trend.deltaPct}%（样本 ${trend.samples}），请检查是否引入回归`,
+      );
+    }
+    test.info().annotations.push({
+      type: 'startup-trend',
+      description: `samples=${trend.samples} delta=${trend.deltaPct ?? 'n/a'}%`,
+    });
     expect(total, '生产构建冷启动到可交互应 < 10s（基线，渐进收紧）').toBeLessThan(10_000);
 
     await closeElectronApp(launchApp);

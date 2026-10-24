@@ -4,7 +4,13 @@ import { join } from 'node:path';
 import { ErrorCode } from '@code-agent/shared/main';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { closeDb, initDb, resetDb } from './db';
-import { applySettingsImport, buildSettingsExportFile } from './settings-io';
+import {
+  applySettingsImport,
+  buildSettingsExportFile,
+  redactProxyCredentialsInSettings,
+  replaceSettingInImportPayload,
+  validateSettingsImport,
+} from './settings-io';
 import { readAllSettings, writeSetting } from './settings-pref';
 
 const mocks = vi.hoisted(() => ({
@@ -128,6 +134,20 @@ describe('settings-io（app_settings 全表 ↔ 版本化 JSON）', () => {
     expect(readAllSettings()).toEqual({ theme: 'light' });
   });
 
+  it('值级校验：白名单键含非法值 → INVALID_INPUT，库零写入（不产生半截导入）', () => {
+    writeSetting('theme', 'light');
+
+    expect(() =>
+      applySettingsImport({
+        version: 1,
+        exportedAt: Date.now(),
+        settings: { theme: 'neon', language: 'en' },
+      }),
+    ).toThrowError(expect.objectContaining({ code: ErrorCode.INVALID_INPUT }));
+
+    expect(readAllSettings()).toEqual({ theme: 'light' });
+  });
+
   it('原子性：白名单内任一值超尺寸 → 整批回滚，合法键也不落库（不产生半截导入）', () => {
     writeSetting('theme', 'light');
 
@@ -136,10 +156,53 @@ describe('settings-io（app_settings 全表 ↔ 版本化 JSON）', () => {
       applySettingsImport({
         version: 1,
         exportedAt: Date.now(),
-        settings: { shortcuts: { commandPalette: 'Ctrl+P' }, theme: oversized },
+        settings: {
+          shortcuts: { commandPalette: 'Ctrl+P' },
+          update: { skippedVersion: oversized },
+        },
       }),
     ).toThrowError(/设置值过大/);
 
     expect(readAllSettings()).toEqual({ theme: 'light' });
+  });
+
+  it('导出脱敏：代理 URL 内嵌凭据不进入备份文件', () => {
+    writeSetting('proxy', {
+      mode: 'fixed',
+      url: 'http://alice:s3cret@proxy.example:8080',
+    });
+
+    const file = buildSettingsExportFile();
+    expect(file.settings['proxy']).toEqual({
+      mode: 'fixed',
+      url: 'http://proxy.example:8080',
+    });
+    expect(JSON.stringify(file)).not.toContain('s3cret');
+    expect(redactProxyCredentialsInSettings({ proxy: 'not-object' })).toEqual({
+      proxy: 'not-object',
+    });
+    expect(redactProxyCredentialsInSettings({ proxy: { mode: 'system' } })).toEqual({
+      proxy: { mode: 'system' },
+    });
+  });
+
+  it('validateSettingsImport 只校验不落库；replaceSettingInImportPayload 保持其他字段', () => {
+    const payload = {
+      version: 1,
+      exportedAt: Date.now(),
+      settings: { theme: 'dark', language: 'en' },
+    };
+    const preview = validateSettingsImport(payload);
+    expect(preview.imported).toBe(2);
+    expect(readAllSettings()).toEqual({});
+
+    expect(replaceSettingInImportPayload(payload, 'language', 'zh-CN')).toMatchObject({
+      version: 1,
+      settings: { theme: 'dark', language: 'zh-CN' },
+    });
+    expect(replaceSettingInImportPayload('not-object', 'theme', 'dark')).toBe('not-object');
+    expect(
+      replaceSettingInImportPayload({ version: 1, settings: 'not-object' }, 'theme', 'dark'),
+    ).toEqual({ version: 1, settings: 'not-object' });
   });
 });

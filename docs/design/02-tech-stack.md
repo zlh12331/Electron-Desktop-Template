@@ -6,7 +6,7 @@
 
 | 领域 | 选型 | 说明 |
 |---|---|---|
-| 桌面容器 | Electron 44 | 主进程 Node 侧 + Chromium 渲染侧；三平台打包 |
+| 桌面容器 | Electron 44 | 主进程 Node 侧 + Chromium 渲染侧；三平台 × x64/arm64 打包 |
 | 渲染框架 | React 19 + React Compiler | 编译器经 `oxc-transform-react` 生效（`check:compiler` 断言产物痕迹） |
 | 构建 | electron-vite（Vite 8） | main / preload / renderer 三目标；preload 强制 CJS |
 | 语言 | TypeScript 7（严格模式） | `exactOptionalPropertyTypes` / `noUncheckedIndexedAccess` / `isolatedDeclarations` |
@@ -19,8 +19,9 @@
 |---|---|---|
 | 数据库 | better-sqlite3 + drizzle-orm | 同步 API；schema 单一真源，迁移由 drizzle-kit 派生 |
 | 日志 | electron-log | 落本地文件，traceId 贯穿；渲染层经 IPC 转发 |
-| 更新 | electron-updater | GitHub provider；三平台产物元数据由 release.yml 生成 |
-| 遥测 | OpenTelemetry（OTLP/HTTP） | 未配置 endpoint 即不外发 |
+| 更新 | electron-updater | GitHub provider；六架构产物元数据由 release.yml 生成（Windows/macOS 各双架构合并） |
+| 错误聚合 | @sentry/electron（主进程） | 错误/原生崩溃/release health；DSN 未配置即完全 no-op |
+| 遥测 | OpenTelemetry（OTLP/HTTP）+ web-vitals | trace/metrics/logs；未配置 endpoint 即不外发，渲染层只上报错误与 Web Vitals |
 | 网络 | undici | 统一 fetch 实现，代理配置注入（`infra/network/proxied-fetch`） |
 | 压缩 | adm-zip | 诊断包导出 |
 | 契约校验 | zod 4 | IPC 入参/响应；preload 与渲染层出口按进程拆分，避免 zod 进沙箱 |
@@ -44,6 +45,7 @@
 | 领域 | 选型 | 说明 |
 |---|---|---|
 | 包管理 | pnpm 12 workspace | `pnpm-workspace.yaml` 统一声明构建脚本决策与 store 位置 |
+| 安装 | 根 `postinstall` | 安装并校验 Electron 二进制，再按 Electron ABI 重编 `better-sqlite3`；失败阻断 install |
 | Lint/Format | Biome 2 | 含 import 排序；`useNamingConvention` 默认 strictCase |
 | 单测 | Vitest 5 | 与源码 colocation；覆盖率下限存 `scripts/coverage-floors.json` |
 | E2E | Playwright | 浏览器模式 / Electron / 生产 smoke 三套配置 |
@@ -51,7 +53,7 @@
 | 死代码 | knip | files / deps / binaries 级卡关 |
 | API 文档 | TypeDoc | 独立 TS 6 子包（`tools/typedoc`），规避 TS7 不兼容 |
 | 设计令牌 | Style Dictionary | `tokens/aurora.json` → `src/renderer/styles/tokens.css`（生成物） |
-| 发版 | release-please | Conventional Commits + 单分支 prerelease 策略 |
+| 发版 | release-please | Conventional Commits + 单分支；默认稳定版，不内置 prerelease 配置 |
 
 ## 5. Monorepo 结构
 

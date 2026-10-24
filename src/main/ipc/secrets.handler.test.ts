@@ -27,6 +27,7 @@ vi.mock('../utils/logger', () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), withTrace: vi.fn() },
 }));
 
+import { setSecret } from '../infra/storage/keychain';
 import { secretsHandlers } from './secrets.handler';
 
 const EMPTY_CTX = {} as never;
@@ -89,6 +90,22 @@ describe('secrets.handler', () => {
     expect(await secretsHandlers.delete({ key: 'temp' }, EMPTY_CTX)).toEqual({ ok: true });
     expect(await secretsHandlers.list(undefined, EMPTY_CTX)).toEqual({ keys: [] });
     expect(await secretsHandlers.delete({ key: 'temp' }, EMPTY_CTX)).toEqual({ ok: true });
+  });
+
+  it('内部保留键不出现在列表，且 secrets 域不可读写', async () => {
+    await setSecret('__proxy_auth', 'http://u:p@proxy:8080');
+    await secretsHandlers.set({ key: 'normal', value: 'v' }, EMPTY_CTX);
+
+    expect(await secretsHandlers.list(undefined, EMPTY_CTX)).toEqual({ keys: ['normal'] });
+    await expect(
+      secretsHandlers.set({ key: '__proxy_auth', value: 'overwrite' }, EMPTY_CTX),
+    ).rejects.toMatchObject({ code: 'INVALID_INPUT' });
+    await expect(secretsHandlers.delete({ key: '__proxy_auth' }, EMPTY_CTX)).rejects.toMatchObject({
+      code: 'INVALID_INPUT',
+    });
+    await expect(
+      secretsHandlers.getMasked({ key: '__proxy_auth' }, EMPTY_CTX),
+    ).rejects.toMatchObject({ code: 'INVALID_INPUT' });
   });
 
   it('覆盖写：同名键更新为新值（不产生重复条目）', async () => {

@@ -2,7 +2,7 @@
 
 > 本文说明**这个模板为什么这样组织**，以及每条约束由什么机器守着。
 > 功能清单见 [README](../../README.md)，扩展方法见 [AGENTS.md](../../AGENTS.md)「扩展点速查」。
-> 最后同步：2026-10-21
+> 最后同步：2026-10-23（补充派生链路与安装钩子）
 
 ## 核心命题
 
@@ -44,7 +44,7 @@ packages/shared/src/ipc/
 
 src/preload/utils/create-api.ts   # 遍历 meta 生成 window.api
 src/main/ipc/register.ts          # 遍历定义表统一注册
-src/main/utils/wrap.ts            # sender 校验 + zod 双向校验 + traceId
+src/main/ipc/wrap.ts            # sender 校验 + zod 双向校验 + traceId
 ```
 
 依赖方向严格单向：`meta` ← `domains` ← `definitions` ← `channels` / `api`。
@@ -137,6 +137,7 @@ src/main/utils/wrap.ts            # sender 校验 + zod 双向校验 + traceId
 |---|---|---|
 | `check:comments` | 注释/文档里的失效文件路径、行号、`@param` 漂移、`pnpm` 命令不存在 | 文档指向已删文件，新人照着做必失败 |
 | `check:docs-scripts` | 文档脚本表 ↔ `package.json` 不一致 | 文档里的命令实际不存在 |
+| `check:docs-contracts` | IPC 计数/域清单、静态门禁数、`ErrorCode` 符号或代码路径引用过期 | 文档声称的契约与当前代码不一致 |
 | `tokens:check` | 设计令牌生成物 ↔ 真源不一致 | 改了令牌忘了重新生成 |
 | `check:csp-hash` | CSP 内联脚本 hash 未锚定 | 注释掉的旧脚本被静默放行 |
 | `check:css-vars` | `var(--x)` 引用了未定义的变量 | 样式静默失效 |
@@ -146,6 +147,16 @@ src/main/utils/wrap.ts            # sender 校验 + zod 双向校验 + traceId
 | `check:secrets-git` | 待推送区间含密钥 | 推上去即不可逆 |
 | `check:i18n` | 引用缺失 / 双语不一致 / 冗余 key | 界面出现原始 key |
 
+### 派生链路也是漂移面
+
+源仓库门禁看不到初始化后的项目，以下两条链路额外受约束：
+
+- `init:template` 同步品牌、把版本基线重置为 `0.0.0`、删除模板专用的 `bootstrap-sha`，在改写首帧主题脚本时重算 CSP 哈希，并同步 NSIS 安装宏里的 Windows 协议
+- 根 `postinstall` 先安装并校验 Electron 二进制，再按 Electron ABI 重编 `better-sqlite3`；失败显式退出，不留下「能装不能跑」的状态
+
+它们分别由 `scripts/init-template.test.ts` / `scripts/postinstall-rebuild.test.ts` 覆盖，
+最终以 [派生验收指南](../guides/template-acceptance.md)为准。
+
 ---
 
 ## 六、CI/CD 与发版
@@ -153,7 +164,7 @@ src/main/utils/wrap.ts            # sender 校验 + zod 双向校验 + traceId
 - **CI on PR, CD on main**：`ci.yml` 由 `pull_request` 与 `merge_group` 触发；`release.yml` 只处理发版
 - **必需检查用 summary job 暴露稳定名**：平台 label 换代只改 workflow，不改云端 ruleset；summary job 必须 `if: always()`（被跳过的必需检查 = 永不 report = PR 永久卡 pending）
 - **发版三护栏**：合并纪律（CD 全绿才人工合并）/ 锚点检查（tag ↔ Release PR ↔ 待合并版本三态自洽）/ 内容边界（Release PR 只允许版本号 + CHANGELOG）
-- **打包验证只在 CD**：`ci.yml` 不做三平台打包（与 `release.yml` 完全重复）；动打包链路的 PR 合并前本地跑 `pnpm build:win:x64` → `check:native-arch` → `pnpm test:smoke`
+- **打包验证只在 CD**：`ci.yml` 不做六架构打包（与 `release.yml` 完全重复）；动打包链路的 PR 合并前本地跑 `pnpm build:win:x64` → `check:native-arch` → `pnpm test:smoke`
 
 ---
 

@@ -13,6 +13,18 @@ export interface ProxyConfig {
   readonly bypass?: readonly string[];
 }
 
+/** 代理 URL 中提取的认证信息（仅 fixed 模式使用） */
+export interface ProxyAuth {
+  /** 规范化主机名（IPv6 去括号、小写） */
+  readonly host: string;
+  /** 端口（URL 缺省时按协议取 80/443） */
+  readonly port: number;
+  /** 用户名（已 URL 解码） */
+  readonly username: string;
+  /** 密码（已 URL 解码） */
+  readonly password: string;
+}
+
 const ProxyConfigSchema = z.object({
   mode: z.enum(['system', 'direct', 'fixed']),
   url: z
@@ -117,6 +129,38 @@ export function shouldBypass(cfg: ProxyConfig, requestUrl: string): boolean {
 /** 日志用脱敏：代理 URL 可能带 `user:pass@` 认证段，替换为 *** */
 export function maskProxyUrl(url: string): string {
   return url.replace(/\/\/[^/@]+@/, '//***@');
+}
+
+/** 规范化主机名（IPv6 的 URL.hostname 带方括号，Electron AuthInfo.host 不带） */
+export function normalizeProxyHost(host: string): string {
+  return host.replace(/^\[|\]$/g, '').toLowerCase();
+}
+
+/**
+ * 从代理 URL 提取认证信息；无凭据/非法 URL 返回 null
+ *
+ * Chromium 的 proxyRules 不保留 URL 内嵌凭据，认证挑战由 app 的 login 事件响应，
+ * 这里只做纯解析，事件注册与生命周期在 proxy-applier。
+ */
+export function resolveProxyAuth(url: string | undefined): ProxyAuth | null {
+  if (url === undefined || url === '') {
+    return null;
+  }
+  try {
+    const parsed = new URL(url);
+    if (parsed.username === '' && parsed.password === '') {
+      return null;
+    }
+    const port = parsed.port !== '' ? Number(parsed.port) : parsed.protocol === 'https:' ? 443 : 80;
+    return {
+      host: normalizeProxyHost(parsed.hostname),
+      port,
+      username: decodeURIComponent(parsed.username),
+      password: decodeURIComponent(parsed.password),
+    };
+  } catch {
+    return null;
+  }
 }
 
 // 端口缺省按协议补齐（Chromium proxyRules 要求 host:port 形态）

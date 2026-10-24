@@ -13,6 +13,7 @@ import { expect, test } from '@playwright/test';
 import { _electron as electron } from 'playwright';
 
 import { closeElectronApp } from './helpers/close-electron';
+import { buildElectronEnv } from './helpers/electron-env';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -48,15 +49,14 @@ async function launchElectron(
 ): Promise<{ app: ElectronApplication; page: Page }> {
   const app = await electron.launch({
     args: [MAIN_ENTRY, ...extraArgs],
-    env: {
-      ...process.env,
+    env: buildElectronEnv({
       NODE_ENV: 'development',
       ELECTRON_RENDERER_URL: 'http://localhost:5173',
       APP_USER_DATA: E2E_USER_DATA,
       APP_DEBUG_PORT: DEBUG_PORT,
       // 豁免关窗协商（隐藏启动用例不涉及关窗路径）
       APP_SKIP_CLOSE_GUARD: '1',
-    },
+    }),
   });
   const deadline = Date.now() + 20_000;
   let page: Page | undefined;
@@ -112,8 +112,7 @@ async function spawnSecondInstance(): Promise<void> {
       electronBinary,
       [MAIN_ENTRY],
       {
-        env: {
-          ...process.env,
+        env: buildElectronEnv({
           NODE_ENV: 'development',
           ELECTRON_RENDERER_URL: 'http://localhost:5173',
           APP_USER_DATA: E2E_USER_DATA,
@@ -121,7 +120,7 @@ async function spawnSecondInstance(): Promise<void> {
           // 与主实例同端口会争抢
           APP_DEBUG_PORT: '9235',
           APP_SKIP_CLOSE_GUARD: '1',
-        },
+        }),
         timeout: 20_000,
         windowsHide: true,
       },

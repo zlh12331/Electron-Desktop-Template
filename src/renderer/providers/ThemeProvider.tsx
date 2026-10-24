@@ -1,4 +1,11 @@
-import { createContext, type ReactElement, type ReactNode, useContext, useEffect } from 'react';
+import {
+  createContext,
+  type ReactElement,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 
 import type { Theme } from '@/stores/persistent/settings-store';
 import { useSettingsStore } from '@/stores/persistent/settings-store';
@@ -66,25 +73,28 @@ function applyTheme(resolved: 'light' | 'dark'): void {
 export function ThemeProvider({ children }: { children: ReactNode }): ReactElement {
   const theme = useSettingsStore((s) => s.theme);
   const setTheme = useSettingsStore((s) => s.setTheme);
-
-  const resolvedTheme: 'light' | 'dark' = theme === 'system' ? getSystemTheme() : theme;
-
-  useEffect(() => {
-    applyTheme(resolvedTheme);
-  }, [resolvedTheme]);
+  // system 模式下 OS 主题可能运行中变化：必须进 state，否则 context 的 resolvedTheme
+  // 会停留在首帧值（消费方如顶栏图标不会更新）。
+  const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(getSystemTheme);
 
   useEffect(() => {
     if (theme !== 'system') {
       return;
     }
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = () => {
-      const resolved = mediaQuery.matches ? 'dark' : 'light';
-      applyTheme(resolved);
+    const handleChange = (): void => {
+      setSystemTheme(mediaQuery.matches ? 'dark' : 'light');
     };
+    handleChange();
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, [theme]);
+
+  const resolvedTheme: 'light' | 'dark' = theme === 'system' ? systemTheme : theme;
+
+  useEffect(() => {
+    applyTheme(resolvedTheme);
+  }, [resolvedTheme]);
 
   const value: ThemeContextValue = { theme, resolvedTheme, setTheme };
 

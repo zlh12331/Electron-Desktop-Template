@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -29,6 +30,8 @@ function copyToTemp(): string {
     'release-please-config.json',
     '.github',
     'src/renderer/index.html',
+    'src/main/security/csp.ts',
+    'resources/installer.nsh',
     'src/renderer/i18n/locales',
     'packages/shared/src/constants',
     'CONTRIBUTING.md',
@@ -85,6 +88,27 @@ describe('buildInitInput 校验', () => {
   it('空产品名抛错', () => {
     expect(() => buildInitInput({ ...base, productName: '   ' })).toThrow(/--name/);
   });
+
+  it('非 ASCII 产品名：缺省推导给出 --executable 指引', () => {
+    expect(() => buildInitInput({ ...base, productName: '演示应用' })).toThrow(/--executable/);
+  });
+
+  it('非 ASCII 产品名：显式 executable 可正常初始化', () => {
+    const input = buildInitInput({
+      ...base,
+      productName: '演示应用',
+      executableName: 'demo-app',
+    });
+    expect(input.executableName).toBe('demo-app');
+    expect(input.artifactBaseName).toBe('Demo-App');
+    expect(input.storagePrefix).toBe('demo-app');
+  });
+
+  it('显式 executable 非法时报告参数名而非产品名', () => {
+    expect(() => buildInitInput({ ...base, executableName: 'Bad_Name' })).toThrow(
+      /--executable 格式非法/,
+    );
+  });
 });
 
 describe('assertKnownCliArgs：未知参数必须显式失败', () => {
@@ -138,11 +162,35 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
   }
 
   it('dry-run：报告将改动的文件但不落盘', () => {
-    const before = readFileSync(join(dir, 'app.config.json'), 'utf8');
+    const files = [
+      'app.config.json',
+      'src/renderer/index.html',
+      'src/main/security/csp.ts',
+      'resources/installer.nsh',
+    ];
+    const before = files.map((file) => readFileSync(join(dir, file), 'utf8'));
     const results = runIn(dir, true);
 
     expect(results.some((r) => r.changed)).toBe(true);
-    expect(readFileSync(join(dir, 'app.config.json'), 'utf8')).toBe(before);
+    expect(results).toContainEqual({ file: 'src/main/security/csp.ts', changed: true });
+    expect(results).toContainEqual({ file: 'resources/installer.nsh', changed: true });
+    expect(files.map((file) => readFileSync(join(dir, file), 'utf8'))).toEqual(before);
+  });
+
+  it('品牌改写同步首帧脚本的 CSP 哈希且不放宽策略', () => {
+    const beforeCsp = readFileSync(join(dir, 'src/main/security/csp.ts'), 'utf8');
+    runIn(dir);
+
+    const html = readFileSync(join(dir, 'src/renderer/index.html'), 'utf8');
+    const inline = html.match(/<head>[\s\S]*?<script>([\s\S]*?)<\/script>/)?.[1];
+    expect(inline).toContain("localStorage.getItem('acme-notes:theme')");
+    const hash = `sha256-${createHash('sha256')
+      .update(inline ?? '')
+      .digest('base64')}`;
+    const csp = readFileSync(join(dir, 'src/main/security/csp.ts'), 'utf8');
+    expect(csp).toContain(`'${hash}'`);
+    expect(csp).toBe(beforeCsp.replace(/'sha256-[A-Za-z0-9+/=]+'/g, `'${hash}'`));
+    expect(runIn(dir).every((result) => !result.changed)).toBe(true);
   });
 
   it('正向：品牌真源、package.json、构建配置全部对齐', () => {
@@ -186,6 +234,10 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
     expect(builder).toContain('Acme-Notes-Linux-');
     expect(builder).toContain('        - acmenotes');
     expect(builder).not.toContain('Code-Agent-Desktop');
+
+    const installer = readFileSync(join(dir, 'resources/installer.nsh'), 'utf8');
+    expect(installer).toContain('!define APP_PROTOCOL "acmenotes"');
+    expect(installer).not.toContain('!define APP_PROTOCOL "electron-template"');
 
     const devUpdate = readFileSync(join(dir, 'dev-app-update.yml'), 'utf8');
     expect(devUpdate).toContain('owner: acme');
@@ -249,6 +301,10 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
       '# Changelog\n\n## [9.9.9](https://github.com/upstream/repo/compare/v9.9.8...v9.9.9) (2026-10-01)\n\n### 新增\n\n- 上游历史条目\n',
     );
     writeFileSync(changelogPath, original);
+    const configPath = join(dir, 'release-please-config.json');
+    const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+    config['bootstrap-sha'] = 'a'.repeat(40);
+    writeFileSync(configPath, JSON.stringify(config));
 
     runIn(dir);
 
@@ -281,12 +337,16 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
     expect(releaseConfig).not.toHaveProperty('bootstrap-sha');
   });
 
-  it('模板配置的 bootstrap-sha 位于顶层（release-please 只读取顶层键）', () => {
+  it('bootstrap-sha 可省略，配置时必须是顶层完整 SHA', () => {
     const config = JSON.parse(
       readFileSync(join(REPO_ROOT, 'release-please-config.json'), 'utf8'),
     ) as Record<string, unknown> & { packages: Record<string, Record<string, unknown>> };
-    expect(typeof config['bootstrap-sha']).toBe('string');
-    expect(config.packages['.']).not.toHaveProperty('bootstrap-sha');
+    if ('bootstrap-sha' in config) {
+      expect(config['bootstrap-sha']).toMatch(/^[a-f\d]{40}$/);
+    }
+    for (const pkg of Object.values(config.packages)) {
+      expect(pkg).not.toHaveProperty('bootstrap-sha');
+    }
   });
 
   it('幂等：CHANGELOG 骨架重复执行不再变化', () => {
@@ -325,6 +385,7 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
       'src/renderer/i18n/locales/zh-CN/common.json',
       'src/renderer/i18n/locales/en/common.json',
       'packages/shared/src/constants/brand.ts',
+      'resources/installer.nsh',
     ];
     const leaks: string[] = [];
     for (const rel of scanned) {

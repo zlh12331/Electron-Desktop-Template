@@ -41,7 +41,7 @@ export interface UpdateCheckRes {
  * update:check 响应 zod schema
  *
  * 与上方 UpdateCheckRes 手工同构（interface 无运行时，schema 才是校验真源；不符即
- * INVALID_RESPONSE，见 src/main/utils/wrap.ts）
+ * INVALID_RESPONSE，见 src/main/ipc/wrap.ts）
  */
 export const UpdateCheckResSchema = z.object({
   status: z.enum(['checking', 'error']),

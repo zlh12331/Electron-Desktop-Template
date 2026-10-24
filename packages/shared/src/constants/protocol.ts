@@ -8,4 +8,4 @@
  * 递增判据：破坏性变更（channel 重命名 / 入参或响应结构不兼容）→ +1；
  * 新增 channel、新增可选字段等向后兼容改动保持原值。
  */
-export const IPC_PROTOCOL_VERSION = 1;
+export const IPC_PROTOCOL_VERSION = 2;

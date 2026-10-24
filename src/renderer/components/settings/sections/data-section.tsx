@@ -95,7 +95,7 @@ export function DataSection(): React.ReactElement {
       const settings = await resetAllSettings();
       applySettingsSnapshot(settings);
       const language = useSettingsStore.getState().language;
-      changeLanguage(language);
+      void changeLanguage(language);
       try {
         localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
       } catch {}

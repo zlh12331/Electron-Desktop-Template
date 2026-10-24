@@ -13,13 +13,8 @@ vi.mock('electron', () => ({
 }));
 
 import { clearDeferredInstall, isCloseConfirmed } from '../../quit-state';
-import {
-  type AutoUpdaterLike,
-  type CancellationTokenLike,
-  classifyUpdateError,
-  toReleaseNotes,
-  UpdateService,
-} from './update-service';
+import { type AutoUpdaterLike, type CancellationTokenLike, UpdateService } from './update-service';
+import { classifyUpdateError, toReleaseNotes } from './update-service-helpers';
 
 type FakeUpdater = AutoUpdaterLike & {
   listeners: Map<string, (arg?: unknown) => void>;
@@ -293,6 +288,7 @@ describe('UpdateService', () => {
       const win = createFakeWindow();
       mockGetAllWindows.mockReturnValue([win]);
       service.start();
+      fire(updater, 'update-available', { version: '1.2.0' });
       fire(updater, 'update-downloaded', { version: '1.2.0' });
       expect(lastPayload(win)).toEqual({ phase: 'downloaded', version: '1.2.0' });
     });
@@ -522,6 +518,38 @@ describe('UpdateService', () => {
       updater.checkForUpdates.mockResolvedValueOnce(undefined);
       await expect(service.check(true)).resolves.toEqual({ status: 'checking' });
       expect(updater.checkForUpdates).toHaveBeenCalledTimes(2);
+    });
+
+    it('超时后新检查仍能处理 update-available（不会永久静默）', async () => {
+      vi.useFakeTimers();
+      const win = createFakeWindow();
+      mockGetAllWindows.mockReturnValue([win]);
+      // 只注册事件监听，不调度启动检查
+      service.start({ autoCheckEnabled: () => false });
+
+      updater.checkForUpdates.mockImplementationOnce(() => new Promise<void>(() => {}));
+      const first = service.check(true);
+      await vi.advanceTimersByTimeAsync(45_000);
+      await expect(first).resolves.toMatchObject({ status: 'error' });
+      vi.useRealTimers();
+
+      let releaseSecond: (() => void) | undefined;
+      updater.checkForUpdates.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            releaseSecond = resolve;
+          }),
+      );
+      const second = service.check(true);
+      fire(updater, 'update-available', { version: '1.5.0' });
+
+      expect(lastPayload(win)).toEqual({ phase: 'available', version: '1.5.0' });
+      await vi.waitFor(() => {
+        expect(updater.downloadUpdate).toHaveBeenCalledOnce();
+      });
+
+      releaseSecond?.();
+      await expect(second).resolves.toEqual({ status: 'checking' });
     });
 
     it('checkForUpdates 抛错：返回 error；手动检查时推送 error 事件', async () => {

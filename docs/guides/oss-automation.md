@@ -1,14 +1,11 @@
 # GitHub 开源项目自动化运维方案 v4（本机审批门控模型）
 
-> 版本：v4.0（2026-10-07）· 状态：**模型与审批粒度已拍板；L0/L1 已实施，L2 设计就绪，L3–L5 待 §7 重启条件**（全程云端零新增）
+> 版本：v4.7（2026-10-23 模板化订正）· 状态：**模型与审批粒度已拍板；L0/L1 已实施，L2 设计就绪，L3–L5 暂缓**（全程云端零新增）
 > 适用：本仓库（公开仓库 · 单人维护者 · 运维与开发共用同一个本机 agent）
 > 说明：本文面向**本仓库自身的开源维护**，不是使用模板的前置要求；派生项目按自己的维护模式取舍。
-> 前置：v1.7.0 已发布 · 六平台 CI/CD + 发版三护栏 · L0/L1 已实施（见 §6 / §8）
+> 前置：六平台 CI/CD + 发版三护栏已就绪；仓库当前 `0.1.0` 基线、尚未发版（版本策略见 [RELEASING.md](../../RELEASING.md)）。
 >
-> 本版是**模型重写**，不是 v1.1 的增补：v1.0/v1.1 的「分层信任模型 L0-L6 + 暂缓重启
-> 条件 + 负面清单」框架整体废止。全文围绕一个模型展开——**agent 不是另一个维护者，
-> 是维护者本人的手**。v1.1 中仍然成立的资产（L0/L1 实施记录、1.6.x 流程修正、L2
-> 设计）收编进 §6 / §7 / §8，不随框架废止而丢失。
+> 全文围绕一个模型展开——**agent 不是另一个维护者，是维护者本人的手**。
 
 ---
 
@@ -36,8 +33,8 @@
 | 4 | 修复边界 | 本机 vs 出网 | 见 §4——本地修复全免审，push/PR 才卡审批 |
 | 5 | README 诚实声明 | 不做 | — |
 | 6 | 代码签名 | 不上 | 签名摩擦集中在首次安装，升级链路不受影响 |
-| 7 | Actions 默认权限 | 维持 write | 7 个 workflow 全部显式声明权限，纪律已兜底 |
-| 8 | 21 个本地提交 | 先不推送 | 等维护者指令（§6.3 有细目与风险状态） |
+| 7 | Actions 默认权限 | 维持 write | 9 个 workflow 全部显式声明权限，纪律已兜底 |
+| 8 | 版本发布 | 暂不发布 | 模板打磨阶段，仓库保持 `0.1.0` 基线；发版需维护者明确授权 |
 
 ---
 
@@ -134,9 +131,9 @@ agent 呈现的批次预览必须包含三部分，缺一不可：
 
 三档审批通过对话完成（agent 出计划 → 维护者确认 → 执行），**不要求产品新增功能**。
 它与产品自身的权限审批链（ask/auto 模式、审批等待通知）同构：用自己的产品、以
-产品的审批交互运维自己的仓库。这是 39 号 v1.1 §7.1「用本产品维护本产品」
-愿景的落地形态——且比原试点设计更简单：原「本机监听 vs Actions runner」两形态
-之争在本模型下自然消解（只本机、只审批门控）。
+产品的审批交互运维自己的仓库。这是「用本产品维护本产品」愿景的落地形态——且比
+原试点设计更简单：原「本机监听 vs Actions runner」两形态之争在本模型下自然消解
+（只本机、只审批门控）。
 
 ---
 
@@ -180,7 +177,7 @@ agent 呈现的批次预览必须包含三部分，缺一不可：
 
 **3.4.2 PR 预审**——对外部 PR 出分析评论（正确性 / 测试 / 安全视角）与「接受 /
 要改 / 拒绝」预判，进批量审。**approve 永不提议**：approve 是合并权的一部分，
-合并权永远在维护者手里（v1.1 原则 1 在本模型下的残留形态）。维护者只细看预判
+合并权永远在维护者手里。维护者只细看预判
 为「要改/拒绝」的 PR 与自己感兴趣的，「接受」类按摘要批量处理。
 
 **3.4.3 修复流水线**——见 §4，触发无门槛，出网逐项审。
@@ -253,8 +250,8 @@ PR 上六平台 CI 自动跑，红灯先行原则不变。agent 备好的 commit
 ### 5.1 待命态语义
 
 release-please 的**常驻 Release PR 就是「随时可发」状态**：只要有未发提交，它就在
-页面上待着——版本号与中文 CHANGELOG 已算好，护栏 B/C 在 CI 里自动跑，beta 序列
-自动递增。发布频率不进系统设计：任何 cadence 在「时间不固定」前提下都是违约源；
+页面上待着——版本号与中文 CHANGELOG 已算好，护栏 B/C 在 CI 里自动跑。发布频率
+不进系统设计：任何 cadence 在「时间不固定」前提下都是违约源；
 待命态把「发布」从一个流程压缩成一个按钮。
 
 ### 5.2 发布预检（逐项审的前置材料，agent 负责备齐）
@@ -268,7 +265,7 @@ release-please 的**常驻 Release PR 就是「随时可发」状态**：只要�
 | 5 | 本地无未推交付物 / 工作区干净 | `git status` + ahead/behind |
 
 预检全绿 → 维护者在 GitHub 上点合并（逐项审的本体动作）。预检有红 → 不合并，
-先修——CD 半成品态（tag 已打资产未齐）的代价在 1.6.x 已付过三倍学费。
+先修——CD 半成品态（tag 已打资产未齐）的修复代价很高。
 
 ### 5.3 合并后（全自动段）
 
@@ -278,50 +275,55 @@ smoke 断言）→ merge（Win/mac 双架构更新元数据）→ release（打 
 纪律：**按 run ID 精确核对 + 终验四件套**（tag 钉点 / 非 Prerelease / 资产数 /
 Latest 切换）——`gh run list` 匹配旧 run 假绿的教训已入档。
 
-### 5.4 stable 毕业
+### 5.4 显式指定版本号（可选）
 
-`Release-As: X.Y.Z` 提交 → release-please 开毕业 Release PR → 走同一预检与合并
-流程。v1.7.0（#110→#111）为完整先例。
+需要跳过常规推导（例如首次发布定为 0.1.0、或补一个指定号）时，在提交正文加 footer：
 
-### 5.5 版本递增规则（2026-10-08 拍板：beta 冻结基底）
+```
+Release-As: X.Y.Z
+```
 
-- **beta 系列**（基底 `X.Y.0-beta.N` 形态）：任意提交（feat/fix 一视同仁）只递增
-  `beta.N`，基底 `X.Y.0-` 焊死——源码实证（release-please `prerelease.ts` 的
-  `patch === 0` 冻结分支）；1.8.0-beta 后任意提交 → `1.8.0-beta.1`。
-- **正式版不变**：stable 只有显式 `Release-As` 毕业才产生，推导永不触碰已发布版本。
-- **唯一例外 = BREAKING CHANGE 提交**（`feat!` / `BREAKING CHANGE:` footer）：基底直接
-  进位 major（1.8.0-beta → **2.0.0-beta**，跳过 1.9.0，beta.N 从头计）——SemVer 铁律，
-  策略层冻结不掉。**拍板接受（选项 A）**，规则文档化于 RELEASING.md §三（选项 C）；
-  写 breaking 前确认是真破坏（数据格式 / 机器契约 / 功能移除），electron-updater 会把
-  存量用户更上去，无拦截点。
-- 为什么 1.7.1-beta → 1.8.0-beta 动过基底：序列当时停在 `patch = 1` 的半路形态（feat
-  触发 base bump），归位到 `X.Y.0-beta` 后冻结生效——非配置错误，无改动。
+release-please 会按该版本开 Release PR，其余预检与合并流程不变。
+
+### 5.5 版本递增规则（stable-only）
+
+- `fix` / `perf` → patch（`0.1.0` → `0.1.1`）
+- `feat` → minor（`0.1.1` → `0.2.0`）
+- `feat!` / `BREAKING CHANGE:` → major（`0.x` 下默认直接进位到 `1.0.0`）；写 breaking
+  前确认是真破坏（数据格式 / 机器契约 / 功能移除），electron-updater 会把存量用户
+  更上去，无拦截点
+- `chore` / `docs` / `ci` / `test` / `refactor` / `style` / `build` → 不升版，且默认
+  不在 CHANGELOG 中展示
+- 模板**不含 prerelease/beta 配置**；需要预发布时自行开启，并同步调整门禁与本文档
 
 ### 5.6 已知限制（如实登记）
 
 - **无签名**：Windows 首次安装遇 SmartScreen 警告（更多信息→仍要运行）、macOS
   需系统设置放行；**升级场景不受影响**（electron-updater 在已装应用内自更新）。
   摩擦集中在首次安装这一步。
-- `stagingPercentage` 灰度：**2026-10-09 拍板不启用**——无监控配套（纯客户端骰子，ramp 节奏靠人工观察），当前用户规模下统计意义弱，防护靠 beta 渠道 + 爆炸半径本身小。机制留档：字段写更新元数据 yml（本仓 merge job 合成处可注入，一行改动），ramp=同版本替换资产、可改小变相撤单（源码级判定与 `.updaterId` 持久化机制见台账 2026-10-09 节）。
+- `stagingPercentage` 灰度**未启用**：缺少监控配套（纯客户端骰子，ramp 节奏靠人工观察），
+  当前规模下统计意义弱。机制留档：字段写入更新元数据 yml（本仓 merge job 合成处可注入），
+  同版本替换资产、调小 ramp 即可变相撤单（源码级判定与 `.updaterId` 持久化机制见台账）。
 
 ---
 
-## 6. 云端基线（2026-10-07 gh api 实测档案）
+## 6. 云端基线（按当前仓库配置）
 
 ### 6.1 设置实测
 
 | 项 | 实测值 |
 |---|---|
-| ruleset「protect-release-branches」 | active，bypass 为空；规则 = deletion + non_fast_forward + required_linear_history + required_status_checks×5（strict）。**无 merge queue（判定不可用，见 §8）、无 required reviews**（单人下正确：自审死锁）⇒ **直推 main 必被拒，一切变更必须走 PR** |
-| 仓库合并设置 | `allow_auto_merge=false`（合并动作必须人点）/ **`allow_update_branch=true`（2026-10-07 开启：merge queue 不可用 + strict policy 组合下，贡献者可自助 update branch，免维护者手动 rebase）** / `delete_branch_on_merge=true` |
+| ruleset「protect-main」 | active，bypass 为空；规则 = deletion + non_fast_forward + required_linear_history + required_status_checks×6（strict：Typecheck / Unit Tests / Integration / E2E ×2 / Lint PR Title）。**无 merge queue、无 required reviews**（单人下正确：自审死锁）⇒ **直推 main 必被拒，一切变更必须走 PR** |
+| ruleset「protect-release-tags」 | active，target `refs/tags/v*`；禁止删除与强推（不限制创建，CD 仍可打 tag） |
+| 仓库合并设置 | 仅允许 squash（merge/rebase 已关闭）/ `allow_auto_merge=true`（能力开启，Release PR 仍不配 auto-merge）/ `allow_update_branch=true` / `delete_branch_on_merge=true` |
 | 安全 | secret scanning ✅ / push protection ✅ / dependabot alerts ✅ |
-| Actions | 默认 workflow 权限 = **write**（拍板维持）；`sha_pinning_required=false`（pin SHA 靠 workflow 纪律，7 个已全 pin）；`allowed_actions=all`；GITHUB_TOKEN 不可 approve PR |
-| 密钥/环境 | Actions secrets 仅 `RELEASE_PLEASE_TOKEN`；**发布未签名**；environments 仅 copilot 自动项 |
+| Actions | 默认 workflow 权限 = **write**（拍板维持）；`sha_pinning_required=false`（pin SHA 靠 workflow 纪律；关键 action 以 SHA pin 为主，`softprops/action-gh-release` 仍用 `v3` tag）；`allowed_actions=all`；GITHUB_TOKEN 不可 approve PR |
+| 密钥/环境 | `RELEASE_PLEASE_TOKEN`（Release PR 必需）；签名密钥未配置，发布为未签名产物；environments 仅 copilot 自动项 |
 | 社区面 | Discussions 5 版块（General / Ideas / Polls / Q&A / 公告[仅维护者]）；**开帖表单 ×2 已配置（2026-10-07：`.github/DISCUSSION_TEMPLATE/q-a.yml` + `ideas.yml`，开帖即收集版本/系统/查重确认——替代事后追问）**；labels 28 个 taxonomy 全生效；issue 模板三件套 + blank_issues 关闭 + 安全私密上报引导 |
-| 社区面更正 | v1.1 §6 所写「Discussions reply templates」**不是真实存在的 GitHub 功能**（2026-10-07 实证：SavedReply 为 viewer 级个人便签且无 API 管理入口，262 个 mutation 无一可写）——其意图由 **Discussion category forms**（开帖侧结构化表单，真实功能）更优实现，见上 |
+| 社区面更正 | 「Discussions reply templates」**不是真实存在的 GitHub 功能**（2026-10-07 实证：SavedReply 为 viewer 级个人便签且无 API 管理入口，262 个 mutation 无一可写）——其意图由 **Discussion category forms**（开帖侧结构化表单，真实功能）更优实现，见上 |
 | Renovate | 周末批次 + 上海时区；非 major 归一组；electron major `enabled:false`；react-query 双包同 PR；`minimumReleaseAge: 1 day`（供应链 24h 缓冲） |
 
-### 6.2 workflow 一览（9 个，全部 active、显式 permissions；第三方 action 7 处引用已 pin SHA）
+### 6.2 workflow 一览（9 个，全部 active、显式 permissions；第三方 action 以 SHA pin 为主，`softprops/action-gh-release@v3` 例外）
 
 | workflow | 职责一句话 |
 |---|---|
@@ -334,20 +336,6 @@ Latest 切换）——`gh run list` 匹配旧 run 假绿的教训已入档。
 | first-interaction.yml | 首次 issue/PR 欢迎固定文案（`pull_request_target`——fork PR 令牌可写、可正常发评论，2026-10-07 收口） |
 | issue-metrics.yml | 周一 cron 只读统计，输出 Job Summary |
 | pr-title.yml | PR 标题语义校验（2026-10-09 新增，ruleset 第 6 项必需检查 `Lint PR Title`；squash 标题 = commit message，release-please 升版链护栏；全 PR 含 Release PR 必跑） |
-
-### 6.3 本地未推提交状态（2026-10-12 复核）
-
-2026-10-07 审计列出的缺口已**全部修复并推送**（哈希为现行可达提交，云端 workflow 行为已与仓库一致）：
-
-| 组 | 修复提交（已推送） |
-|---|---|
-| 安全修复 | 0f873453（ci.yml `HEAD_REF` env 中转收口）/ 6d651b1e（first-interaction 改 `pull_request_target`，fork PR 可发评论）/ 88824f94（scope 闸门 patch 缺失 fail-closed） |
-| 依赖收窄 | 2e0d7c58（dependabot.yml 收窄至根 npm 并关闭版本更新轨） |
-| a11y / 测试 | 三期收口全覆盖（6c827a20 / 9cddb87f） |
-| 文档同步 | verify:local 声明与 Release PR 门禁例外（08c2a143）等 |
-| 清理 | displayName 死字段删除（b5b72f19） |
-
-当前本地仍有**数十个提交未推送**（注释剥离与面向人写回 / Agent 运行时 AIMD 与流恢复 / 模型页预设收紧等；2026-10-12 文档对账批次中仅 ci.yml 头注释一处触碰 `.github/`，不改 workflow 行为），推送需维护者指令。
 
 ---
 
@@ -373,8 +361,8 @@ Renovate `minimumReleaseAge`（新版发布 24h 后才进升级 PR）+ electron 
 | 风险 | 现状缓解 |
 |---|---|
 | agent 持本人全权账号（进程被注入 = 账号全权） | 事事事前审批是主要约束器；出网动作全部留痕于 GitHub（评论/PR 可见） |
-| 发布未签名 | 摩擦集中首次安装；升级链路不受影响（§5.5） |
-| Actions 默认 write | 7 个 workflow 均显式声明收窄权限；新增 workflow 时沿用同一纪律 |
+| 发布未签名 | 摩擦集中首次安装；升级链路不受影响（§5.6） |
+| Actions 默认 write | 9 个 workflow 均显式声明收窄权限；新增 workflow 时沿用同一纪律 |
 
 ---
 
@@ -382,9 +370,8 @@ Renovate `minimumReleaseAge`（新版发布 24h 后才进升级 PR）+ electron 
 
 | 项 | 设计保留 | 现状与建议 |
 |---|---|---|
-| **L2-Socket** | 设计沿 v1.1 §5：GitHub App 只读评审，盯依赖变更的恶意行为——typosquat / postinstall 外联 / 代码混淆 / 包接管（已知 CVE 库之外的行为面，与 CodeQL/Dependabot 互补）；安装时索要 `contents: write` 直接拒 | **✅ 已安装并定为常设（2026-10-07 装 / 2026-10-09 用户拍板取消观察期）**。自动评审每个依赖 PR（Socket Security: Project Report + Pull Request Alerts 两个 check 随每个 PR 运行，生效期内历次 PR 全 pass、零噪音）；不再设卸载判据 |
-| **L2-Harden-Runner** | v1.1 §5 设计保留：runner 出口 DNS/HTTP 审计（step 形式，`egress-policy: audit` 起步，仅 release.yml 持密钥 job）；三平台采集能力需先核实 | **✅ 已接入并完成试跑判定（2026-10-09）**：release.yml build×6 + release job 各挂第一步（v2.22.1 pin SHA）。平台核实结果：hosted Linux 全功能 / hosted Windows+macOS 仅 audit / self-hosted 需 Enterprise（公开仓亦收费）——我们是全 hosted 免费档，audit 需求全满足。**ARM 采集能力实测已证实**（首个 CD 六 build job 含 windows-11-arm/ubuntu-24.04-arm 全 success）——试跑期 `continue-on-error` 已撤（v4.5） |
-| 21 提交推送 | 分组 PR：安全修复组 / dependabot / a11y / 文档 | 安全修复组建议尽早——云端 first-interaction 现在是坏的 |
+| **L2-Socket** | 设计保留：GitHub App 只读评审，盯依赖变更的恶意行为——typosquat / postinstall 外联 / 代码混淆 / 包接管（已知 CVE 库之外的行为面，与 CodeQL/Dependabot 互补）；安装时索要 `contents: write` 直接拒 | **✅ 已安装并定为常设（2026-10-07 装 / 2026-10-09 用户拍板取消观察期）**。自动评审每个依赖 PR（Socket Security: Project Report + Pull Request Alerts 两个 check 随每个 PR 运行，生效期内历次 PR 全 pass、零噪音）；不再设卸载判据 |
+| **L2-Harden-Runner** | 设计保留：runner 出口 DNS/HTTP 审计（step 形式，`egress-policy: audit` 起步，仅 release.yml 持密钥 job）；三平台采集能力需先核实 | **✅ 已接入并完成试跑判定（2026-10-09）**：release.yml build×6 + release job 各挂第一步（v2.22.1 pin SHA）。平台核实结果：hosted Linux 全功能 / hosted Windows+macOS 仅 audit / self-hosted 需 Enterprise（公开仓亦收费）——我们是全 hosted 免费档，audit 需求全满足。**ARM 采集能力实测已证实**（首个 CD 六 build job 含 windows-11-arm/ubuntu-24.04-arm 全 success）——试跑期 `continue-on-error` 已撤（v4.5） |
 | **merge queue** | ruleset `merge_queue` 规则 + ci.yml 监听 `merge_group` | **⛔ 判定不可用（2026-10-07 关闭）**：REST / GraphQL / 网页 UI 三通道均无此能力（UI 的 Add rule 下拉无 Merge queue 项；API 双通道正确 schema 仍报 "Invalid rule 'merge_queue'"；独立 ruleset 探针同拒）——账号上下文门，社区 [#137097](https://github.com/orgs/community/discussions/137097) 同源。**防护不缺位**：strict policy（分支须含 main 最新提交）继续挡过时合并；ci.yml 的 merge_group 触发已合入 main、无害保留（将来功能开放即自动接通）。过期再评估 |
 
 ---
@@ -393,11 +380,11 @@ Renovate `minimumReleaseAge`（新版发布 24h 后才进升级 PR）+ electron 
 
 | 日期 | 版本 | 动作 |
 |---|---|---|
-| 2026-10-09 | v4.5 | Harden-Runner 试跑收尾：首个 CD（1.8.0-beta.4，run 37905152247）六 build job 含两类 ARM 全 success——ARM 采集能力实测证实，continue-on-error 撤销（§8） |
-| 2026-10-09 | v4.4 | stagingPercentage 灰度拍板不启用（无监控配套 + 用户规模小，beta 渠道即灰度）；源码级机制与本仓接入路径留档 §5.6 |
+| 2026-10-23 | v4.7 | 修正 action pin 表述：`softprops/action-gh-release` 仍用 `v3` tag，不再声称全部 pin；其余 workflow 说明与当前仓库对齐 |
+| 2026-10-23 | v4.6 | 模板化订正：移除 1.x/beta 历史版本内容；规则集名称、必需检查数与合并设置对齐当前仓库；删除本地未推提交台账 |
+| 2026-10-09 | v4.5 | Harden-Runner 试跑收尾：首个 CD 六 build job 含两类 ARM 全 success——ARM 采集能力实测证实，continue-on-error 撤销（§8） |
+| 2026-10-09 | v4.4 | stagingPercentage 灰度拍板不启用（无监控配套 + 用户规模小）；源码级机制与本仓接入路径留档 §5.6 |
 | 2026-10-09 | v4.3 | Harden-Runner 接入（用户拍板 A）：release.yml build×6 + release job 第一步挂 step-security/harden-runner v2.22.1（pin SHA，`egress-policy: audit`）；平台覆盖核实=hosted Linux 全功能 / Win+macOS 仅 audit / self-hosted 需付费（我们全 hosted 免费档）；ARM 两 job `continue-on-error` 试跑期（§8） |
 | 2026-10-09 | v4.2 | Socket 观察期取消（用户拍板）：由「观察至 10-21、不达标即卸载」转为常设评审——生效期内历次 PR 两个 Socket check 全 pass、零噪音，成功标准提前自证（§8） |
 | 2026-10-09 | v4.1 | 用户拍板打破云端零新增一次：新增 pr-title.yml（amannn/action-semantic-pull-request v6.1.1 pin SHA + sticky-pull-request-comment 错误评论），并升级为 ruleset 第 6 项必需检查 `Lint PR Title`——封堵 squash 标题逃逸 commitlint → release-please 升版静默漏项的缺口。接线顺序硬约束：workflow 先进 main，ruleset 后加必需检查（反序 = 所有 PR 卡 pending） |
-| 2026-10-07 | v4.0 | 模型重写：本机审批门控 agent（八项拍板 §0 + 三档审批协议 §2 + 运维会话 §3）；云端零新增原则（§1.4）；v1.1 分层/暂缓/负面清单框架废止；L0/L1 与 1.6.x 护栏收编 §6；L2 设计保留于 §8 遗留项 |
-| 2026-10-06 | v1.1 | 定稿：分层信任模型 L0-L6；L0-L2 + Discussions 按批次实施，L3-L5 暂缓并设重启条件；负面清单五项 |
-| 2026-10-06 | v1.0 | 初稿（编号 33，后因撞号改编 39 号） |
+| 2026-10-07 | v4.0 | 模型重写：本机审批门控 agent（八项拍板 §0 + 三档审批协议 §2 + 运维会话 §3）；云端零新增原则（§1.4）；既有发版护栏收编 §6；L2 设计保留于 §8 遗留项 |

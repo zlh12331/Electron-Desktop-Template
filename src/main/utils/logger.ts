@@ -1,10 +1,11 @@
 // logger.ts：主进程日志——electron-log 封装（文件 + console 双通道）、全局异常处理器、崩溃标记
 // 边界：渲染层日志经 electron-log/renderer 转发到这里落盘；错误出口统一走 error-report.ts
-import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { app } from 'electron';
 import log from 'electron-log';
+import { flushTelemetryOnFatal } from './telemetry-flush';
 
 // 测试环境日志改写进系统临时目录，避免污染 userData / 触发打包路径断言
 const IS_TEST_ENV = process.env['VITEST'] !== undefined || process.env['NODE_ENV'] === 'test';
@@ -35,51 +36,142 @@ export function initLogger(): void {
   log.initialize();
 }
 
+/** 显式区分本地排障详情与上行上下文，避免旁路隐式复制本地字段。 */
+export interface RemoteLog {
+  readonly context: LogContext;
+  readonly message: string;
+}
+
 /** 日志接口（结构化 context 前置 + message；error 可附原始错误） */
 export interface Logger {
   info(context: LogContext, message: string): void;
   warn(context: LogContext, message: string): void;
-  error(context: LogContext, message: string, error?: unknown): void;
+  error(context: LogContext, message: string, error?: unknown, remote?: RemoteLog): void;
   debug(context: LogContext, message: string): void;
 }
 
-/** 全局唯一 logger 实例（自定义包装而非直接暴露 electron-log：收口格式与错误序列化） */
+/** 日志级别（与 electron-log 对齐） */
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+/**
+ * 日志旁路 sink：telemetry 层注册后把日志导出到 OTel
+ *
+ * 放在 utils 侧反转依赖方向——logger 不认识 telemetry，infra/telemetry 依赖 logger。
+ */
+export type LogSink = (
+  level: LogLevel,
+  context: LogContext,
+  message: string,
+  error?: unknown,
+) => void;
+
+let logSink: LogSink | null = null;
+
+/** 注册/注销日志旁路（OTel 初始化时注册；未注册时日志只落 electron-log） */
+export function setLogSink(sink: LogSink | null): void {
+  logSink = sink;
+}
+
+function emitToSink(level: LogLevel, context: LogContext, message: string, error?: unknown): void {
+  try {
+    if (error === undefined) {
+      logSink?.(level, context, message);
+    } else {
+      logSink?.(level, context, message, error);
+    }
+  } catch {
+    // 旁路失败不能反向阻断本地错误处理。
+  }
+}
+
+function writeLocalLog(
+  level: LogLevel,
+  context: LogContext,
+  message: string,
+  error?: unknown,
+): void {
+  try {
+    const fields: Record<string, unknown> = {};
+    for (const key of Object.keys(context)) {
+      const descriptor = Object.getOwnPropertyDescriptor(context, key);
+      Object.defineProperty(fields, key, {
+        value:
+          descriptor !== undefined && 'value' in descriptor ? descriptor.value : '[Unserializable]',
+        enumerable: true,
+      });
+    }
+    log[level]({
+      ...fields,
+      message,
+      ...(error !== undefined ? { error: serializeError(error) } : {}),
+    });
+  } catch {
+    // 不可信对象或 transport 失败时仍尝试保存最小证据。
+    try {
+      log[level]({ message, error: '[Unserializable log entry]' });
+    } catch {
+      // 日志设施失效时不制造二次异常。
+    }
+  }
+}
+
+/** 全局唯一 logger 实例，本地先写且与远端 sink 故障隔离。 */
 export const logger: Logger = {
   info(context: LogContext, message: string): void {
-    log.info({ ...context, message });
+    writeLocalLog('info', context, message);
+    emitToSink('info', context, message);
   },
-
   warn(context: LogContext, message: string): void {
-    log.warn({ ...context, message });
+    writeLocalLog('warn', context, message);
+    emitToSink('warn', context, message);
   },
-
-  error(context: LogContext, message: string, error?: unknown): void {
-    if (error !== undefined) {
-      log.error({ ...context, message, error: serializeError(error) });
-    } else {
-      log.error({ ...context, message });
-    }
+  error(context: LogContext, message: string, error?: unknown, remote?: RemoteLog): void {
+    writeLocalLog('error', context, message, error);
+    emitToSink('error', remote?.context ?? context, remote?.message ?? message, error);
   },
-
   debug(context: LogContext, message: string): void {
-    log.debug({ ...context, message });
+    writeLocalLog('debug', context, message);
+    emitToSink('debug', context, message);
   },
 };
 
-// Error 序列化（name/message/stack/cause 递归）：electron-log 默认只取 message，丢 cause 链
-function serializeError(error: unknown): Record<string, unknown> {
-  if (error instanceof Error) {
-    const result: Record<string, unknown> = {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    };
-    if (error.cause !== undefined) {
-      result['cause'] = serializeError(error.cause);
+function readErrorField(error: Error, key: 'name' | 'message' | 'stack' | 'cause'): unknown {
+  try {
+    return error[key];
+  } catch {
+    return '[Unserializable]';
+  }
+}
+
+function serializeError(
+  error: unknown,
+  seen = new WeakSet<object>(),
+  depth = 0,
+): Record<string, unknown> {
+  if (depth >= 8) {
+    return { value: '[Truncated]' };
+  }
+  try {
+    if (!(error instanceof Error)) {
+      return { value: String(error) };
+    }
+    if (seen.has(error)) {
+      return { value: '[Circular]' };
+    }
+    seen.add(error);
+    const result: Record<string, unknown> = {};
+    for (const key of ['name', 'message', 'stack'] as const) {
+      const value = readErrorField(error, key);
+      result[key] = typeof value === 'string' || value === undefined ? value : '[Unserializable]';
+    }
+    const cause = readErrorField(error, 'cause');
+    if (cause !== undefined) {
+      result['cause'] = serializeError(cause, seen, depth + 1);
     }
     return result;
+  } catch {
+    return { value: '[Unserializable]' };
   }
-  return { value: String(error) };
 }
 
 let fatalErrorHandled = false;
@@ -104,25 +196,34 @@ export async function flushPendingLogs(timeoutMs = 300): Promise<void> {
   }
 }
 
-/**
- * 全局异常兜底：uncaughtException 写日志 + 崩溃标记后退出（300ms 给日志落盘，3s 强杀兜底防挂死）；
- * unhandledRejection 只记录不退出（Promise 链局部失败不该杀进程）
- */
+/** 致命异常给本地 300ms、遥测 1.5s、退出 2s 兜底；Promise 局部失败只记录不退出。 */
 export function registerGlobalErrorHandlers(): void {
   process.on('uncaughtException', (error: Error) => {
     if (fatalErrorHandled) {
       return;
     }
     fatalErrorHandled = true;
+    let exited = false;
+    const exit = (): void => {
+      if (!exited) {
+        exited = true;
+        clearTimeout(forceExit);
+        app.exit(1);
+      }
+    };
+    // 在接触错误 getter、文件和 SDK 前安装最后一道退出兜底。
+    const forceExit = setTimeout(exit, 2_000);
+    forceExit.unref();
     logger.error({}, '全局未捕获异常 uncaughtException', error);
     writeCrashMarker(error);
-    setTimeout(() => {
-      app.exit(1);
-    }, 300).unref();
-    const forceExit = setTimeout(() => {
-      app.exit(1);
-    }, 3_000);
-    forceExit.unref();
+    const localFlush = flushPendingLogs(300);
+    const telemetryFlush = flushTelemetryOnFatal(1_500);
+    const timeout = setTimeout(exit, telemetryFlush === null ? 300 : 1_500);
+    timeout.unref();
+    void Promise.allSettled([localFlush, telemetryFlush]).then(() => {
+      clearTimeout(timeout);
+      exit();
+    });
   });
 
   process.on('unhandledRejection', (reason: unknown) => {
@@ -136,18 +237,26 @@ function getCrashMarkerPath(): string {
   return join(app.getPath('userData'), '.crash-marker');
 }
 
+/** 上次异常退出的崩溃标记（启动恢复时上报用） */
+export interface CrashMarker {
+  readonly timestamp: number;
+  readonly message: string;
+  readonly stack?: string;
+}
+
 function writeCrashMarker(error: Error): void {
   try {
     const markerPath = getCrashMarkerPath();
     mkdirSync(dirname(markerPath), { recursive: true });
-    writeFileSync(
-      markerPath,
-      JSON.stringify({ timestamp: Date.now(), message: error.message }),
-      'utf8',
-    );
+    const marker: CrashMarker = {
+      timestamp: Date.now(),
+      message: error.message,
+      ...(error.stack !== undefined ? { stack: error.stack } : {}),
+    };
+    writeFileSync(markerPath, JSON.stringify(marker), 'utf8');
     logger.info({ markerPath }, '已写入崩溃标记');
   } catch (writeError) {
-    logger.error({ error: String(writeError) }, '崩溃标记写入失败');
+    logger.error({}, '崩溃标记写入失败', writeError);
   }
 }
 
@@ -163,6 +272,24 @@ export function clearCrashMarker(): void {
   }
 }
 
-export function hasCrashMarker(): boolean {
-  return existsSync(getCrashMarkerPath());
+/** 读取崩溃标记（文件缺失/损坏/字段非法返回 null；不删除文件） */
+export function readCrashMarker(): CrashMarker | null {
+  try {
+    const content = readFileSync(getCrashMarkerPath(), 'utf8');
+    const parsed = JSON.parse(content) as Partial<CrashMarker>;
+    if (
+      typeof parsed.timestamp !== 'number' ||
+      !Number.isFinite(parsed.timestamp) ||
+      typeof parsed.message !== 'string'
+    ) {
+      return null;
+    }
+    return {
+      timestamp: parsed.timestamp,
+      message: parsed.message,
+      ...(typeof parsed.stack === 'string' ? { stack: parsed.stack } : {}),
+    };
+  } catch {
+    return null;
+  }
 }

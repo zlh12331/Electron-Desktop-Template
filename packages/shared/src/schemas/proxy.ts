@@ -40,3 +40,13 @@ export const ProxyTestResSchema = z.object({
   kind: z.enum(['ok', 'proxy-unreachable', 'target-unreachable', 'not-applicable']),
   message: z.string().optional(),
 });
+
+/** proxy:clearAuth 响应 schema（清除已保存的代理凭据） */
+export const ProxyClearAuthResSchema = z.object({
+  ok: z.boolean(),
+});
+
+/** proxy:clearAuth 响应 payload */
+export interface ProxyClearAuthRes {
+  readonly ok: boolean;
+}

@@ -26,6 +26,8 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
+      // 默认只统计被测试导入的文件；显式 include 让未被导入的模块也以 0% 计入，避免高风险模块隐身
+      include: ['**/*.ts'],
       thresholds: {
         statements: mainFloor.statements,
         branches: mainFloor.branches,

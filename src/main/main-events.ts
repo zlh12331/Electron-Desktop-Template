@@ -1,5 +1,5 @@
 // main-events.ts：主进程 → 渲染层的零散状态事件广播
-// 边界：只做通道投递；回合/工具流式事件走各自的 stream 通道，不经这里
+// 边界：只做通道投递；业务流式事件走各自的 stream 通道，不经这里
 import { IPC_CHANNELS } from '@code-agent/shared/ipc/channels';
 
 import type { LoginItemChangedPayload, SettingKey } from '@code-agent/shared/main';

@@ -5,6 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { i18n } from '@/i18n';
 
+vi.mock('./telemetry-status-card', () => ({
+  ['TelemetryStatusCard']: () => <div data-testid="telemetry-status-card" />,
+}));
+
 import { TelemetrySection } from './telemetry-section';
 
 const t = i18n.t.bind(i18n);

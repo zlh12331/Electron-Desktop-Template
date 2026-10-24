@@ -1,4 +1,4 @@
-// playwright.electron.config.ts：Electron 真实窗口 E2E 的 Playwright 配置——只收四类 electron 专属 spec（见 testMatch）。
+// playwright.electron.config.ts：Electron 真实窗口 E2E 的 Playwright 配置——只收五类 electron 专属 spec（见 testMatch）。
 // 用例经 _electron.launch 驱动仓库自身的 Electron，走 preload + IPC 全链路；纯前端 UI 用例归 e2e/playwright.config.ts。
 
 import { dirname, join } from 'node:path';
@@ -11,12 +11,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 export default defineConfig({
   testDir: '.',
-  // 三类 electron 专属 spec：主窗口 + window.api/IPC 全链路（含 DevTools hook）、
-  // dev 更新调试（APP_DEV_UPDATE）、--hidden 静默启动
+  // 四类 electron 专属 spec：主窗口 + window.api/IPC 全链路（含 DevTools hook）、
+  // dev 更新调试（APP_DEV_UPDATE）、--hidden 静默启动、冷启动深链
   testMatch: [
     '**/electron.spec.ts',
     '**/electron-update-dev.spec.ts',
     '**/electron-hidden-start.spec.ts',
+    '**/electron-deeplink.spec.ts',
   ],
   // 用例总预算，也是关闭兜底的上限：e2e/helpers/close-electron.ts 的优雅关闭等待（15s）须远低于它，
   // 否则关窗挂起时兜底强杀会被 Playwright 自己的超时掐断

@@ -47,6 +47,12 @@ vi.mock('electron', () => ({
     isPackaged: false,
     getAppPath: () => process.cwd(),
     getVersion: () => '9.9.9-test',
+    // 代理认证监听注册/移除（proxy-applier 在 fixed 模式挂 login 监听）
+    on: vi.fn(),
+    removeListener: vi.fn(),
+    // 备份恢复 handler 会触发 relaunch/quit（测试只验证暂存，不真正重启）
+    relaunch: vi.fn(),
+    quit: vi.fn(),
   },
   dialog: {
     showSaveDialog: vi.fn(async () => itState.dialogResult),

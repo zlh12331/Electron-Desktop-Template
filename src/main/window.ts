@@ -6,9 +6,11 @@ import { installExtension, REACT_DEVELOPER_TOOLS } from 'electron-devtools-insta
 import { resolveStartHidden } from './infra/autostart/autostart';
 import { readSetting } from './infra/storage/settings-pref';
 import { loadWindowState, trackWindowState, type WindowState } from './infra/storage/window-state';
+import { recordRendererCrash } from './infra/telemetry/otel-metrics';
+import { bindStartupWindow, recordStartupReady } from './infra/telemetry/startup';
 import { isCloseConfirmed, isQuitting } from './quit-state';
 import { notifyMinimizedToTray } from './tray';
-import { reportMessage } from './utils/error-report';
+import { reportError, reportMessage } from './utils/error-report';
 import { logger } from './utils/logger';
 import { markMaximizeOnNextShow } from './window-show';
 import { TITLE_BAR_SYMBOL } from './window-theme';
@@ -86,6 +88,7 @@ export function createWindow(): BrowserWindow {
       allowed = false;
     }
     if (!allowed) {
+      logger.warn({ url: url.slice(0, 300) }, '已拦截非白名单页面导航');
       event.preventDefault();
     }
   });
@@ -93,11 +96,32 @@ export function createWindow(): BrowserWindow {
   // window.open 一律拒绝：外链交系统浏览器打开，绝不在应用内开新 webContents
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http')) {
+      try {
+        logger.info({ host: new URL(url).hostname }, '外部链接已交系统浏览器打开');
+      } catch {}
       shell.openExternal(url);
+    } else {
+      logger.warn({ url: url.slice(0, 200) }, '已拦截非 http 外链打开请求');
     }
     return { action: 'deny' };
   });
 
+  // 主框架加载失败（产物缺失 / dev server 未启动 / 文件损坏）：必须留下日志并进错误聚合
+  win.webContents.on(
+    'did-fail-load',
+    (_event, errorCode, errorDescription, validatedUrl, isMainFrame) => {
+      if (!isMainFrame || errorCode === -3) {
+        return;
+      }
+      reportError(new Error(`渲染层加载失败：${errorDescription}（${errorCode}）`), {
+        message: '渲染层加载失败',
+        fields: { errorCode, errorDescription, url: validatedUrl },
+        tags: { scope: 'window', stage: 'load-fail' },
+      });
+    },
+  );
+
+  bindStartupWindow(win.webContents.id);
   const rendererUrl = process.env['ELECTRON_RENDERER_URL'];
   if (rendererUrl) {
     void win.loadURL(rendererUrl);
@@ -110,6 +134,7 @@ export function createWindow(): BrowserWindow {
     logger.info({}, '开机自启静默启动：窗口驻留托盘不显示');
   }
   win.once('ready-to-show', () => {
+    recordStartupReady(win.webContents.id, 'ready-to-show');
     if (startHidden) {
       return;
     }
@@ -121,7 +146,7 @@ export function createWindow(): BrowserWindow {
 
   win.on('close', (event) => {
     // 关窗协商：已确认退出 / 善后中 / E2E 豁免 → 放行；macOS 关窗语义是只关窗口（应用留存）
-    // 非 macOS 按 closeAction 分流：minimize → 隐藏到托盘；quit → 运行中回合弹确认
+    // 非 macOS 按 closeAction 分流：minimize → 隐藏到托盘；quit → 继续关闭并由 before-quit 善后
     if (isQuitting() || isCloseConfirmed() || process.env['APP_SKIP_CLOSE_GUARD'] === '1') {
       return;
     }
@@ -148,17 +173,21 @@ export function createWindow(): BrowserWindow {
     if (details.reason === 'clean-exit') {
       return;
     }
-    logger.error(
-      { reason: details.reason, exitCode: details.exitCode },
-      '渲染进程异常退出，尝试自动恢复',
+    reportError(
+      new Error(`渲染进程异常退出：reason=${details.reason} exitCode=${details.exitCode}`),
+      {
+        message: '渲染进程异常退出，尝试自动恢复',
+        fields: { exitCode: details.exitCode },
+        tags: { scope: 'window', stage: 'renderer-crash', reason: details.reason },
+      },
     );
-    void reportMessage(`渲染进程崩溃：reason=${details.reason} exitCode=${details.exitCode}`);
     const now = Date.now();
     if (now - crashWindowStart > 60_000) {
       crashWindowStart = now;
       crashRecoveryCount = 0;
     }
     crashRecoveryCount += 1;
+    recordRendererCrash(details.reason, crashRecoveryCount > 2 ? 'stopped' : 'reload');
     if (crashRecoveryCount > 2) {
       logger.error(
         { reason: details.reason, crashRecoveryCount },

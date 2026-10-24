@@ -1,7 +1,7 @@
 // with-schema.ts：IPC 定义表装配原语——在 meta 元数据上合并 zod schema 与类型标记
 // 为什么单独成文件：各域定义文件（domains/*.ts）与聚合层（definitions.ts）都要用，
 // 放在 definitions.ts 会形成 domains → definitions → domains 的循环依赖。
-// 边界：只做类型层标记合并，不做任何校验（校验在 src/main/utils/wrap.ts）。
+// 边界：只做类型层标记合并，不做任何校验（校验在 src/main/ipc/wrap.ts）。
 
 /** 在元数据基础上合并 schema 与响应类型标记（request 方法） */
 export function withSchema<
