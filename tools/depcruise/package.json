@@ -9,6 +9,6 @@
   },
   "dependencies": {
     "dependency-cruiser": "^18.5.0",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.0"
   }
 }
