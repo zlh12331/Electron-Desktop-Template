@@ -91,6 +91,18 @@ test.describe('可访问性（WCAG 2.1 AA）', () => {
     await expect(dialog).toBeVisible();
     await settle(page);
 
+    const tablist = dialog.getByRole('tablist');
+    await expect(tablist).toHaveAttribute('aria-orientation', 'vertical');
+    const generalTab = dialog.getByRole('tab', { name: '通用', exact: true });
+    await expect(generalTab).toHaveAttribute('tabindex', '0');
+    await expect(dialog.getByRole('tabpanel')).toHaveAttribute(
+      'aria-labelledby',
+      'settings-tab-general',
+    );
+    await generalTab.focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(dialog.getByRole('tab', { name: '外观与缩放', exact: true })).toBeFocused();
+
     for (const label of SETTINGS_SECTIONS) {
       const tab = page.getByRole('tab', { name: label, exact: true });
       await tab.click();
@@ -107,6 +119,16 @@ test.describe('可访问性（WCAG 2.1 AA）', () => {
     await page.getByRole('button', { name: '命令面板' }).click();
     const dialog = page.getByRole('dialog', { name: '命令面板' });
     await expect(dialog).toBeVisible();
+    await expect(page.locator('.palette-input')).toBeFocused();
+    await expect(page.locator('header.topbar')).toHaveAttribute('inert', '');
+    await page.keyboard.press('Tab');
+    await expect
+      .poll(() => page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null))
+      .toBe(true);
+    await page.keyboard.press('Shift+Tab');
+    await expect
+      .poll(() => page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null))
+      .toBe(true);
     await page.waitForTimeout(400);
     expect(formatViolations('命令面板', await scan(page))).toEqual([]);
   });

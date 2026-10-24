@@ -1,6 +1,6 @@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from 'cmdk';
 import { Info, Moon, Search, Settings2, Sun } from 'lucide-react';
-import { type ReactElement, useEffect, useState } from 'react';
+import { type ReactElement, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { useTranslation } from '@/i18n/use-translation';
@@ -28,6 +28,74 @@ interface PaletteCommand {
   readonly run: () => void;
 }
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/** 收集面板内可聚焦元素（DOM 顺序即 Tab 顺序） */
+function collectFocusable(overlay: HTMLElement): HTMLElement[] {
+  return Array.from(overlay.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+}
+
+/** Tab/Shift+Tab 在面板内循环；焦点意外落到面板外时拉回第一个可聚焦元素 */
+function trapTabKey(event: KeyboardEvent, overlay: HTMLElement): void {
+  if (event.key !== 'Tab') {
+    return;
+  }
+  const focusable = collectFocusable(overlay);
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (first === undefined || last === undefined) {
+    event.preventDefault();
+    return;
+  }
+  const active = document.activeElement;
+  if (event.shiftKey && active === first) {
+    event.preventDefault();
+    last.focus();
+    return;
+  }
+  if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first.focus();
+    return;
+  }
+  if (!overlay.contains(active)) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+/** 给面板的兄弟节点加 inert/aria-hidden，返回恢复函数（保留节点原有值） */
+function inertBackground(overlay: HTMLElement): () => void {
+  const parent = overlay.parentElement;
+  if (parent === null) {
+    return () => {};
+  }
+  const inerted = Array.from(parent.children)
+    .filter((el) => el !== overlay)
+    .map((el) => ({
+      el: el as HTMLElement,
+      hadInert: el.hasAttribute('inert'),
+      hadAriaHidden: el.getAttribute('aria-hidden'),
+    }));
+  for (const { el } of inerted) {
+    el.setAttribute('inert', '');
+    el.setAttribute('aria-hidden', 'true');
+  }
+  return () => {
+    for (const { el, hadInert, hadAriaHidden } of inerted) {
+      if (!hadInert) {
+        el.removeAttribute('inert');
+      }
+      if (hadAriaHidden === null) {
+        el.removeAttribute('aria-hidden');
+      } else {
+        el.setAttribute('aria-hidden', hadAriaHidden);
+      }
+    }
+  };
+}
+
 /**
  * 命令面板（Ctrl/Cmd+K 唤起）
  *
@@ -41,11 +109,39 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps): Rea
   const setTheme = useSettingsStore((s) => s.setTheme);
   const theme = useSettingsStore((s) => s.theme);
   const [query, setQuery] = useState('');
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) {
       setQuery('');
     }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const overlay = overlayRef.current;
+    if (overlay === null) {
+      return;
+    }
+    const previousFocus =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    // 先移焦再 inert 背景：避免对仍持有焦点的元素设置 aria-hidden（Chromium 会拒绝并告警）
+    overlay.querySelector<HTMLInputElement>('.palette-input')?.focus();
+    const restoreBackground = inertBackground(overlay);
+    const handleKeyDown = (event: KeyboardEvent): void => trapTabKey(event, overlay);
+    document.addEventListener('keydown', handleKeyDown, true);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
+      restoreBackground();
+      // 若关闭动作同时打开了另一个模态（如命令面板 → 设置），让新模态的焦点管理生效
+      const active = document.activeElement;
+      if (active === null || active === document.body || overlay.contains(active)) {
+        previousFocus?.focus();
+      }
+    };
   }, [open]);
 
   const close = (): void => onOpenChange(false);
@@ -82,6 +178,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps): Rea
 
   return (
     <div
+      ref={overlayRef}
       className="palette-overlay show"
       role="dialog"
       aria-label={t('topbar.commandPalette')}
@@ -107,7 +204,6 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps): Rea
             aria-label={t('palette.searchLabel')}
             value={query}
             onValueChange={setQuery}
-            autoFocus
           />
         </div>
         <CommandList className="palette-results">
