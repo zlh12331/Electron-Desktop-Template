@@ -25,6 +25,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // jsdom 环境创建是主要成本；threads 池实测 97s → 32s（2026-10-24，65 文件）。
+    // 不用 isolate:false：跨文件复用 worker 会让 window.api / i18n 全局状态互相污染。
+    pool: 'threads',
     setupFiles: ['./test/setup-lang.ts', './test/setup.ts'],
     include: ['**/*.test.{ts,tsx}'],
     exclude: [
