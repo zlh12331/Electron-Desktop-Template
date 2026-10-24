@@ -1,6 +1,7 @@
-// observability-smoke.ts：真实 Electron 的 OTLP 信号冒烟——启动应用，等待 traces/metrics/logs 各至少 1 次
+// observability-smoke.ts：真实 Electron 的 OTLP 信号冒烟——启动应用，等待 traces/metrics/logs 各至少 1 次，
+// 并按字节串断言 db.init / window.create span 与 app.db.recovery 指标确实在载荷中
 // 前置：pnpm build（需要 out/main/index.js 与 out/renderer）
-// 说明：用本地 HTTP 服务接收 OTLP 请求，只验证“发出并能到达”，不解析 protobuf 内容
+// 说明：用本地 HTTP 服务接收 OTLP 请求；不解码 protobuf，只用字符串原样字节做存在性断言
 
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -19,13 +20,62 @@ if (!existsSync(mainEntry) || !existsSync(rendererIndex)) {
 }
 
 const counts = { traces: 0, metrics: 0, logs: 0 };
+// 保留原始 protobuf 字节：不解码，只按字节串断言关键 span/指标名确实导出（体积有界）
+const bodies: Record<keyof typeof counts, Buffer[]> = { traces: [], metrics: [], logs: [] };
+
+function collectBody(kind: keyof typeof counts, body: Buffer): void {
+  if (body.byteLength > 0 && bodies[kind].length < 32) {
+    bodies[kind].push(body);
+  }
+}
+
+/** 在已收到的原始 protobuf 载荷里找关键名称（字符串在 protobuf 中按 UTF-8 原样编码） */
+function hasMarker(kind: keyof typeof counts, marker: string): boolean {
+  const needle = Buffer.from(marker, 'utf8');
+  return bodies[kind].some((body) => body.includes(needle));
+}
+
+/** 等关键名称到达（批量导出有间隔，信号计数先到不代表同批包含目标 span/指标） */
+async function waitForMarkers(
+  markers: readonly (readonly [keyof typeof counts, string])[],
+  timeoutMs = 10_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const missing = markers.filter(([kind, marker]) => !hasMarker(kind, marker));
+    if (missing.length === 0) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  const missing = markers
+    .filter(([kind, marker]) => !hasMarker(kind, marker))
+    .map(([kind, marker]) => `${kind}:${marker}`);
+  throw new Error(`10s 内未在 OTLP 载荷中找到：${missing.join(', ')}`);
+}
+
 const server = createServer((request, response) => {
   if (request.method === 'POST') {
-    if (request.url === '/v1/traces') counts.traces += 1;
-    if (request.url === '/v1/metrics') counts.metrics += 1;
-    if (request.url === '/v1/logs') counts.logs += 1;
-    request.resume();
+    const kind =
+      request.url === '/v1/traces'
+        ? 'traces'
+        : request.url === '/v1/metrics'
+          ? 'metrics'
+          : request.url === '/v1/logs'
+            ? 'logs'
+            : null;
+    if (kind === null) {
+      response.writeHead(404);
+      response.end();
+      return;
+    }
+    const chunks: Buffer[] = [];
+    request.on('data', (chunk: Buffer) => {
+      chunks.push(Buffer.from(chunk));
+    });
     request.on('end', () => {
+      counts[kind] += 1;
+      collectBody(kind, Buffer.concat(chunks));
       response.writeHead(200, { 'content-type': 'application/json' });
       response.end('{}');
     });
@@ -106,6 +156,13 @@ try {
     throw new Error(`telemetry:testConnection 未返回探测结果：${JSON.stringify(connection)}`);
   }
   console.log('[observability-smoke] 设置页状态/连接测试 IPC 正常');
+
+  await waitForMarkers([
+    ['traces', 'db.init'],
+    ['traces', 'window.create'],
+    ['metrics', 'app.db.recovery'],
+  ]);
+  console.log('[observability-smoke] 启动 span 与 DB 恢复指标已到达');
 } catch (error) {
   console.error('[observability-smoke] 启动/采集失败：', error);
 } finally {
