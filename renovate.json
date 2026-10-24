@@ -25,9 +25,7 @@
       "matchUpdateTypes": ["minor", "patch", "digest"],
       "groupName": "all non-major dependencies",
       "groupSlug": "all-minor-patch",
-      "matchPackageNames": [
-        "!electron"
-      ]
+      "matchPackageNames": ["!electron"]
     },
     {
       "description": "主版本一律人工确认：TypeScript / Vite / electron-vite / React Router / i18next / Electron",
