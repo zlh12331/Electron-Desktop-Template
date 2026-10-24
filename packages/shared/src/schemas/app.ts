@@ -83,7 +83,7 @@ export interface AppInfoRes {
 /**
  * app:event:deepLink 事件 payload（自定义协议唤起）
  *
- * 由主进程 deep-link.ts 解析 `code-agent://` URL 后广播；sessionId 取不到时为 null，
+ * 由主进程 deep-link.ts 解析协议 URL 后广播；sessionId 取不到时为 null，
  * 表示「仅唤起/聚焦窗口」而非错误——两种情形渲染层都要消费，故不能是可选字段。
  */
 export const DeepLinkPayloadSchema = z.object({
@@ -99,6 +99,17 @@ export interface DeepLinkPayload {
   readonly sessionId: string | null;
   /** 原始协议 URL 全量（保留扩展性） */
   readonly url: string;
+}
+
+/** app:takePendingDeepLink 响应 schema（无暂存时为 null） */
+export const TakePendingDeepLinkResSchema = z.object({
+  payload: DeepLinkPayloadSchema.nullable(),
+});
+
+/** app:takePendingDeepLink 响应 payload（冷启动深链最多消费一次） */
+export interface TakePendingDeepLinkRes {
+  /** 待消费深链；无暂存时为 null */
+  readonly payload: DeepLinkPayload | null;
 }
 
 // ────────── 诊断包导出（app:exportDiagnostics）──────────

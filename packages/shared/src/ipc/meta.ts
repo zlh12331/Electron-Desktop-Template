@@ -44,8 +44,10 @@ export const IPC_META = {
     setLoginItemSettings: request('app:setLoginItemSettings'),
     // 退出应用：交给 app.quit 走完整善后链（dispose 服务 → flush 遥测/日志）
     quit: request('app:quit'),
-    // 深链接事件：code-agent:// 协议唤起时主进程广播，渲染层据此导航
+    // 深链接事件：自定义协议唤起时主进程广播，渲染层据此导航
     subscribeDeepLink: event('app:event:deepLink'),
+    // 冷启动深链：渲染层挂载后主动取走（订阅晚于主进程广播时会丢事件）
+    takePendingDeepLink: request('app:takePendingDeepLink'),
     // 登录项变更事件：payload 为写入后的真实回读值（托盘菜单改自启 → 设置页回显）
     subscribeLoginItemChanged: event('app:event:loginItemChanged'),
   },

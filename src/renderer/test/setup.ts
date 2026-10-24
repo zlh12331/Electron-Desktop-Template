@@ -19,6 +19,7 @@ function createEmptyApi(): MockApi {
       }),
       subscribeLoginItemChanged: () => () => {},
       subscribeDeepLink: () => () => {},
+      takePendingDeepLink: async () => ({ data: { payload: null } }),
     },
     settings: {
       subscribeChanged: () => () => {},

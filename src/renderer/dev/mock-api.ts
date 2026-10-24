@@ -61,6 +61,7 @@ export function installMockApi(): void {
       quit: async () => ipcOk({ ok: true }),
       subscribeDeepLink: () => () => {},
       subscribeLoginItemChanged: () => () => {},
+      takePendingDeepLink: async () => ipcOk({ payload: null }),
     },
     window: {
       applyZoom: async () => ipcOk({ ok: true }),

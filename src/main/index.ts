@@ -1,12 +1,14 @@
 // index.ts：应用入口与生命周期——单实例锁、whenReady 启动序列（遥测→DB→容器→IPC→窗口→托盘）、
 // 深链接管、退出协商与善后链。边界：只做装配与编排，业务实现在 infra/ 与 service-container
 import { join } from 'node:path';
+import type { DeepLinkPayload } from '@code-agent/shared/main';
 import { app, BrowserWindow, nativeTheme, session } from 'electron';
 import {
   broadcastDeepLink,
   extractProtocolUrl,
   parseDeepLink,
   registerDeepLinkProtocol,
+  setPendingDeepLink,
 } from './deep-link';
 import {
   createAutostartDeps,
@@ -83,7 +85,7 @@ if (!gotTheLock) {
     logger.info({ hasDeepLink: url !== null }, '第二实例拉起，聚焦主窗口');
     bringMainWindowToFront(createWindow);
     if (url !== null) {
-      broadcastDeepLink(parseDeepLink(url));
+      deliverDeepLink(parseDeepLink(url));
     }
   });
 }
@@ -114,7 +116,7 @@ app.on('open-url', (event, url) => {
   if (win === undefined) {
     coldLaunchDeepLink = url;
   } else {
-    broadcastDeepLink(parseDeepLink(url));
+    deliverDeepLink(parseDeepLink(url));
   }
 });
 
@@ -252,9 +254,10 @@ app
           onUpdateStatus: (listener) => serviceContainer.getUpdateService().onStatus(listener),
         });
 
-        // 补广播冷启动暂存的深链（必须在 createWindow 之后，渲染层已挂好监听）
+        // 冷启动深链不能直接广播：createWindow 返回时渲染层通常尚未订阅。
+        // 暂存后由渲染层挂载时经 app:takePendingDeepLink 取走，避免事件丢失。
         if (coldLaunchDeepLink !== null) {
-          broadcastDeepLink(parseDeepLink(coldLaunchDeepLink));
+          setPendingDeepLink(parseDeepLink(coldLaunchDeepLink));
           coldLaunchDeepLink = null;
         }
 
@@ -331,6 +334,17 @@ app.on('before-quit', async (event) => {
   await flushPendingLogs();
   app.exit(0);
 });
+
+// 渲染层已挂载直接广播；仍在加载则暂存，挂载后由 app:takePendingDeepLink 取走
+function deliverDeepLink(payload: DeepLinkPayload): void {
+  const win = BrowserWindow.getAllWindows()[0];
+  if (win === undefined || win.webContents.isLoading()) {
+    setPendingDeepLink(payload);
+    logger.info({ hasSession: payload.sessionId !== null }, '深链已暂存，等待渲染层就绪');
+    return;
+  }
+  broadcastDeepLink(payload);
+}
 
 // ───── 设置读取容错包装（托盘/更新装配用；损坏或缺失回落默认值，不阻塞启动）─────
 

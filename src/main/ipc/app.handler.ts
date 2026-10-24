@@ -9,6 +9,7 @@ import {
 } from '@code-agent/shared/main';
 import { app, dialog, shell } from 'electron';
 
+import { takePendingDeepLink } from '../deep-link';
 import { exportDiagnosticsPackage } from '../diagnostics';
 import { readBuildInfo } from '../infra/app-info';
 import {
@@ -54,6 +55,10 @@ export const appHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContex
     const dir = app.getPath('userData');
     const error = await shell.openPath(dir);
     return { ok: error.length === 0 };
+  },
+
+  takePendingDeepLink: async () => {
+    return { payload: takePendingDeepLink() };
   },
 
   getLoginItemSettings: async () => {

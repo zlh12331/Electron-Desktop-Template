@@ -62,6 +62,7 @@ test-results/
 .e2e-user-data-update/
 # 静默启动 E2E 专用 userData（electron-hidden-start.spec.ts）
 .e2e-user-data-hidden/
+.e2e-user-data-deeplink/
 
 # Electron 打包
 *.exe
