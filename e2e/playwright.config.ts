@@ -1,5 +1,5 @@
 // e2e/playwright.config.ts：浏览器模式 E2E 配置——webServer 拉起 vite.web.config.ts（--mode web，渲染层注入 mock window.api），
-// 跑浏览器模式用例（当前：smoke 冒烟 + journey-settings 设置旅程）。
+// 跑浏览器模式用例（当前：smoke 冒烟 + journey-settings 设置旅程 + a11y 无障碍扫描）。
 // 边界：真实 Electron 窗口归 playwright.electron.config.ts、打包产物归 playwright.smoke.config.ts，两类用例在本文件按 testIgnore 排除。
 
 import { dirname, join } from 'node:path';

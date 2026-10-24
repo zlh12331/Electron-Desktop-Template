@@ -70,6 +70,7 @@
     "test:renderer": "vitest run --root src/renderer --silent=passed-only",
     "test:renderer:watch": "vitest --root src/renderer",
     "test:e2e": "cross-env E2E_MODE=true playwright test --config e2e/playwright.config.ts",
+    "test:a11y": "cross-env E2E_MODE=true playwright test --config e2e/playwright.config.ts e2e/a11y.spec.ts",
     "test:e2e:electron": "playwright test --config e2e/playwright.electron.config.ts",
     "test:smoke": "playwright test --config e2e/playwright.smoke.config.ts",
     "test:coverage": "pnpm --filter \"@code-agent/shared\" exec vitest run --coverage && pnpm test:main --coverage && pnpm test:renderer --coverage && pnpm coverage:settings",
@@ -113,6 +114,7 @@
     ]
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@babel/parser": "^8.0.7",
     "@biomejs/biome": "^2.5.15",
     "@code-agent/shared": "workspace:*",
