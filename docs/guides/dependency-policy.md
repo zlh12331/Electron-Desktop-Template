@@ -9,9 +9,9 @@
 | 组件                     | 口径                                                       | 真源                             |
 | ------------------------ | ---------------------------------------------------------- | -------------------------------- |
 | Node.js                  | **26 LTS**（当前 `.nvmrc` 26.8.1；`engines.node >=26`）    | `package.json` / `.nvmrc` / CI   |
-| pnpm                     | 12.x（`packageManager` 固定 12.10.1；`engines.pnpm >=12`） | `package.json`                   |
-| Electron                 | 44.x（当前 44.9.1；major 人工评审）                        | `package.json` / `renovate.json` |
-| TypeScript               | 7.x                                                        | `package.json`                   |
+| pnpm                     | 12.x（`packageManager` 固定 12.15.0；`engines.pnpm >=12`） | `package.json`                   |
+| Electron                 | 44.x（当前 44.9.3；major 人工评审）                        | `package.json` / `renovate.json` |
+| TypeScript               | 根工程 7.x；`tools/*` 工具子包固定 6.x                     | `package.json` / `tools/*`       |
 | Vite / electron-vite     | Vite 8.x / electron-vite 6.0.0 稳定版                      | `package.json`                   |
 | React / Router / i18next | React 19.x / React Router 8.x / i18next 26.x               | `package.json`                   |
 
@@ -39,7 +39,7 @@ CI 的六平台矩阵统一使用 Node 26。Node 27+ 尚未验证；`engines` �
 
 ## 4. 主版本升级
 
-TypeScript、Vite、electron-vite、React Router、i18next、Electron 的 major 一律人工评审，Renovate 通过 Dependency Dashboard 等待确认，不自动进入合并队列。
+TypeScript、Vite、electron-vite、React Router、i18next、Electron 的 major 一律人工评审，Renovate 通过 Dependency Dashboard 等待确认，不自动进入合并队列。`tools/typedoc` 与 `tools/depcruise` 因上游未兼容 TS 7，固定在 6.x（`renovate.json` 已禁用其 TypeScript major）。
 
 每次只升一个 major，并完成：
 
