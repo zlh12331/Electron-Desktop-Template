@@ -15,10 +15,17 @@ import { logger } from './utils/logger';
 // 单个日志文件超过 8MB 只保留尾部——近期上下文在尾部，同时防诊断包爆炸
 const MAX_LOG_BYTES = 8 * 1024 * 1024;
 
-/** 导出选项：zip 落盘路径 + userData 根（取日志/窗口状态）+ 自启状态快照（由调用方装配传入） */
+/** 导出选项：zip 落盘路径 + userData 根（取窗口状态）+ 平台日志目录 + 自启状态快照 */
 export interface ExportDiagnosticsOptions {
   readonly filePath: string;
   readonly userDataPath: string;
+  /**
+   * electron-log 实际写入的日志目录
+   *
+   * 必须取 `app.getPath('logs')`：Windows/Linux 跟随 userData/logs，macOS 为
+   * `~/Library/Logs/<appName>`，不能假设三平台都在 userData 下。
+   */
+  readonly logsPath: string;
   readonly autostart?: unknown;
 }
 
@@ -94,7 +101,7 @@ async function collectLogFiles(logsDir: string): Promise<Array<{ name: string; c
  * 各环节失败都降级跳过（warn 后继续），保证包总是能产出
  */
 export async function exportDiagnosticsPackage(options: ExportDiagnosticsOptions): Promise<void> {
-  const { filePath, userDataPath, autostart } = options;
+  const { filePath, userDataPath, logsPath, autostart } = options;
   const zip = new AdmZip();
 
   zip.addFile('manifest.json', Buffer.from(JSON.stringify(buildManifest(userDataPath), null, 2)));
@@ -110,7 +117,7 @@ export async function exportDiagnosticsPackage(options: ExportDiagnosticsOptions
     Buffer.from(JSON.stringify(redactSensitive(settings) as Record<string, unknown>, null, 2)),
   );
 
-  const logs = await collectLogFiles(join(userDataPath, 'logs'));
+  const logs = await collectLogFiles(logsPath);
   for (const log of logs) {
     zip.addFile(`logs/${log.name}`, Buffer.from(redactText(log.content.toString('utf8'))));
   }

@@ -86,6 +86,7 @@ export const appHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContex
       await exportDiagnosticsPackage({
         filePath,
         userDataPath: app.getPath('userData'),
+        logsPath: app.getPath('logs'),
         autostart,
       });
       logger.info({ filePath, autostart }, '诊断包导出完成');

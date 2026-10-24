@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('electron', () => ({
   app: {
-    getPath: vi.fn(() => '/mock/user-data'),
+    getPath: vi.fn((name: string) => (name === 'logs' ? '/mock/logs' : '/mock/user-data')),
   },
   dialog: { showSaveDialog: vi.fn() },
   shell: { openExternal: vi.fn(), openPath: vi.fn() },
@@ -76,6 +76,7 @@ describe('app.handler', () => {
     expect(mockExport).toHaveBeenCalledWith({
       filePath: 'C:/diag/diagnostics-2026-09-04.zip',
       userDataPath: '/mock/user-data',
+      logsPath: '/mock/logs',
       autostart: { openAtLogin: false, supported: false, requiresApproval: false },
     });
     expect(result).toEqual({ saved: true, path: 'C:/diag/diagnostics-2026-09-04.zip' });
