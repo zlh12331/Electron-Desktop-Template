@@ -1,7 +1,7 @@
 # Use a dedicated project name; never share this volume with SigNoz.
 services:
   storage-init:
-    image: busybox:1.37.0
+    image: busybox:1.38.0
     user: "0:0"
     read_only: true
     network_mode: none
