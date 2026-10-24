@@ -87,6 +87,7 @@ export function createWindow(): BrowserWindow {
       allowed = false;
     }
     if (!allowed) {
+      logger.warn({ url: url.slice(0, 300) }, '已拦截非白名单页面导航');
       event.preventDefault();
     }
   });
@@ -94,10 +95,30 @@ export function createWindow(): BrowserWindow {
   // window.open 一律拒绝：外链交系统浏览器打开，绝不在应用内开新 webContents
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http')) {
+      try {
+        logger.info({ host: new URL(url).hostname }, '外部链接已交系统浏览器打开');
+      } catch {}
       shell.openExternal(url);
+    } else {
+      logger.warn({ url: url.slice(0, 200) }, '已拦截非 http 外链打开请求');
     }
     return { action: 'deny' };
   });
+
+  // 主框架加载失败（产物缺失 / dev server 未启动 / 文件损坏）：必须留下日志并进错误聚合
+  win.webContents.on(
+    'did-fail-load',
+    (_event, errorCode, errorDescription, validatedUrl, isMainFrame) => {
+      if (!isMainFrame || errorCode === -3) {
+        return;
+      }
+      reportError(new Error(`渲染层加载失败：${errorDescription}（${errorCode}）`), {
+        message: '渲染层加载失败',
+        fields: { errorCode, errorDescription, url: validatedUrl },
+        tags: { scope: 'window', stage: 'load-fail' },
+      });
+    },
+  );
 
   const rendererUrl = process.env['ELECTRON_RENDERER_URL'];
   if (rendererUrl) {

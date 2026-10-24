@@ -4,6 +4,7 @@ import { t } from '../infra/i18n';
 import { proxiedFetch, setProxyFetchConfig } from '../infra/network/proxied-fetch';
 import { parseProxyConfig } from '../infra/network/proxy-resolver';
 import { readSetting } from '../infra/storage/settings-pref';
+import { logger } from '../utils/logger';
 import type { IpcHandlerContext } from './wrap';
 
 // 探针 3 秒超时：测试交互不等慢代理；目标默认 gstatic 204 探针（轻量、全球可达、无业务含义）
@@ -21,6 +22,7 @@ export function createProxyHandlers(): InferHandlers<
       const cfg = parseProxyConfig(readSetting('proxy'));
       setProxyFetchConfig(cfg);
       if (cfg.mode !== 'fixed' || cfg.url === undefined) {
+        logger.info({ mode: cfg.mode }, '代理连通性测试跳过（非 fixed 模式）');
         return {
           ok: false,
           kind: 'not-applicable',
@@ -34,9 +36,12 @@ export function createProxyHandlers(): InferHandlers<
         await proxiedFetch(target, {
           signal: controller.signal,
         });
+        logger.info({ mode: cfg.mode }, '代理连通性测试通过');
         return { ok: true, kind: 'ok' };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
+        // 不记录目标 URL（可能是用户输入，且可能含查询参数）
+        logger.warn({ mode: cfg.mode, kind: 'target-unreachable' }, '代理连通性测试失败');
         return { ok: false, kind: 'target-unreachable', message };
       } finally {
         clearTimeout(timer);

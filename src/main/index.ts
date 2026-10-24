@@ -73,15 +73,16 @@ if (!gotTheLock) {
 } else {
   // 第二实例拉起时：聚焦主窗，并把第二实例 argv 里的深链转发给现有窗口
   app.on('second-instance', (_event, argv) => {
-    bringMainWindowToFront(createWindow);
     const url = extractProtocolUrl(argv);
+    logger.info({ hasDeepLink: url !== null }, '第二实例拉起，聚焦主窗口');
+    bringMainWindowToFront(createWindow);
     if (url !== null) {
       broadcastDeepLink(parseDeepLink(url));
     }
   });
 }
 
-registerDeepLinkProtocol();
+const deepLinkRegistered = registerDeepLinkProtocol();
 
 // 主进程模块求值即启动计时起点：包含 Sentry 初始化与等待 app ready 的时间
 // （SLO 口径见 docs/observability/README.md 的 app.startup.duration）
@@ -122,6 +123,12 @@ app
       return;
     }
     initLogger();
+    // 协议注册发生在 whenReady 之前（OS 拉起入口要求），结果等 logger 就绪后统一记录
+    if (deepLinkRegistered) {
+      logger.info({}, '系统协议客户端已注册');
+    } else {
+      logger.warn({}, '系统协议客户端注册失败（深链入口不可用）');
+    }
     if (sentryInit.enabled) {
       logger.info(
         { release: sentryInit.release, environment: sentryInit.environment },
@@ -212,7 +219,9 @@ app
     await withSpan('window.create', {}, async () => {
       createWindow();
     });
-    recordStartupPhase('window', performance.now() - startupStartedAt);
+    const startupDurationMs = Math.round(performance.now() - startupStartedAt);
+    recordStartupPhase('window', startupDurationMs);
+    logger.info({ durationMs: startupDurationMs }, '启动完成（主窗口已创建）');
 
     createTray({
       getUpdateStatus: () => serviceContainer.getUpdateService().getStatus().snapshot,
@@ -252,6 +261,7 @@ app
     });
 
     app.on('activate', () => {
+      logger.debug({}, '应用激活，唤起主窗口');
       bringMainWindowToFront(createWindow);
     });
   })
@@ -294,6 +304,7 @@ app.on('before-quit', async (event) => {
   }
   event.preventDefault();
   setQuitting();
+  logger.info({}, '开始退出善后链');
   try {
     serviceContainer.getUpdateService().refreshAutoInstallOnAppQuit();
     lagMonitor?.stop();
@@ -321,7 +332,11 @@ function readWindowSettings(): Record<string, unknown> {
       return {};
     }
     return { ...(value as Record<string, unknown>) };
-  } catch {
+  } catch (error) {
+    logger.warn(
+      { error: error instanceof Error ? error.message : String(error) },
+      '读取窗口设置失败，托盘使用默认值',
+    );
     return {};
   }
 }
@@ -333,7 +348,11 @@ function isAutoCheckEnabled(): boolean {
       return true;
     }
     return (value as { autoCheck?: unknown }).autoCheck !== false;
-  } catch {
+  } catch (error) {
+    logger.warn(
+      { error: error instanceof Error ? error.message : String(error) },
+      '读取更新设置失败，自动检查按默认开启',
+    );
     return true;
   }
 }
@@ -345,7 +364,11 @@ function isAllowPrereleaseEnabled(): boolean {
       return false;
     }
     return (value as { allowPrerelease?: unknown }).allowPrerelease === true;
-  } catch {
+  } catch (error) {
+    logger.warn(
+      { error: error instanceof Error ? error.message : String(error) },
+      '读取预发布设置失败，默认不接收预发布',
+    );
     return false;
   }
 }

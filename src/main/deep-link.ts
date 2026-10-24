@@ -5,6 +5,8 @@ import type { DeepLinkPayload } from '@code-agent/shared/main';
 import { APP_PROTOCOL, IPC_CHANNELS } from '@code-agent/shared/main';
 import { app, BrowserWindow } from 'electron';
 
+import { logger } from './utils/logger';
+
 /** 协议 scheme（注册与提取共用；真源 app.config.json → constants/brand.ts） */
 const CODE_AGENT_PROTOCOL = APP_PROTOCOL;
 
@@ -39,11 +41,19 @@ export function extractProtocolUrl(argv: readonly string[]): string | null {
  */
 export function broadcastDeepLink(payload: DeepLinkPayload): void {
   const channel = IPC_CHANNELS['APP_EVENT_DEEP_LINK'];
+  let delivered = 0;
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed()) {
       win.webContents.send(channel, payload);
+      delivered += 1;
     }
   }
+  // 只记 sessionId 是否存在，不落完整 URL（深链可能带第三方参数）
+  if (delivered === 0) {
+    logger.warn({ hasSession: payload.sessionId !== null }, '深链到达但无可用窗口，事件未投递');
+    return;
+  }
+  logger.info({ hasSession: payload.sessionId !== null, windows: delivered }, '深链事件已广播');
 }
 
 /**
@@ -52,10 +62,11 @@ export function broadcastDeepLink(payload: DeepLinkPayload): void {
  * dev 模式（process.defaultApp）必须显式传可执行文件路径与入口脚本两个参数，
  * 否则 OS 注册的是 electron 二进制本身，拉起后拿不到应用入口
  */
-export function registerDeepLinkProtocol(): void {
+export function registerDeepLinkProtocol(): boolean {
   if (process.defaultApp && process.argv.length >= 2) {
-    app.setAsDefaultProtocolClient(CODE_AGENT_PROTOCOL, process.execPath, [process.argv[1] ?? '']);
-  } else {
-    app.setAsDefaultProtocolClient(CODE_AGENT_PROTOCOL);
+    return app.setAsDefaultProtocolClient(CODE_AGENT_PROTOCOL, process.execPath, [
+      process.argv[1] ?? '',
+    ]);
   }
+  return app.setAsDefaultProtocolClient(CODE_AGENT_PROTOCOL);
 }

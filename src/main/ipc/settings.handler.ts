@@ -40,6 +40,8 @@ export const settingsHandlers: InferHandlers<
     if (input.key === 'proxy') {
       await applyProxyChange(input.value);
     }
+    // 只记键名，不记值（值可能含代理凭据等敏感信息）
+    logger.info({ key: input.key }, '设置已更新');
     return { ok: true };
   },
 
@@ -103,6 +105,7 @@ export const settingsHandlers: InferHandlers<
 
   setTelemetryLevel: async (input) => {
     await writeTelemetryLevel(input.level);
+    logger.info({ level: input.level }, '遥测级别已更新（重启生效）');
     return { ok: true, level: input.level };
   },
 };

@@ -8,6 +8,7 @@ import {
   maskSecret,
   setSecret,
 } from '../infra/storage/keychain';
+import { logger } from '../utils/logger';
 import type { IpcHandlerContext } from './wrap';
 
 export const secretsHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContext>['secrets'] =
@@ -21,11 +22,13 @@ export const secretsHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerCo
 
     set: async (input) => {
       await setSecret(input.key, input.value);
+      logger.info({ key: input.key }, '凭据已写入');
       return { ok: true };
     },
 
     delete: async (input) => {
       await deleteSecret(input.key);
+      logger.info({ key: input.key }, '凭据已删除');
       return { ok: true };
     },
 

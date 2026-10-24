@@ -3,6 +3,7 @@ import type { InferHandlers, IPC_DEFINITIONS } from '@code-agent/shared/main';
 import { dialog } from 'electron';
 
 import { grantUserReadPaths } from '../infra/file/user-grants';
+import { logger } from '../utils/logger';
 import type { IpcHandlerContext } from './wrap';
 
 export const dialogHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContext>['dialog'] = {
@@ -20,6 +21,7 @@ export const dialogHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerCon
       return { canceled: true };
     }
 
+    logger.info({ count: 1 }, '用户选择目录');
     return { canceled: false, path: selectedPath };
   },
 
@@ -35,6 +37,7 @@ export const dialogHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerCon
     // 用户经系统对话框主动选中的文件自动加入读白名单（path-guard 的 user-grants 机制：
     // 用户亲自选择 = 授权，Agent 后续可直接读，不再重复弹审批）
     grantUserReadPaths(result.filePaths);
+    logger.info({ count: result.filePaths.length }, '用户选择文件（已加入读授权）');
 
     return { canceled: false, paths: result.filePaths };
   },

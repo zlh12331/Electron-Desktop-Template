@@ -174,6 +174,7 @@ export class UpdateService implements IUpdateService {
     const startedAt = performance.now();
     const trigger = manual ? 'manual' : 'launch';
     let outcome = 'error';
+    logger.info({ scope: 'auto-updater', trigger }, '开始检查更新');
     try {
       this.updater.allowPrerelease =
         (this.allowPrereleaseEnabled?.() ?? false) || app.getVersion().includes('-');
@@ -268,6 +269,10 @@ export class UpdateService implements IUpdateService {
    * macOS/Linux 可直接 quitAndInstall
    */
   quitAndInstall(): void {
+    logger.info(
+      { scope: 'auto-updater', platform: process.platform, version: this.pendingVersion },
+      '用户请求安装更新',
+    );
     if (process.platform === 'win32') {
       requestDeferredInstall();
       setCloseConfirmed();
@@ -319,6 +324,7 @@ export class UpdateService implements IUpdateService {
       this.beginDownload();
     });
     this.updater.on('update-not-available', () => {
+      logger.info({ scope: 'auto-updater' }, '当前已是最新版本');
       this.emit({ phase: 'not-available' });
     });
     this.updater.on('download-progress', (progress) => {

@@ -8,6 +8,7 @@ import {
   type TelemetryLevel,
 } from '@code-agent/shared/observability';
 import { app } from 'electron';
+import { logger } from '../../utils/logger';
 
 function getPrefPath(): string {
   return join(app.getPath('userData'), 'telemetry-pref.json');
@@ -30,8 +31,13 @@ export function readTelemetryLevelSync(): TelemetryLevel {
     if (level !== undefined && TELEMETRY_LEVELS.includes(level)) {
       return level;
     }
+    logger.warn({ value: String(level).slice(0, 80) }, '遥测级别值非法，回落默认级别');
     return DEFAULT_TELEMETRY_LEVEL;
-  } catch {
+  } catch (error) {
+    logger.warn(
+      { error: error instanceof Error ? error.message : String(error) },
+      '遥测偏好读取失败，回落默认级别',
+    );
     return DEFAULT_TELEMETRY_LEVEL;
   }
 }

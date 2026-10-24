@@ -2,6 +2,7 @@
 // 真源即本表：渲染层 settings-store 写穿透到这里；draft/sidebar 等纯 UI 态不走这里
 import { eq, sql } from 'drizzle-orm';
 
+import { logger } from '../../utils/logger';
 import { getDb } from './db';
 import { appSettings } from './schema';
 
@@ -15,7 +16,9 @@ export function readAllSettings(): Record<string, unknown> {
   for (const row of rows) {
     try {
       settings[row.key] = JSON.parse(row.value);
-    } catch {}
+    } catch {
+      logger.warn({ key: row.key }, '设置值损坏，快照中已忽略');
+    }
   }
   return settings;
 }
@@ -31,6 +34,7 @@ export function readSetting(key: string): unknown {
   try {
     return JSON.parse(row.value);
   } catch {
+    logger.warn({ key }, '设置值损坏，按缺失处理');
     return undefined;
   }
 }

@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { reportError } from '@/lib/error-report';
 import { bootstrapSettings } from './settings-bootstrap';
 import { SETTINGS_STORAGE_KEY } from './theme-init';
+
+vi.mock('@/lib/error-report', () => ({ reportError: vi.fn() }));
 
 describe('bootstrapSettings', () => {
   beforeEach(() => {
@@ -62,5 +65,9 @@ describe('bootstrapSettings', () => {
     } as never;
     const { theme } = await bootstrapSettings();
     expect(theme).toBe('light');
+    expect(vi.mocked(reportError)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ tags: { scope: 'settings-bootstrap' } }),
+    );
   });
 });
