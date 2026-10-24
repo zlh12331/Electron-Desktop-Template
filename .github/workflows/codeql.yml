@@ -28,7 +28,7 @@ on:
     branches: [main]
   schedule:
     # 每周一 03:17 UTC（避开整点，与 default setup 的周扫节奏一致）
-    - cron: '17 3 * * 1'
+    - cron: "17 3 * * 1"
   workflow_dispatch:
 
 # 分析本身只读代码；上传 SARIF 需要 security-events: write
@@ -79,4 +79,4 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
-          category: '/language:${{ matrix.language }}'
+          category: "/language:${{ matrix.language }}"

@@ -5,11 +5,11 @@
 
 ## 一、环境要求
 
-| 工具 | 版本 | 说明 |
-|---|---|---|
-| Node.js | **≥ 26.0.0** | 真源是 `package.json` 的 `engines`；`.nvmrc` 钉 26.8.1 供 `nvm use` 使用 |
-| pnpm | **≥ 12.0.0** | 真源是 `engines` + `packageManager: pnpm@12.10.1`。**不要用 npm / yarn**：仓库依赖 `workspace:*` 协议，npm 无法解析，安装会直接失败 |
-| Git | 任意较新版本 | 跨平台均可（Windows / macOS / Linux） |
+| 工具    | 版本         | 说明                                                                                                                                |
+| ------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Node.js | **≥ 26.0.0** | 真源是 `package.json` 的 `engines`；`.nvmrc` 钉 26.8.1 供 `nvm use` 使用                                                            |
+| pnpm    | **≥ 12.0.0** | 真源是 `engines` + `packageManager: pnpm@12.10.1`。**不要用 npm / yarn**：仓库依赖 `workspace:*` 协议，npm 无法解析，安装会直接失败 |
+| Git     | 任意较新版本 | 跨平台均可（Windows / macOS / Linux）                                                                                               |
 
 ```bash
 git clone https://github.com/zlh12331/Electron-Desktop-Template.git
@@ -71,12 +71,12 @@ pnpm test                 # 全量单测（packages → main → renderer → in
 
 **type 必须准确**——它不只是标签，而是**发布流水线的输入**：
 
-| type | 是否升版 | 进入 CHANGELOG |
-|---|---|---|
-| `feat` | minor | ✅ 新增 |
-| `fix` | patch | ✅ 修复 |
-| `perf` | patch | ✅ 性能 |
-| `refactor` / `docs` / `chore` / `test` / `style` / `build` / `ci` / `revert` | 不升版 | ❌ 隐藏 |
+| type                                                                         | 是否升版 | 进入 CHANGELOG |
+| ---------------------------------------------------------------------------- | -------- | -------------- |
+| `feat`                                                                       | minor    | ✅ 新增        |
+| `fix`                                                                        | patch    | ✅ 修复        |
+| `perf`                                                                       | patch    | ✅ 性能        |
+| `refactor` / `docs` / `chore` / `test` / `style` / `build` / `ci` / `revert` | 不升版   | ❌ 隐藏        |
 
 所以：**改 CI 配置用 `ci`，不要用 `feat`**——用错会让 release-please 误开一个空版本。
 
@@ -113,13 +113,12 @@ BREAKING CHANGE: 旧字段 `modelConfig` 不再被读取，需迁移到 `models`
 
 ### 状态管理分层
 
-| 场景 | 用什么 |
-|---|---|
-| 组件内瞬态（输入框/折叠/编辑态） | `useState` |
-| 客户端共享状态 | Zustand（`persistent/` 跨重启、`transient/` 会话内） |
-| IPC invoke 请求-响应 | **TanStack Query**（query 逻辑放 `hooks/` 并导出 queryKey 常量） |
-| IPC 推送事件 | Zustand transient，经 subscribe 回调写入 |
-
+| 场景                             | 用什么                                                           |
+| -------------------------------- | ---------------------------------------------------------------- |
+| 组件内瞬态（输入框/折叠/编辑态） | `useState`                                                       |
+| 客户端共享状态                   | Zustand（`persistent/` 跨重启、`transient/` 会话内）             |
+| IPC invoke 请求-响应             | **TanStack Query**（query 逻辑放 `hooks/` 并导出 queryKey 常量） |
+| IPC 推送事件                     | Zustand transient，经 subscribe 回调写入                         |
 - 响应一律用 `lib/ipc.ts` 的 `unwrap()`，**不要**手写 `'data' in res` 判别
 - 变更操作用 `useMutation`，且**必须挂 `onError`** 弹 toast（错误解析真源在 `lib/ipc.ts`）
 

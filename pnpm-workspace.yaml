@@ -1,8 +1,12 @@
+# pnpm-workspace.yaml
+# pnpm 11 起所有非 auth/registry 配置统一在本文件声明（不再读 package.json#pnpm）
+# 参考 https://pnpm.io/settings
+
 packages:
-  - 'packages/*'
-  - 'tools/*'
+  - "packages/*"
+  - "tools/*"
   # 排除下划线前缀的模板目录（如 tools/_ts6-template），不作为真实 workspace 包
-  - '!tools/_*'
+  - "!tools/_*"
 
 # ── 多架构安装（发布矩阵含 x64 + arm64）──────────────────────────────────────
 # 为什么需要：原生依赖（如 better-sqlite3 的预编译包）按平台/架构分发 optionalDependencies，
@@ -27,9 +31,9 @@ allowBuilds:
   better-sqlite3: true
   electron: true
   esbuild: true
-  '@sentry/node-native-stacktrace': true
-  '@sentry/cli': true
-  '@swc/core': false
+  "@sentry/node-native-stacktrace": true
+  "@sentry/cli": true
+  "@swc/core": false
   electron-winstaller: false
   msw: false
 
@@ -37,7 +41,7 @@ allowBuilds:
 packageExtensions:
   dependency-cruiser:
     peerDependencies:
-      typescript: '*'
+      typescript: "*"
     peerDependenciesMeta:
       typescript:
         optional: true
@@ -48,8 +52,8 @@ overrides:
   # 子网比较错误、Address6 解析诊断信息泄漏，patched 10.7.1）
   ip-address: 10.7.4
   # 2026-09-09 升级：4.12.34 → 4.13.7（CVE-2026-84363/84364/84365 系列 query/parseBody DoS，patched 4.13.5）
-  'hono@>=4.0.0': 4.13.13
-  '@hono/node-server': 1.19.17
+  "hono@>=4.0.0": 4.13.13
+  "@hono/node-server": 1.19.17
   postcss: 8.5.31
   # 2026-10-24 升级到 3.1.9（GHSA-hrr3-gc8f-f4qj 等 fast-uri 系列 advisory）
   # 传递路径 ajv←MCP SDK / commitlint / cdxgen / electron-builder）
@@ -61,14 +65,14 @@ overrides:
   # node-gyp 构建链 devDependencies）
   # 2026-10-09 收窄到 7.x 线：主进程直接依赖（proxied-fetch.ts）升 8.12.2 后，
   # 本 override 只继续负责传递链 7.x 的安全钉；不窄化会与直接依赖冲突
-  'undici@>=7.0.0 <8': 7.30.1
-  'undici@<7': 6.29.1
+  "undici@>=7.0.0 <8": 7.30.1
+  "undici@<7": 6.29.1
   # 2026-09-09 升级：4.3.1 → 4.3.2（CVE-2026-84375 maxTotalMergeKeys 空合并源 CPU 耗尽，patched 4.3.2）
   # 2026-10-09 收窄到 4.x 线：直接依赖（scripts/lib/update-metadata.ts）升 5.4.3 后，
   # 本 override 只负责钉住传递链的 4.x（typedoc 工具链）——不窄化会与直接依赖冲突
-  'js-yaml@>=4.0.0 <5': 4.3.2
+  "js-yaml@>=4.0.0 <5": 4.3.2
   # GHSA-27r3-jxmh-p828 等 undici 8.x advisory，补丁 8.12.2；直接依赖与 jsdom 传递链共用
-  'undici@>=8.0.0': 8.12.3
+  "undici@>=8.0.0": 8.12.3
   # GHSA-4qv8-2p9j-2685 body-parser 2.4.0 修复（cdxgen 传递链）
   body-parser: 2.4.0
   # 2026-10-09 升级：4.2.0 → 4.3.0（GHSA-ch52-4w7c-c8xp high：max-stale 跨用户缓存
@@ -83,11 +87,11 @@ overrides:
   # Dependabot GHSA-mh99-v99m-4gvg / GHSA-rgw5-rvv9-x895：DoS，仅命中 typedoc 工具链的 4.x 线；1.x/2.x 合法共存不动
   # 2026-09-30 三线全升（6 条告警：4 high + 2 moderate + cdxgen 链 3 moderate）：
   # 1.1.18→1.1.21 / 2.1.4→2.1.7 / 5.0.9→5.0.12（递归 DoS 与二次展开 DoS 全系修复）
-  'brace-expansion@<2': ^1.1.21
-  'brace-expansion@>=2.0.0 <3': ^2.1.7
-  'brace-expansion@>=4.0.0': ^5.0.12
+  "brace-expansion@<2": ^1.1.21
+  "brace-expansion@>=2.0.0 <3": ^2.1.7
+  "brace-expansion@>=4.0.0": ^5.0.12
   # Dependabot GHSA-67mh-4wv8-2f99：dev server 请求伪造，命中 drizzle-kit→@esbuild-kit 的 0.18.x
-  'esbuild@<0.25.0': ^0.28.0
+  "esbuild@<0.25.0": ^0.28.0
 
 # ── 供应链策略 ──────────────────────────────────────────────────────────────
 # 发布年龄闸（supply-chain age gate）：拒绝安装「发布不足 24h」的包版本。

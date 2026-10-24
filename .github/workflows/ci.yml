@@ -152,7 +152,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # 制品存储配额耗尽时 SARIF 报告上传失败会让本步红（扫描本身已通过）。
           # 仓库转公开后此限制消失，届时可重新开启上传存档。
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'false'
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
 
       - name: Static checks (tokens + i18n)
         if: ${{ !startsWith(github.head_ref, 'release-please--') }}
@@ -461,7 +461,15 @@ jobs:
         # 六平台真实 Electron 窗口验证（2026-09-20 从 3 平台扩到 6）——
         # macOS 验证 mac 专属路径、Linux 验证 libsecret 降级路径、ARM64 验证
         # 原生模块在 ARM 上的构建与加载（此前 arm64 只由 CD 的打包覆盖）。
-        os: [windows-latest, windows-11-arm, ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-26-intel]
+        os:
+          [
+            windows-latest,
+            windows-11-arm,
+            ubuntu-latest,
+            ubuntu-24.04-arm,
+            macos-latest,
+            macos-26-intel,
+          ]
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -597,4 +605,3 @@ jobs:
   # 才暴露。这类问题在本项目历史上出现过多次；若日后发现"发版时才炸"过于昂贵，
   # 恢复路径是加一个用 `electron-builder --dir` 打包的轻量 job（跳过安装器生成，
   # 约省一半时间）——smoke 启动的是 unpacked 目录里的可执行文件，本不需要安装器。
-

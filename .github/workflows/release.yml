@@ -205,7 +205,6 @@ jobs:
         if: matrix.platform == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libfuse2 rpm xz-utils
 
-
       # 签名/公证凭据三件套齐备才导出（缺一整套跳过）——
       # secret 未配置时是空串，直接进 env 会让 electron-builder 误判"已配置证书"
       - name: Build & package ${{ matrix.platform }} installer
