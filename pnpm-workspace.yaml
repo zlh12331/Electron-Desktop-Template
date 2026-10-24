@@ -1,7 +1,3 @@
-# pnpm-workspace.yaml
-# pnpm 11 起所有非 auth/registry 配置统一在本文件声明（不再读 package.json#pnpm）
-# 参考 https://pnpm.io/settings
-
 packages:
   - "packages/*"
   - "tools/*"
@@ -70,7 +66,7 @@ overrides:
   # 2026-09-09 升级：4.3.1 → 4.3.2（CVE-2026-84375 maxTotalMergeKeys 空合并源 CPU 耗尽，patched 4.3.2）
   # 2026-10-09 收窄到 4.x 线：直接依赖（scripts/lib/update-metadata.ts）升 5.4.3 后，
   # 本 override 只负责钉住传递链的 4.x（typedoc 工具链）——不窄化会与直接依赖冲突
-  "js-yaml@>=4.0.0 <5": 4.3.2
+  "js-yaml@>=4.0.0 <5": 5.5.0
   # GHSA-27r3-jxmh-p828 等 undici 8.x advisory，补丁 8.12.2；直接依赖与 jsdom 传递链共用
   "undici@>=8.0.0": 8.12.3
   # GHSA-4qv8-2p9j-2685 body-parser 2.4.0 修复（cdxgen 传递链）
