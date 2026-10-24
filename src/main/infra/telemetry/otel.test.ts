@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => {
     getAppMetrics: vi.fn(() => []),
   };
   const mockSetLogSink = vi.fn();
-  return { mockLogger, mockApp, mockSetLogSink };
+  return { mockLogger, mockApp, mockSetLogSink, failMetricExporter: false };
 });
 
 vi.mock('electron', () => ({
@@ -43,6 +43,9 @@ vi.mock('@opentelemetry/exporter-trace-otlp-http', () => ({
 
 vi.mock('@opentelemetry/exporter-metrics-otlp-http', () => ({
   ['OTLPMetricExporter']: class {
+    constructor() {
+      if (mocks.failMetricExporter) throw new Error('synthetic metric init failure');
+    }
     export(_items: unknown, callback: (result: { code: number }) => void): void {
       callback({ code: 0 });
     }
@@ -83,6 +86,7 @@ describe('OpenTelemetry 初始化与生命周期', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mocks.mockApp.isPackaged = false;
+    mocks.failMetricExporter = false;
     delete process.env[ENDPOINT_KEY];
     delete process.env['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT'];
     delete process.env['OTEL_EXPORTER_OTLP_METRICS_ENDPOINT'];
@@ -152,7 +156,23 @@ describe('OpenTelemetry 初始化与生命周期', () => {
     expect(mocks.mockSetLogSink).toHaveBeenCalledWith(expect.any(Function));
   });
 
-  it('error-only + 端点：只启用日志导出（trace/metrics 交给 Sentry）', () => {
+  it('metrics 初始化失败不撤掉 trace/logs，状态如实显示部分启用', () => {
+    process.env[ENDPOINT_KEY] = 'http://127.0.0.1:9';
+    mocks.failMetricExporter = true;
+    initTelemetry('full');
+    expect(getTelemetryRuntimeStatus()).toMatchObject({
+      enabled: true,
+      tracing: true,
+      metrics: false,
+      logs: true,
+    });
+    expect(mocks.mockLogger.warn).toHaveBeenCalledWith(
+      { signal: 'metrics' },
+      'OpenTelemetry 信号初始化失败，其余信号继续',
+    );
+  });
+
+  it('error-only + 端点：只启用日志导出', () => {
     process.env[ENDPOINT_KEY] = 'http://127.0.0.1:9';
     initTelemetry('error-only');
     expect(getTracer()).toBeNull();

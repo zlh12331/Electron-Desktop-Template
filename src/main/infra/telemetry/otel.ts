@@ -29,11 +29,13 @@ import {
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import { app } from 'electron';
 import { logger, setLogSink } from '../../utils/logger';
+import { registerTelemetryFlush } from '../../utils/telemetry-flush';
 import { readBuildInfo } from '../app-info';
 import { readTelemetryLevelSync } from '../storage/telemetry-pref';
 import { instrumentExporter } from './instrument-exporter';
 import { clearOtelLogSink, emitOtelLog, setOtelLogSink } from './otel-log';
 import { initOtelMetrics, resetOtelMetrics } from './otel-metrics';
+import { redactText } from './redact';
 import { resetTelemetryHealth } from './telemetry-health';
 
 /** OTel 运行状态快照（诊断包展示；不含端点/请求头） */
@@ -65,6 +67,7 @@ let initialized = false;
 let activeLevel: TelemetryLevel = 'off';
 
 let activeConfig: OtelResolvedConfig | null = null;
+let unregisterFatalFlush: (() => void) | null = null;
 
 /** 退出善后各 provider 的 flush/shutdown 上限（超时不阻塞应用退出） */
 const SHUTDOWN_TIMEOUT_MS = 3_000;
@@ -117,8 +120,8 @@ function initTracing(
     sampler,
     spanProcessors: [new BatchSpanProcessor(exporter)],
   });
-  provider.register();
   tracerProvider = provider;
+  provider.register();
   tracer = provider.getTracer(PRODUCT_NAME, app.getVersion());
 }
 
@@ -141,8 +144,8 @@ function initMetrics(
     exportIntervalMillis: config.metricExportIntervalMs,
   });
   const provider = new MeterProvider({ resource, readers: [reader] });
-  metrics.setGlobalMeterProvider(provider);
   meterProvider = provider;
+  metrics.setGlobalMeterProvider(provider);
   initOtelMetrics(provider.getMeter(PRODUCT_NAME, app.getVersion()));
 }
 
@@ -164,8 +167,8 @@ function initLogs(
     resource,
     processors: [new BatchLogRecordProcessor({ exporter })],
   });
-  logs.setGlobalLoggerProvider(provider);
   loggerProvider = provider;
+  logs.setGlobalLoggerProvider(provider);
   setOtelLogSink(provider.getLogger(PRODUCT_NAME, app.getVersion()), {
     minLevel: config.logMinLevel,
     sampleRatio: config.logSampleRatio,
@@ -174,6 +177,50 @@ function initLogs(
   setLogSink((level, context, message, error) => {
     emitOtelLog(level, context, message, error);
   });
+}
+
+function initializeSignal(signal: 'traces' | 'metrics' | 'logs', initialize: () => void): void {
+  try {
+    initialize();
+  } catch {
+    let failedProvider: NodeTracerProvider | MeterProvider | LoggerProvider | null;
+    if (signal === 'traces') {
+      failedProvider = tracerProvider;
+      tracerProvider = null;
+      tracer = null;
+      trace.disable();
+    } else if (signal === 'metrics') {
+      failedProvider = meterProvider;
+      meterProvider = null;
+      resetOtelMetrics();
+      metrics.disable();
+    } else {
+      failedProvider = loggerProvider;
+      loggerProvider = null;
+      clearOtelLogSink();
+      setLogSink(null);
+      logs.disable();
+    }
+    if (failedProvider !== null) {
+      void Promise.resolve()
+        .then(() => failedProvider.shutdown())
+        .catch(() => {});
+    }
+    logger.warn({ signal }, 'OpenTelemetry 信号初始化失败，其余信号继续');
+  }
+}
+
+async function flushProviders(timeoutMs: number): Promise<void> {
+  await Promise.allSettled(
+    [tracerProvider, meterProvider, loggerProvider]
+      .filter((provider) => provider !== null)
+      .map((provider) =>
+        withTimeout(
+          Promise.resolve().then(() => provider.forceFlush()),
+          timeoutMs,
+        ),
+      ),
+  );
 }
 
 /**
@@ -209,12 +256,17 @@ export function initTelemetry(level: TelemetryLevel = readTelemetryLevelSync()):
     }
 
     const resource = getResource(config);
-    if (config.traceEndpoint !== null || config.consoleTracing) {
-      initTracing(config, resource);
+    initializeSignal('traces', () => {
+      if (config.traceEndpoint !== null || config.consoleTracing) initTracing(config, resource);
+    });
+    initializeSignal('metrics', () => initMetrics(config, resource));
+    initializeSignal('logs', () => initLogs(config, resource));
+    initialized = tracerProvider !== null || meterProvider !== null || loggerProvider !== null;
+    if (initialized) {
+      unregisterFatalFlush = registerTelemetryFlush('otel', (timeoutMs) =>
+        flushProviders(timeoutMs),
+      );
     }
-    initMetrics(config, resource);
-    initLogs(config, resource);
-    initialized = true;
 
     if (config.consoleTracing) {
       logger.info({}, 'OpenTelemetry 初始化完成（Console exporter，dev only）');
@@ -309,16 +361,28 @@ export async function withSpan<T>(
       }
       return result;
     } catch (error) {
-      span.setStatus({
-        code: SpanStatusCode.ERROR,
-        message: error instanceof Error ? error.message : String(error),
-      });
-      span.recordException(error instanceof Error ? error : { message: String(error) });
+      recordSpanFailure(span, error);
       throw error;
     } finally {
-      span.end();
+      try {
+        span.end();
+      } catch {}
     }
   });
+}
+
+function recordSpanFailure(span: Span, error: unknown): void {
+  try {
+    const message = redactText(error instanceof Error ? error.message : String(error));
+    span.setStatus({ code: SpanStatusCode.ERROR, message });
+    span.recordException({
+      name: error instanceof Error ? redactText(error.name) : 'Error',
+      message,
+      ...(error instanceof Error && error.stack !== undefined
+        ? { stack: redactText(error.stack) }
+        : {}),
+    });
+  } catch {}
 }
 
 /** 给 Promise 加超时（超时只返回，不取消底层操作） */
@@ -354,19 +418,11 @@ export async function shutdownTelemetry(): Promise<void> {
 
   clearOtelLogSink();
   setLogSink(null);
+  unregisterFatalFlush?.();
+  unregisterFatalFlush = null;
   tracer = null;
 
-  const flushTasks: Promise<unknown>[] = [];
-  if (tracerProvider !== null) {
-    flushTasks.push(tracerProvider.forceFlush());
-  }
-  if (meterProvider !== null) {
-    flushTasks.push(meterProvider.forceFlush());
-  }
-  if (loggerProvider !== null) {
-    flushTasks.push(loggerProvider.forceFlush());
-  }
-  await Promise.allSettled(flushTasks.map((task) => withTimeout(task, SHUTDOWN_TIMEOUT_MS)));
+  await flushProviders(SHUTDOWN_TIMEOUT_MS);
 
   const shutdownTasks: Promise<unknown>[] = [];
   if (tracerProvider !== null) {
