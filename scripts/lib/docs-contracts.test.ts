@@ -4,6 +4,7 @@ import {
   checkErrorCodeRefs,
   checkGateCount,
   checkIpcSpec,
+  checkLegacyProtocolRefs,
   checkPathRefs,
   countIpcMeta,
   type IpcMetaLike,
@@ -101,6 +102,19 @@ describe('checkErrorCodeRefs', () => {
     const issues = checkErrorCodeRefs(text, 'doc.md', new Set(['INVALID_INPUT']));
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({ line: 3, rule: 'error-code-ref' });
+  });
+});
+
+describe('checkLegacyProtocolRefs', () => {
+  it('当前协议与普通 URL 不误报，旧协议按行号报错', () => {
+    const text = [
+      'electron-template://session/a',
+      'https://example.com',
+      '旧文档示例 code-agent://session/a',
+    ].join('\n');
+    const issues = checkLegacyProtocolRefs(text, 'doc.md');
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ line: 3, rule: 'legacy-protocol' });
   });
 });
 

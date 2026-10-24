@@ -146,6 +146,32 @@ export function checkIpcSpec(
   return issues;
 }
 
+/**
+ * 校验现行源码/文档中是否残留旧产品协议字面量
+ *
+ * 协议名是品牌真源的一部分；历史文档（docs/history）由调用方排除，
+ * 当前源码与现行文档应统一引用 APP_PROTOCOL 或通用表述。
+ *
+ * @param text 文档或源码全文
+ * @param file 展示用相对路径
+ * @returns 问题列表（空数组 = 通过）
+ */
+export function checkLegacyProtocolRefs(text: string, file: string): DocsContractIssue[] {
+  // 分段拼接避免规则文件自身命中；历史文档由调用方排除
+  const legacyProtocol = `${['code', 'agent'].join('-')}://`;
+  const pattern = new RegExp(legacyProtocol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+  const issues: DocsContractIssue[] = [];
+  for (const match of text.matchAll(pattern)) {
+    issues.push({
+      file,
+      line: lineOf(text, match.index ?? 0),
+      rule: 'legacy-protocol',
+      detail: `现行源码/文档残留旧协议 ${legacyProtocol}；请使用 APP_PROTOCOL 或通用表述`,
+    });
+  }
+  return issues;
+}
+
 /** 两个字符串数组是否集合相等（忽略顺序，重复项视为不相等） */
 function sameStringSet(left: readonly string[], right: readonly string[]): boolean {
   if (left.length !== right.length) return false;

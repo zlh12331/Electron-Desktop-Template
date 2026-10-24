@@ -13,6 +13,7 @@ import {
   checkErrorCodeRefs,
   checkGateCount,
   checkIpcSpec,
+  checkLegacyProtocolRefs,
   checkPathRefs,
   countIpcMeta,
   type DocsContractIssue,
@@ -156,6 +157,7 @@ function main(): number {
       issues.push(...checkGateCount(content, file, gateCount));
     }
     issues.push(...checkErrorCodeRefs(content, file, codes));
+    issues.push(...checkLegacyProtocolRefs(content, file));
     issues.push(...checkPathRefs(content, file, fileExists));
   }
 
