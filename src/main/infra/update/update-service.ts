@@ -134,7 +134,6 @@ export class UpdateService implements IUpdateService {
 
   private checkAttempt: CheckAttempt | null = null;
   private readonly expiredChecks = new WeakSet<Promise<unknown>>();
-  private pendingExpiredChecks = 0;
 
   private started = false;
 
@@ -244,10 +243,6 @@ export class UpdateService implements IUpdateService {
       attempt.skipped = true;
       return;
     }
-    const settled = (): void => {
-      if (this.expiredChecks.has(checkPromise)) this.pendingExpiredChecks -= 1;
-    };
-    void checkPromise.then(settled, settled);
     let timer: NodeJS.Timeout | undefined;
     try {
       await Promise.race([
@@ -256,7 +251,6 @@ export class UpdateService implements IUpdateService {
           timer = setTimeout(() => {
             attempt.timedOut = true;
             this.expiredChecks.add(checkPromise);
-            this.pendingExpiredChecks += 1;
             reject(new Error('check-timeout'));
           }, CHECK_TIMEOUT_MS);
           timer.unref();
@@ -382,10 +376,11 @@ export class UpdateService implements IUpdateService {
   }
 
   private acceptCheckEvent(): boolean {
-    // 超时后的迟到事件不能把失败检查改写成成功或触发下载。
+    // 当前尝试已结束/已超时后，迟到事件不得改写结果或触发下载。
+    // 不能用计时器计数器做全局阻断：底层 Promise 可能永不 settle，一次网络黑洞
+    // 会把后续所有检查的事件永久拒掉。新尝试会替换 checkAttempt，重新获得处理资格。
     return (
-      this.pendingExpiredChecks === 0 &&
-      (this.checkAttempt === null || (!this.checkAttempt.settled && !this.checkAttempt.timedOut))
+      this.checkAttempt === null || (!this.checkAttempt.settled && !this.checkAttempt.timedOut)
     );
   }
 

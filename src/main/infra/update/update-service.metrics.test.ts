@@ -219,22 +219,24 @@ describe('update check metrics', () => {
     expect(updater.downloadUpdate).not.toHaveBeenCalled();
   });
 
-  it('超时后复用旧 Promise 是 skip，迟到事件不污染同时开始的新检查', async () => {
+  it('超时后新检查仍处理事件；复用旧 Promise 的检查 skip', async () => {
     service.start({ autoCheckEnabled: () => false });
     const old = deferred();
     updater.checkForUpdates.mockReturnValue(old.promise);
     const first = service.check(true);
     await vi.advanceTimersByTimeAsync(45_000);
     await first;
+    // 复用已超时的旧 Promise → skip，不新增 check 样本
     await service.check(true);
     const next = deferred();
     updater.checkForUpdates.mockReturnValue(next.promise);
     const pending = service.check(true);
     updater.emit('update-available', { version: '2.0.0' });
-    updater.emit('error', new Error('late old error'));
+    await vi.advanceTimersByTimeAsync(0);
+    await flush();
+    expect(updater.downloadUpdate).toHaveBeenCalledOnce();
     old.resolve();
     await vi.advanceTimersByTimeAsync(0);
-    updater.emit('update-not-available');
     next.resolve();
     await pending;
     await flush();
@@ -242,11 +244,12 @@ describe('update check metrics', () => {
       [{ trigger: 'manual', outcome: 'error' }, 1],
       [{ trigger: 'manual', outcome: 'success' }, 1],
     ]);
-    expect(metric('app.update.events')?.dataPoints.map((p) => [p.attributes, p.value])).toEqual([
-      [{ phase: 'error' }, 1],
-      [{ phase: 'not-available' }, 1],
-    ]);
-    expect(updater.downloadUpdate).not.toHaveBeenCalled();
+    expect(metric('app.update.events')?.dataPoints.map((p) => [p.attributes, p.value])).toEqual(
+      expect.arrayContaining([
+        [{ phase: 'error' }, 1],
+        [{ phase: 'available' }, 1],
+      ]),
+    );
   });
 
   it('仅 error 事件但 Promise resolve 仍算失败且 span 为 ERROR', async () => {
