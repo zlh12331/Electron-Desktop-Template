@@ -13,6 +13,7 @@ import { _electron as electron } from 'playwright';
 
 import { unwrap } from '../src/renderer/lib/ipc';
 import { closeElectronApp } from './helpers/close-electron';
+import { buildElectronEnv } from './helpers/electron-env';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -26,7 +27,7 @@ const E2E_USER_DATA = join(__dirname, '..', '.e2e-user-data');
 const DEBUG_PORT = '9223';
 
 // 桌面视口：宽度必须大于 BREAKPOINT_COMPACT（1200px，src/renderer/lib/constants.ts），
-// 否则右面板自动折叠、DevPanel 不挂载，「右面板默认视图」用例必失败（CI 虚拟屏可能更窄）
+// 否则右面板自动折叠，「右面板默认收起」用例必失败（CI 虚拟屏可能更窄）
 const DESKTOP_VIEWPORT = { width: 1600, height: 1000 };
 
 // ───── 启动辅助：等出非 DevTools 的主窗口 + 带 E2E 环境变量的冷启动 ─────
@@ -58,17 +59,16 @@ async function launchElectron(
 ): Promise<{ app: ElectronApplication; page: Page }> {
   const app = await electron.launch({
     args: [MAIN_ENTRY],
-    env: {
-      ...process.env,
+    env: buildElectronEnv({
       NODE_ENV: 'development',
       // 设了它就改走 loadURL 连 dev server，而非 loadFile 载生产产物（src/main/window.ts）；
       // 端口须与 e2e/playwright.electron.config.ts 的 webServer 一致
       ELECTRON_RENDERER_URL: 'http://localhost:5173',
       APP_USER_DATA: userData,
       APP_DEBUG_PORT: DEBUG_PORT,
-      // 豁免关窗协商：仍有运行中回合时关闭会弹确认框（src/main/window.ts），测试环境会卡死
+      // 豁免关窗协商（当前模板无长任务；接入长任务后由主进程自行决定是否弹确认）
       APP_SKIP_CLOSE_GUARD: '1',
-    },
+    }),
   });
 
   try {
@@ -152,6 +152,7 @@ test.describe('Electron 应用 E2E 测试', () => {
       'proxy',
       'secrets',
       'invalidation',
+      'telemetry',
     ]) {
       expect(apiKeys).toContain(domain);
     }
@@ -215,6 +216,42 @@ test.describe('Electron 应用 E2E 测试', () => {
         await expectProcessExited(ownedProcess);
       }
       // 仅删除本次创建的子目录，保留其他用例的 userData。
+      rmSync(userData, { recursive: true, force: true });
+    }
+  });
+
+  test('语言经设置写入后跨重启生效', async () => {
+    mkdirSync(E2E_USER_DATA, { recursive: true });
+    const userData = mkdtempSync(join(E2E_USER_DATA, 'language-persistence-'));
+    let ownedApp: ElectronApplication | undefined;
+    let ownedProcess: ReturnType<ElectronApplication['process']> | undefined;
+
+    try {
+      ({ app, page } = await launchElectron(userData));
+      ownedApp = app;
+      ownedProcess = app.process();
+
+      const setResult = await page.evaluate(() =>
+        window.api.settings.set({ key: 'language', value: 'en' }),
+      );
+      expect(setResult).toEqual({ data: { ok: true } });
+
+      await closeElectronApp(app);
+      await expectProcessExited(ownedProcess);
+
+      ({ app, page } = await launchElectron(userData));
+      ownedApp = app;
+      ownedProcess = app.process();
+
+      await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+      await expect(page.getByRole('navigation')).toContainText('About');
+    } finally {
+      if (ownedApp !== undefined) {
+        await closeElectronApp(ownedApp);
+      }
+      if (ownedProcess !== undefined) {
+        await expectProcessExited(ownedProcess);
+      }
       rmSync(userData, { recursive: true, force: true });
     }
   });

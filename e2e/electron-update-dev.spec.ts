@@ -13,6 +13,7 @@ import { expect, test } from '@playwright/test';
 import { _electron as electron } from 'playwright';
 
 import { closeElectronApp } from './helpers/close-electron';
+import { buildElectronEnv } from './helpers/electron-env';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -82,8 +83,7 @@ async function launchElectron(
 ): Promise<{ app: ElectronApplication; page: Page }> {
   const app = await electron.launch({
     args: [MAIN_ENTRY],
-    env: {
-      ...process.env,
+    env: buildElectronEnv({
       NODE_ENV: 'development',
       // renderer dev server（playwright.electron.config.ts 的 webServer 起在 5173）
       ELECTRON_RENDERER_URL: 'http://localhost:5173',
@@ -92,7 +92,7 @@ async function launchElectron(
       // 关窗协商豁免：无头 E2E 跳过退出确认模态框
       APP_SKIP_CLOSE_GUARD: '1',
       ...extraEnv,
-    },
+    }),
   });
 
   try {
