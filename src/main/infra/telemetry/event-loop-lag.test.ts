@@ -62,6 +62,42 @@ describe('EventLoopLagMonitor（直方图分位语义）', () => {
     expect(fired).toEqual([{ lagMs: sample.lagMs }]);
   });
 
+  it('正常/边界/高延迟窗口均调用 onSample，onLag 仍只接超阈值', () => {
+    const fake = createFakeHistogram();
+    const samples: number[] = [];
+    const subscribed: number[] = [];
+    const lags: number[] = [];
+    const monitor = createMonitor({
+      warnThresholdMs: 1000,
+      createHistogram: () => fake.histogram,
+      onSample: (sample) => samples.push(sample.lagMs),
+      onLag: (sample) => lags.push(sample.lagMs),
+    });
+    const unsubscribe = monitor.onSample((sample) => subscribed.push(sample.lagMs));
+    for (const ms of [0, 5, 1000, 1500]) {
+      fake.setNs(ms * 1e6);
+      monitor.sample();
+    }
+    unsubscribe();
+    fake.setNs(2e6);
+    monitor.sample();
+    expect(samples).toEqual([0, 5, 1000, 1500, 2]);
+    expect(subscribed).toEqual([0, 5, 1000, 1500]);
+    expect(lags).toEqual([1500]);
+    expect(fake.calls.reset).toBe(5);
+  });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, -1])('无效窗口 %s 不回调但仍 reset', (ns) => {
+    const fake = createFakeHistogram(ns);
+    const onSample = vi.fn();
+    const onLag = vi.fn();
+    const monitor = createMonitor({ createHistogram: () => fake.histogram, onSample, onLag });
+    monitor.sample();
+    expect(onSample).not.toHaveBeenCalled();
+    expect(onLag).not.toHaveBeenCalled();
+    expect(fake.calls.reset).toBe(1);
+  });
+
   it('阈值边界语义与旧实现一致：lagMs == 阈值不告警（严格大于）', () => {
     const fake = createFakeHistogram(1e9);
     const fired: number[] = [];
@@ -76,7 +112,7 @@ describe('EventLoopLagMonitor（直方图分位语义）', () => {
     expect(fired).toHaveLength(0);
   });
 
-  it('采样后 reset 直方图（lag 恒反映最近窗口；未 start 采样不告警）', () => {
+  it('采样后 reset 直方图（lag 恒反映最近窗口）', () => {
     const fake = createFakeHistogram();
     const monitor = createMonitor({ createHistogram: () => fake.histogram });
     fake.setNs(100e6);

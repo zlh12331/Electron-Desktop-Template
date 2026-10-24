@@ -1,4 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  AggregationTemporality,
+  InMemoryMetricExporter,
+  MeterProvider,
+  PeriodicExportingMetricReader,
+} from '@opentelemetry/sdk-metrics';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 const { mockFromWebContents, mockIpcMainHandle, mockReportError } = vi.hoisted(() => ({
@@ -12,6 +18,7 @@ vi.mock('../utils/error-report', () => ({
 }));
 
 vi.mock('electron', () => ({
+  app: { getAppMetrics: () => [] },
   ipcMain: {
     handle: mockIpcMainHandle,
   },
@@ -30,17 +37,9 @@ vi.mock('../utils/logger', () => ({
   },
 }));
 
-vi.mock('../infra/telemetry/otel', () => ({
-  withSpan: async (_name: string, _attributes: unknown, fn: (span: unknown) => Promise<unknown>) =>
-    fn({}),
-}));
-
-vi.mock('../infra/telemetry/otel-metrics', () => ({
-  recordIpcRequest: vi.fn(),
-}));
-
 import { AppError, ErrorCode } from '@code-agent/shared/main';
 import { ipcMain } from 'electron';
+import { initOtelMetrics, resetOtelMetrics } from '../infra/telemetry/otel-metrics';
 import { logger } from '../utils/logger';
 import { wrap } from './wrap';
 
@@ -63,8 +62,73 @@ const allowedSender = {
 };
 
 describe('wrap', () => {
+  let provider: MeterProvider;
+  let exporter: InMemoryMetricExporter;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+    provider = new MeterProvider({
+      readers: [new PeriodicExportingMetricReader({ exporter, exportIntervalMillis: 60_000 })],
+    });
+    initOtelMetrics(provider.getMeter('wrap-test'));
+  });
+
+  afterEach(async () => {
+    resetOtelMetrics();
+    await provider.shutdown();
+  });
+
+  async function expectMetricClasses(classes: Record<string, number>): Promise<void> {
+    await provider.forceFlush();
+    const metrics = exporter
+      .getMetrics()
+      .flatMap((r) => r.scopeMetrics)
+      .flatMap((s) => s.metrics);
+    for (const name of ['ipc.server.requests', 'ipc.server.request.duration']) {
+      const points = metrics.find((m) => m.descriptor.name === name)?.dataPoints;
+      expect(points).toHaveLength(Object.keys(classes).length);
+      for (const [failureClass, count] of Object.entries(classes)) {
+        const point = points?.find((p) => p.attributes['failureClass'] === failureClass);
+        expect(point?.attributes).toEqual({
+          channel: 'test:channel',
+          outcome: failureClass === 'none' ? 'success' : 'error',
+          failureClass,
+        });
+        if (name === 'ipc.server.requests') expect(point?.value).toBe(count);
+        else expect(point?.value).toMatchObject({ count });
+      }
+    }
+  }
+
+  it('完整错误码按保守值域分类，业务与系统分别计数且不含错误信息', async () => {
+    mockFromWebContents.mockReturnValue({ id: 1 });
+    let failure: unknown;
+    wrap('test:channel', null, async () => {
+      if (failure !== undefined) throw failure;
+      return 'ok';
+    });
+    const handler = getRegisteredHandler();
+    await handler({ sender: allowedSender }, undefined);
+    for (const code of Object.values(ErrorCode)) {
+      failure = new AppError(code, `private-message-${code}`);
+      await handler({ sender: allowedSender }, undefined);
+    }
+    failure = new Error('private raw error');
+    await handler({ sender: allowedSender }, undefined);
+    expect(Object.values(ErrorCode)).toHaveLength(14);
+    await expectMetricClasses({ none: 1, validation: 2, business: 4, system: 9 });
+  });
+
+  it('sender、入参校验和响应契约失败各记一次对应分类', async () => {
+    mockFromWebContents.mockReturnValue(null);
+    wrap('test:channel', null, async () => 'bad-response', z.literal('ok'));
+    const handler = getRegisteredHandler();
+    await handler({ sender: allowedSender }, undefined);
+    mockFromWebContents.mockReturnValue({ id: 1 });
+    await handler({ sender: allowedSender }, { unwanted: true });
+    await handler({ sender: allowedSender }, undefined);
+    await expectMetricClasses({ validation: 2, system: 1 });
   });
 
   it('成功时返回 { data }', async () => {

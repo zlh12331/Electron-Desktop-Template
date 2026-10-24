@@ -13,13 +13,8 @@ vi.mock('electron', () => ({
 }));
 
 import { clearDeferredInstall, isCloseConfirmed } from '../../quit-state';
-import {
-  type AutoUpdaterLike,
-  type CancellationTokenLike,
-  classifyUpdateError,
-  toReleaseNotes,
-  UpdateService,
-} from './update-service';
+import { type AutoUpdaterLike, type CancellationTokenLike, UpdateService } from './update-service';
+import { classifyUpdateError, toReleaseNotes } from './update-service-helpers';
 
 type FakeUpdater = AutoUpdaterLike & {
   listeners: Map<string, (arg?: unknown) => void>;
@@ -293,6 +288,7 @@ describe('UpdateService', () => {
       const win = createFakeWindow();
       mockGetAllWindows.mockReturnValue([win]);
       service.start();
+      fire(updater, 'update-available', { version: '1.2.0' });
       fire(updater, 'update-downloaded', { version: '1.2.0' });
       expect(lastPayload(win)).toEqual({ phase: 'downloaded', version: '1.2.0' });
     });

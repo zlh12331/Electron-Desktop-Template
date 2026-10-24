@@ -5,7 +5,7 @@ import { AppError, ErrorCode, type IpcError, type IpcResponse } from '@code-agen
 import { BrowserWindow, type IpcMainInvokeEvent, ipcMain, type WebContents } from 'electron';
 import type { ZodType } from 'zod';
 import { withSpan } from '../infra/telemetry/otel';
-import { recordIpcRequest } from '../infra/telemetry/otel-metrics';
+import { type IpcFailureClass, recordIpcRequest } from '../infra/telemetry/otel-metrics';
 import { reportError } from '../utils/error-report';
 import { logger } from '../utils/logger';
 
@@ -183,6 +183,7 @@ export function wrap<TInput, TOutput>(
         : randomUUID();
     const startedAt = performance.now();
     let outcome: 'success' | 'error' = 'error';
+    let failureClass: IpcFailureClass = 'system';
 
     try {
       const response = await withSpan(
@@ -192,10 +193,12 @@ export function wrap<TInput, TOutput>(
         (result) => ('error' in result ? result.error.code : null),
       );
       outcome = 'error' in response ? 'error' : 'success';
+      failureClass = 'error' in response ? classifyIpcFailure(response.error.code) : 'none';
       return response;
     } catch (error: unknown) {
       // handleRequest 内部已归一业务错误；这里兜住包装层/遥测层的意外异常
       const ipcError = toIpcError(error);
+      failureClass = classifyIpcFailure(ipcError.code);
       reportError(error, {
         message: 'IPC 包装层异常',
         fields: { traceId, channel, errorCode: ipcError.code },
@@ -203,9 +206,25 @@ export function wrap<TInput, TOutput>(
       });
       return { error: ipcError };
     } finally {
-      recordIpcRequest(channel, outcome, performance.now() - startedAt);
+      recordIpcRequest(channel, outcome, performance.now() - startedAt, failureClass);
     }
   });
+}
+
+// 只豁免明确的输入与业务错误，其余（含备份损坏）保守归为系统故障。
+function classifyIpcFailure(code: ErrorCode): IpcFailureClass {
+  switch (code) {
+    case ErrorCode.INVALID_INPUT:
+    case ErrorCode.IPC_SENDER_INVALID:
+      return 'validation';
+    case ErrorCode.NOT_FOUND:
+    case ErrorCode.ALREADY_EXISTS:
+    case ErrorCode.UNAUTHORIZED:
+    case ErrorCode.RATE_LIMITED:
+      return 'business';
+    default:
+      return 'system';
+  }
 }
 
 // 非 AppError 的裸异常包装成 INTERNAL_ERROR：内部错误细节只进日志，

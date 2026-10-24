@@ -1,150 +1,213 @@
 {
-  "version": 1,
+  "version": 2,
   "updatedAt": "2026-10-24",
-  "description": "模板默认 SLO/告警定义；后端配置（SigNoz/Sentry）按 id 建面板与告警。阈值是起步值，接入业务后按真实基线调整。",
+  "description": "后端无关的目标与告警契约，尚未自动下发 SigNoz/Sentry；接入后端时须实现窗口内聚合、counter reset 处理和 minSamples 门槛。window 为滚动窗口；filters 同键 OR、不同键 AND；numeratorFilters 为完整分子选择器。ratio 是窗口内 counter increase 求和后的分子/分母（非百分数），percentile 合并筛选后的 histogram；minSamples 为分母事件数/histogram 观测数/独立告警事件数，缺失或不足不告警。alert.for 表示连续满足门槛且越界的时间。阈值为起步值，应按真实基线调整。",
   "slos": [
     {
       "id": "crash-free-sessions",
-      "title": "Crash-free sessions",
-      "source": "sentry",
-      "metric": null,
-      "aggregation": null,
-      "target": 0.995,
-      "unit": "ratio",
-      "window": "7d",
-      "severity": "critical",
-      "description": "无崩溃会话占比 ≥99.5%",
-      "alert": { "for": "1h", "condition": "< 0.99", "severity": "critical" }
+      "title": "Crash-free sessions (external Sentry)",
+      "query": {
+        "source": "external",
+        "provider": "sentry",
+        "indicator": "crash-free-sessions",
+        "window": "7d",
+        "minSamples": 100
+      },
+      "target": { "operator": "gte", "threshold": 0.995, "unit": "1" },
+      "description": "无崩溃会话占比 ≥99.5%；会话数与崩溃归因由 Sentry Release Health 提供，不能本地计算，也不能由 renderer crash counter 代算。",
+      "alert": { "for": "1h", "operator": "lt", "threshold": 0.99, "severity": "critical" }
     },
     {
       "id": "ipc-error-rate",
-      "title": "IPC error rate",
-      "source": "otel",
-      "metric": "ipc.server.requests",
-      "aggregation": "error-rate",
-      "target": 0.005,
-      "unit": "ratio",
-      "window": "1h",
-      "severity": "critical",
-      "description": "IPC 请求错误率 ≤0.5%",
-      "alert": { "for": "5m", "condition": "> 0.05", "severity": "critical" }
+      "title": "IPC system error rate among eligible requests",
+      "query": {
+        "source": "otel",
+        "metric": "ipc.server.requests",
+        "aggregation": "ratio",
+        "filters": { "failureClass": ["none", "system"] },
+        "numeratorFilters": { "failureClass": ["system"], "outcome": ["error"] },
+        "window": "1h",
+        "minSamples": 100
+      },
+      "target": { "operator": "lte", "threshold": 0.005, "unit": "1" },
+      "description": "IPC 系统错误数 / 合格请求数 ≤0.5%；分母排除 validation/business 失败，分子只含 system error。",
+      "alert": { "for": "5m", "operator": "gt", "threshold": 0.05, "severity": "critical" }
     },
     {
       "id": "ipc-p95-latency",
       "title": "IPC p95 latency",
-      "source": "otel",
-      "metric": "ipc.server.request.duration",
-      "aggregation": "p95",
-      "target": 0.3,
-      "unit": "seconds",
-      "window": "1h",
-      "severity": "warning",
-      "description": "IPC 请求 p95 ≤300ms",
-      "alert": { "for": "10m", "condition": "> 1", "severity": "warning" }
+      "query": {
+        "source": "otel",
+        "metric": "ipc.server.request.duration",
+        "aggregation": "percentile",
+        "percentile": 95,
+        "filters": {},
+        "window": "1h",
+        "minSamples": 100
+      },
+      "target": { "operator": "lte", "threshold": 300, "unit": "ms" },
+      "description": "IPC 全部请求耗时 p95 ≤300ms；数值直接使用仪表毫秒单位。",
+      "alert": { "for": "10m", "operator": "gt", "threshold": 1000, "severity": "warning" }
     },
     {
       "id": "startup-p95",
-      "title": "Startup p95",
-      "source": "otel",
-      "metric": "app.startup.duration",
-      "aggregation": "p95",
-      "target": 3,
-      "unit": "seconds",
-      "window": "1h",
-      "severity": "warning",
-      "description": "启动到窗口 p95 ≤3s",
-      "alert": { "for": "15m", "condition": "> 5", "severity": "warning" }
+      "title": "Foreground renderer-ready startup p95",
+      "query": {
+        "source": "otel",
+        "metric": "app.startup.duration",
+        "aggregation": "percentile",
+        "percentile": 95,
+        "filters": { "phase": ["renderer-ready"], "mode": ["foreground"] },
+        "window": "1h",
+        "minSamples": 20
+      },
+      "target": { "operator": "lte", "threshold": 3000, "unit": "ms" },
+      "description": "前台启动到 renderer-ready 的耗时 p95 ≤3000ms；不混合 services/window/ready-to-show 阶段和隐藏启动。",
+      "alert": { "for": "15m", "operator": "gt", "threshold": 5000, "severity": "warning" }
     },
     {
       "id": "update-check-failure",
       "title": "Update check failure rate",
-      "source": "otel",
-      "metric": "app.update.events",
-      "aggregation": "error-rate",
-      "target": 0.02,
-      "unit": "ratio",
-      "window": "24h",
-      "severity": "warning",
-      "description": "更新检查失败率 ≤2%",
-      "alert": { "for": "1h", "condition": "> 0.05", "severity": "warning" }
+      "query": {
+        "source": "otel",
+        "metric": "app.update.checks",
+        "aggregation": "ratio",
+        "filters": {},
+        "numeratorFilters": { "outcome": ["error"] },
+        "window": "24h",
+        "minSamples": 100
+      },
+      "target": { "operator": "lte", "threshold": 0.02, "unit": "1" },
+      "description": "更新检查失败次数 / 检查总次数 ≤2%；不能以包含下载等阶段的 update.events 漏斗事件作为分母。",
+      "alert": { "for": "1h", "operator": "gt", "threshold": 0.05, "severity": "warning" }
     },
     {
       "id": "update-download-p95",
-      "title": "Update download p95",
-      "source": "otel",
-      "metric": "app.update.download.duration",
-      "aggregation": "p95",
-      "target": 10,
-      "unit": "seconds",
-      "window": "24h",
-      "severity": "warning",
-      "description": "更新下载 p95 ≤10s（按包体调整）",
-      "alert": { "for": "1h", "condition": "> 30", "severity": "warning" }
+      "title": "Completed update download p95",
+      "query": {
+        "source": "otel",
+        "metric": "app.update.download.duration",
+        "aggregation": "percentile",
+        "percentile": 95,
+        "filters": { "outcome": ["downloaded"] },
+        "window": "24h",
+        "minSamples": 20
+      },
+      "target": { "operator": "lte", "threshold": 10000, "unit": "ms" },
+      "description": "仅成功完成的更新下载耗时 p95 ≤10000ms（按包体调整）；不混合取消与失败样本。",
+      "alert": { "for": "1h", "operator": "gt", "threshold": 30000, "severity": "warning" }
     },
     {
       "id": "db-backup-success",
-      "title": "Database backup success rate",
-      "source": "otel",
-      "metric": "app.db.backup",
-      "aggregation": "error-rate",
-      "target": 0.99,
-      "unit": "ratio",
-      "window": "24h",
-      "severity": "warning",
-      "description": "数据库备份成功率 ≥99%",
-      "alert": { "for": "1h", "condition": "> 0.05", "severity": "warning" }
+      "title": "Database backup error rate",
+      "query": {
+        "source": "otel",
+        "metric": "app.db.backup",
+        "aggregation": "ratio",
+        "filters": {},
+        "numeratorFilters": { "outcome": ["error"] },
+        "window": "24h",
+        "minSamples": 100
+      },
+      "target": { "operator": "lte", "threshold": 0.01, "unit": "1" },
+      "description": "数据库备份错误率 ≤1%（等价于成功率 ≥99%）；保留原 id，计算方向为 error/total。",
+      "alert": { "for": "1h", "operator": "gt", "threshold": 0.05, "severity": "warning" }
     },
     {
       "id": "event-loop-p99",
-      "title": "Event loop p99 delay",
-      "source": "otel",
-      "metric": "nodejs.eventloop.delay",
-      "aggregation": "p99",
-      "target": 0.2,
-      "unit": "seconds",
-      "window": "5m",
-      "severity": "critical",
-      "description": "主进程事件循环 p99 ≤200ms",
-      "alert": { "for": "5m", "condition": "> 2", "severity": "critical" }
+      "title": "p99 of 5-second event-loop p99 samples",
+      "query": {
+        "source": "otel",
+        "metric": "nodejs.eventloop.delay",
+        "aggregation": "percentile",
+        "percentile": 99,
+        "filters": {},
+        "window": "5m",
+        "minSamples": 30
+      },
+      "target": { "operator": "lte", "threshold": 200, "unit": "ms" },
+      "description": "每 5 秒窗口产出一个事件循环延迟 p99 样本；目标为这些窗口 p99 样本在 5 分钟内分布的 p99 ≤200ms，不是全部事件循环延迟的总体 p99。",
+      "alert": { "for": "5m", "operator": "gt", "threshold": 2000, "severity": "critical" }
     },
     {
       "id": "web-vitals-lcp",
       "title": "LCP p75",
-      "source": "otel",
-      "metric": "web_vitals.lcp",
-      "aggregation": "p75",
-      "target": 2.5,
-      "unit": "seconds",
-      "window": "24h",
-      "severity": "warning",
-      "description": "LCP p75 ≤2.5s",
-      "alert": { "for": "30m", "condition": "> 4", "severity": "warning" }
+      "query": {
+        "source": "otel",
+        "metric": "web_vitals.lcp",
+        "aggregation": "percentile",
+        "percentile": 75,
+        "filters": {},
+        "window": "24h",
+        "minSamples": 20
+      },
+      "target": { "operator": "lte", "threshold": 2500, "unit": "ms" },
+      "description": "LCP p75 ≤2500ms。",
+      "alert": { "for": "30m", "operator": "gt", "threshold": 4000, "severity": "warning" }
     },
     {
       "id": "web-vitals-inp",
       "title": "INP p75",
-      "source": "otel",
-      "metric": "web_vitals.inp",
-      "aggregation": "p75",
-      "target": 0.2,
-      "unit": "seconds",
-      "window": "24h",
-      "severity": "warning",
-      "description": "INP p75 ≤200ms",
-      "alert": { "for": "30m", "condition": "> 0.5", "severity": "warning" }
+      "query": {
+        "source": "otel",
+        "metric": "web_vitals.inp",
+        "aggregation": "percentile",
+        "percentile": 75,
+        "filters": {},
+        "window": "24h",
+        "minSamples": 20
+      },
+      "target": { "operator": "lte", "threshold": 200, "unit": "ms" },
+      "description": "INP p75 ≤200ms。",
+      "alert": { "for": "30m", "operator": "gt", "threshold": 500, "severity": "warning" }
     },
     {
       "id": "web-vitals-cls",
       "title": "CLS p75",
-      "source": "otel",
-      "metric": "web_vitals.cls",
-      "aggregation": "p75",
-      "target": 0.1,
-      "unit": "score",
-      "window": "24h",
-      "severity": "warning",
-      "description": "CLS p75 ≤0.1",
-      "alert": { "for": "30m", "condition": "> 0.25", "severity": "warning" }
+      "query": {
+        "source": "otel",
+        "metric": "web_vitals.cls",
+        "aggregation": "percentile",
+        "percentile": 75,
+        "filters": {},
+        "window": "24h",
+        "minSamples": 20
+      },
+      "target": { "operator": "lte", "threshold": 0.1, "unit": "1" },
+      "description": "CLS p75 ≤0.1，无量纲。",
+      "alert": { "for": "30m", "operator": "gt", "threshold": 0.25, "severity": "warning" }
+    }
+  ],
+  "alerts": [
+    {
+      "id": "db-recovery-rebuilt",
+      "title": "Database rebuilt after unrecoverable corruption",
+      "query": {
+        "source": "otel",
+        "metric": "app.db.recovery",
+        "aggregation": "increase",
+        "filters": { "outcome": ["rebuilt"] },
+        "window": "5m",
+        "minSamples": 1
+      },
+      "unit": "1",
+      "description": "窗口内 rebuilt 次数 >0 即为严重事故；独立计数告警，不以 healthy 启动次数稀释。",
+      "alert": { "for": "1m", "operator": "gt", "threshold": 0, "severity": "critical" }
+    },
+    {
+      "id": "renderer-recovery-stopped",
+      "title": "Renderer recovery exhausted",
+      "query": {
+        "source": "otel",
+        "metric": "app.renderer.crashes",
+        "aggregation": "increase",
+        "filters": { "recovery": ["stopped"] },
+        "window": "5m",
+        "minSamples": 1
+      },
+      "unit": "1",
+      "description": "窗口内 recovery=stopped 的渲染崩溃次数 >0 即为严重事故；自动 reload 的崩溃不计入此告警。",
+      "alert": { "for": "1m", "operator": "gt", "threshold": 0, "severity": "critical" }
     }
   ]
 }

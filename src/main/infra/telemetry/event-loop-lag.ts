@@ -1,5 +1,5 @@
-// event-loop-lag.ts：主进程事件循环延迟监控——monitorEventLoopDelay 直方图按间隔采样 p99
-// 基准按期望间隔推进，空闲不误报（有活跃回合才值得告警，判定在 lag-alert 侧）
+// event-loop-lag.ts：主进程事件循环延迟监控——窗口分位数（默认 p99），不是全部延迟的总体 p99
+// 正常窗口也参与采样，避免分布只包含触发告警的高延迟窗口。
 import { monitorEventLoopDelay } from 'node:perf_hooks';
 
 // 采样 5s 一档；p99 超 1s 判为「阻塞」；1e6 纳秒/毫秒换算
@@ -37,11 +37,13 @@ export interface EventLoopLagMonitorOptions {
   readonly warnThresholdMs?: number;
   readonly percentile?: number;
   readonly onLag?: LagHandler;
+  /** 保留正常窗口，避免指标分布仅剩超阈值的尾部。 */
+  readonly onSample?: LagHandler;
   readonly createHistogram?: () => LagHistogram;
 }
 
 /**
- * 事件循环延迟监控器：enable 直方图 → 定时取 p99 并 reset → 超阈值回调全部 handler
+ * 事件循环延迟监控器：定时取窗口分位数并 reset；有效样本走 onSample，超阈值另走 onLag
  *
  * timer unref：监控不阻止进程退出
  */
@@ -51,6 +53,7 @@ export class EventLoopLagMonitor {
   private readonly percentile: number;
   private readonly createHistogram: () => LagHistogram;
   private handlers: LagHandler[] = [];
+  private sampleHandlers: LagHandler[] = [];
   private timer: ReturnType<typeof setInterval> | null = null;
   private readonly histogram: LagHistogram;
 
@@ -63,6 +66,16 @@ export class EventLoopLagMonitor {
     if (options.onLag !== undefined) {
       this.handlers.push(options.onLag);
     }
+    if (options.onSample !== undefined) {
+      this.sampleHandlers.push(options.onSample);
+    }
+  }
+
+  onSample(handler: LagHandler): () => void {
+    this.sampleHandlers.push(handler);
+    return () => {
+      this.sampleHandlers = this.sampleHandlers.filter((h) => h !== handler);
+    };
   }
 
   onLag(handler: LagHandler): () => void {
@@ -101,6 +114,13 @@ export class EventLoopLagMonitor {
       exceeded: lagMs > this.warnThresholdMs,
       at: now,
     };
+    // 非有限值和负值不是有效窗口分位数，不能污染分布或触发告警。
+    if (!Number.isFinite(lagMs) || lagMs < 0) {
+      return sample;
+    }
+    for (const handler of this.sampleHandlers) {
+      handler(sample);
+    }
     if (sample.exceeded) {
       for (const handler of this.handlers) {
         handler(sample);

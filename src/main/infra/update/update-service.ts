@@ -23,8 +23,15 @@ import {
   recordUpdateCheck,
   recordUpdateDownload,
   recordUpdateEvent,
+  type UpdateCheckTrigger,
 } from '../telemetry/otel-metrics';
 import { pruneStaleDifferentialBaseline, resolveUpdaterCacheDir } from './update-cache';
+import {
+  classifyUpdateError,
+  createUpdaterLogger,
+  toReleaseNotes,
+  type UpdaterLoggerLike,
+} from './update-service-helpers';
 
 // 启动检查延迟 5s（不与首屏抢资源）；失败按 1m/5m/15m 退避重试；长会话 12h 兜底再查；
 // 单次检查 45s 超时（GitHub 网络卡死不能挂着调度链）
@@ -48,14 +55,23 @@ export interface CancellationTokenLike {
   readonly cancelled: boolean;
 }
 
-interface UpdaterLoggerLike {
-  info(message?: unknown, ...params: unknown[]): void;
-  warn(message?: unknown, ...params: unknown[]): void;
-  error(message?: unknown, ...params: unknown[]): void;
-  debug?(message?: unknown, ...params: unknown[]): void;
+type CheckTimerKind = 'launch' | 'retry' | 'long-session';
+
+interface CheckAttempt {
+  timedOut: boolean;
+  settled: boolean;
+  skipped: boolean;
+  error: Error | null;
 }
 
-type CheckTimerKind = 'launch' | 'retry' | 'long-session';
+interface DownloadAttempt {
+  readonly token: CancellationTokenLike;
+  readonly startedAt: number;
+  readonly version: string;
+  settled: boolean;
+  cancelled: boolean;
+  failure: unknown;
+}
 
 export interface UpdateStartOptions {
   readonly autoCheckEnabled?: () => boolean;
@@ -111,20 +127,18 @@ export class UpdateService implements IUpdateService {
 
   private pendingReleaseNotes: string | null = null;
 
-  private cancelToken: CancellationTokenLike | null = null;
-
   private timer: NodeJS.Timeout | null = null;
   private timerKind: CheckTimerKind | null = null;
 
-  private firedKind: CheckTimerKind | null = null;
-
   private retryIndex = 0;
 
-  private checkInFlight = false;
+  private checkAttempt: CheckAttempt | null = null;
+  private readonly expiredChecks = new WeakSet<Promise<unknown>>();
+  private pendingExpiredChecks = 0;
 
   private started = false;
 
-  private downloadStartedAt: number | null = null;
+  private downloadAttempt: DownloadAttempt | null = null;
 
   private devUpdateForced = false;
 
@@ -171,66 +185,78 @@ export class UpdateService implements IUpdateService {
    * 预发布通道：用户开了 allowPrerelease 或当前版本本身是预发布（预发布升级链不能断）
    */
   async check(manual: boolean): Promise<UpdateCheckRes> {
+    return this.runCheck(manual ? 'manual' : 'launch');
+  }
+
+  private async runCheck(trigger: UpdateCheckTrigger, scheduled = false): Promise<UpdateCheckRes> {
+    if (!this.isPackaged() && !this.devUpdateForced) {
+      const message = '开发模式不支持自动更新（可用 APP_DEV_UPDATE=1 + dev-app-update.yml 调试）';
+      if (trigger === 'manual') {
+        this.emit({ phase: 'error', message }, false);
+      }
+      return { status: 'error', message };
+    }
+    if (this.checkAttempt?.settled === false) {
+      return { status: 'checking' };
+    }
     const startedAt = performance.now();
-    const trigger = manual ? 'manual' : 'launch';
-    let outcome = 'error';
+    const attempt: CheckAttempt = { timedOut: false, settled: false, skipped: false, error: null };
+    this.checkAttempt = attempt;
+    if (this.downloadAttempt?.settled) this.downloadAttempt = null;
+    this.lastCheckAt = Date.now();
+    let outcome: 'success' | 'error' = 'error';
+    const fired = scheduled ? trigger : null;
     logger.info({ scope: 'auto-updater', trigger }, '开始检查更新');
     try {
       this.updater.allowPrerelease =
         (this.allowPrereleaseEnabled?.() ?? false) || app.getVersion().includes('-');
-      if (!this.isPackaged() && !this.devUpdateForced) {
-        const message = '开发模式不支持自动更新（可用 APP_DEV_UPDATE=1 + dev-app-update.yml 调试）';
-        outcome = 'unsupported';
-        if (manual) {
-          this.emit({ phase: 'error', message });
+      await withSpan('update.check', { trigger, 'app.version': app.getVersion() }, async () => {
+        await this.withCheckTimeout(this.updater.checkForUpdates(), attempt);
+        if (attempt.error !== null) {
+          throw attempt.error;
         }
-        return { status: 'error', message };
+      });
+      this.afterCheck(!attempt.skipped, fired);
+      outcome = 'success';
+      return { status: 'checking' };
+    } catch (error) {
+      const { message, errorKind } = describeCheckFailure(attempt.timedOut, error);
+      logger.warn({ scope: 'auto-updater', errorKind }, `更新检查失败：${message}`);
+      if (trigger === 'manual') {
+        this.emit({ phase: 'error', errorKind, message });
+      } else {
+        recordUpdateEvent('error');
       }
-      if (this.checkInFlight) {
-        outcome = 'in-flight';
-        return { status: 'checking' };
-      }
-      this.checkInFlight = true;
-      this.lastCheckAt = Date.now();
-      let timedOut = false;
-      try {
-        await withSpan('update.check', { trigger, 'app.version': app.getVersion() }, async () => {
-          await this.withCheckTimeout(this.updater.checkForUpdates(), () => {
-            timedOut = true;
-          });
-        });
-        this.afterCheck(true);
-        outcome = 'accepted';
-        return { status: 'checking' };
-      } catch (error) {
-        const { message, errorKind } = describeCheckFailure(timedOut, error);
-        outcome = errorKind;
-        logger.warn({ scope: 'auto-updater', errorKind }, `更新检查失败：${message}`);
-        if (manual) {
-          this.emit({ phase: 'error', errorKind, message });
-        }
-        this.afterCheck(false);
-        return { status: 'error', message };
-      } finally {
-        this.checkInFlight = false;
-      }
+      this.afterCheck(false, fired);
+      return { status: 'error', message };
     } finally {
-      recordUpdateCheck(trigger, outcome, performance.now() - startedAt);
+      attempt.settled = true;
+      if (!attempt.skipped) recordUpdateCheck(trigger, outcome, performance.now() - startedAt);
     }
   }
 
   private async withCheckTimeout(
     checkPromise: Promise<unknown>,
-    onTimeout: () => void,
+    attempt: CheckAttempt,
   ): Promise<void> {
-    void checkPromise.catch(() => {});
+    // updater 可能复用超时后仍在途的 Promise，它不是第二次有效检查。
+    if (this.expiredChecks.has(checkPromise)) {
+      attempt.skipped = true;
+      return;
+    }
+    const settled = (): void => {
+      if (this.expiredChecks.has(checkPromise)) this.pendingExpiredChecks -= 1;
+    };
+    void checkPromise.then(settled, settled);
     let timer: NodeJS.Timeout | undefined;
     try {
       await Promise.race([
         checkPromise,
         new Promise<never>((_resolve, reject) => {
           timer = setTimeout(() => {
-            onTimeout();
+            attempt.timedOut = true;
+            this.expiredChecks.add(checkPromise);
+            this.pendingExpiredChecks += 1;
             reject(new Error('check-timeout'));
           }, CHECK_TIMEOUT_MS);
           timer.unref();
@@ -244,12 +270,10 @@ export class UpdateService implements IUpdateService {
   }
 
   cancelDownload(): void {
-    const token = this.cancelToken;
-    if (token === null || token.cancelled) {
-      return;
-    }
+    const attempt = this.downloadAttempt;
+    if (attempt === null || attempt.settled || attempt.token.cancelled) return;
     logger.info({ scope: 'auto-updater' }, '取消更新下载');
-    token.cancel();
+    attempt.token.cancel();
   }
 
   getStatus(): UpdateGetStatusRes {
@@ -300,108 +324,104 @@ export class UpdateService implements IUpdateService {
   dispose(): void {
     this.started = false;
     this.clearTimer();
-    this.cancelToken = null;
     this.pendingVersion = null;
     this.pendingReleaseNotes = null;
-    this.downloadStartedAt = null;
+    if (this.downloadAttempt !== null) {
+      this.downloadAttempt.settled = true;
+      this.downloadAttempt = null;
+    }
     this.statusListeners.clear();
   }
 
   private registerListeners(): void {
     this.updater.on('checking-for-update', () => {
-      this.emit({ phase: 'checking' });
+      if (this.acceptCheckEvent()) this.emit({ phase: 'checking' });
     });
     this.updater.on('update-available', (info) => {
+      if (!this.acceptCheckEvent() || this.downloadAttempt?.settled === false) return;
       logger.info({ scope: 'auto-updater', version: info.version }, '发现新版本');
       this.pendingVersion = info.version;
       this.pendingReleaseNotes = toReleaseNotes(info.releaseNotes);
-      this.downloadStartedAt = Date.now();
-      this.emit({
-        phase: 'available',
-        version: info.version,
-        ...(this.pendingReleaseNotes !== null ? { releaseNotes: this.pendingReleaseNotes } : {}),
-      });
-      this.beginDownload();
+      this.beginDownload(info.version);
     });
     this.updater.on('update-not-available', () => {
+      if (!this.acceptCheckEvent()) return;
       logger.info({ scope: 'auto-updater' }, '当前已是最新版本');
       this.emit({ phase: 'not-available' });
     });
     this.updater.on('download-progress', (progress) => {
-      this.emitProgress(progress);
+      if (this.downloadAttempt?.settled !== true) this.emitProgress(progress);
     });
     this.updater.on('update-downloaded', (info) => {
-      logger.info({ scope: 'auto-updater', version: info.version }, '新版本下载完成');
-      this.finishDownloadMetric('downloaded');
-      this.cancelToken = null;
-      this.setTaskbarProgress(null);
-      const notes = toReleaseNotes(info.releaseNotes) ?? this.pendingReleaseNotes;
-      this.emit({
-        phase: 'downloaded',
-        version: info.version,
-        ...(notes !== null ? { releaseNotes: notes } : {}),
-      });
+      const attempt = this.downloadAttempt;
+      if (attempt === null || attempt.settled || attempt.version !== info.version) return;
+      this.pendingReleaseNotes = toReleaseNotes(info.releaseNotes) ?? this.pendingReleaseNotes;
+      this.finishDownload(attempt, 'downloaded');
     });
     this.updater.on('update-cancelled', (info) => {
-      logger.info({ scope: 'auto-updater', version: info.version }, '更新下载已取消');
-      this.finishDownloadMetric('cancelled');
-      this.cancelToken = null;
-      this.pendingVersion = null;
-      this.pendingReleaseNotes = null;
-      this.setTaskbarProgress(null);
-      this.emit({ phase: 'cancelled', version: info.version });
+      const attempt = this.downloadAttempt;
+      if (attempt !== null && attempt.version === info.version) {
+        this.finishDownload(attempt, 'cancelled');
+      }
     });
     this.updater.on('error', (error) => {
-      logger.error({ scope: 'auto-updater' }, '自动更新失败', error);
-      this.finishDownloadMetric('error');
-      this.cancelToken = null;
-      this.setTaskbarProgress(null);
-      this.emit({ phase: 'error', errorKind: classifyUpdateError(error), message: error.message });
+      if (this.downloadAttempt !== null) {
+        this.finishDownload(this.downloadAttempt, 'error', error);
+      } else if (this.acceptCheckEvent()) {
+        if (this.checkAttempt !== null) {
+          this.checkAttempt.error ??= error;
+        } else {
+          this.emit({
+            phase: 'error',
+            errorKind: classifyUpdateError(error),
+            message: error.message,
+          });
+        }
+      }
     });
   }
 
-  private beginDownload(): void {
+  private acceptCheckEvent(): boolean {
+    // 超时后的迟到事件不能把失败检查改写成成功或触发下载。
+    return (
+      this.pendingExpiredChecks === 0 &&
+      (this.checkAttempt === null || (!this.checkAttempt.settled && !this.checkAttempt.timedOut))
+    );
+  }
+
+  private beginDownload(version: string): void {
     const token = this.createCancellationToken();
-    this.cancelToken = token;
-    void (async (): Promise<void> => {
-      await this.ensureDifferentialBaseline();
-      if (token.cancelled) {
-        const version = this.pendingVersion;
-        this.cancelToken = null;
-        this.pendingVersion = null;
-        this.pendingReleaseNotes = null;
-        this.emit({ phase: 'cancelled', ...(version !== null ? { version } : {}) });
-        return;
+    const attempt: DownloadAttempt = {
+      token,
+      version,
+      startedAt: performance.now(),
+      settled: false,
+      cancelled: false,
+      failure: null,
+    };
+    this.downloadAttempt = attempt;
+    this.emit({
+      phase: 'available',
+      version,
+      ...(this.pendingReleaseNotes !== null ? { releaseNotes: this.pendingReleaseNotes } : {}),
+    });
+    void withSpan('update.download', { 'app.version': app.getVersion() }, async () => {
+      try {
+        await this.ensureDifferentialBaseline();
+        if (attempt.settled || token.cancelled) return;
+        await this.updater.downloadUpdate(token);
+        if (attempt.failure !== null) throw attempt.failure;
+      } catch (error) {
+        // 在下载 span 结束前上报，事件与 Promise 共用终态防止重复捕获。
+        if (!token.cancelled && !attempt.cancelled) {
+          this.finishDownload(attempt, 'error', error);
+          throw error;
+        }
       }
-      await withSpan('update.download', { 'app.version': app.getVersion() }, async () => {
-        try {
-          await this.updater.downloadUpdate(token);
-        } catch (error) {
-          // 用户取消不算失败：交给 update-cancelled 事件收尾，span 保持 OK
-          if (!token.cancelled) {
-            throw error;
-          }
-        }
-      });
-    })()
-      .catch((error: unknown) => {
-        if (token.cancelled) {
-          return;
-        }
-        const message = error instanceof Error ? error.message : String(error);
-        const errorKind = classifyUpdateError(error);
-        reportError(error, {
-          message: '更新下载失败',
-          tags: { scope: 'auto-updater', stage: 'download', errorKind },
-        });
-        this.cancelToken = null;
-        this.emit({ phase: 'error', errorKind, message });
-      })
-      .finally(() => {
-        if (this.cancelToken === token) {
-          this.cancelToken = null;
-        }
-      });
+    }).then(
+      () => this.finishDownload(attempt, token.cancelled ? 'cancelled' : 'downloaded'),
+      (error: unknown) => this.finishDownload(attempt, 'error', error),
+    );
   }
 
   private async ensureDifferentialBaseline(): Promise<void> {
@@ -454,28 +474,49 @@ export class UpdateService implements IUpdateService {
     }
   }
 
-  /** 下载结束时记录一次耗时（开始时间只在 update-available 设置；未开始则忽略） */
-  private finishDownloadMetric(outcome: 'downloaded' | 'cancelled' | 'error'): void {
-    if (this.downloadStartedAt === null) {
+  private finishDownload(
+    attempt: DownloadAttempt,
+    outcome: 'downloaded' | 'cancelled' | 'error',
+    error?: unknown,
+  ): void {
+    // 事件与 Promise 共用 attempt 终态，防重复漏斗和旧 Promise 清理新下载。
+    if (attempt.settled || this.downloadAttempt !== attempt) return;
+    const phase = attempt.token.cancelled ? 'cancelled' : outcome;
+    attempt.settled = true;
+    attempt.cancelled = phase === 'cancelled';
+    recordUpdateDownload(phase, performance.now() - attempt.startedAt);
+    this.setTaskbarProgress(null);
+    if (phase === 'error') {
+      attempt.failure = error ?? new Error('更新下载失败');
+      const errorKind = classifyUpdateError(error);
+      reportError(error, {
+        message: '更新下载失败',
+        tags: { scope: 'auto-updater', stage: 'download', errorKind },
+      });
+      this.emit({
+        phase,
+        errorKind,
+        message: error instanceof Error ? error.message : String(error),
+      });
       return;
     }
-    recordUpdateDownload(outcome, Date.now() - this.downloadStartedAt);
-    this.downloadStartedAt = null;
+    logger.info({ scope: 'auto-updater', phase }, '更新下载结束');
+    const notes = this.pendingReleaseNotes;
+    if (phase === 'cancelled') {
+      this.pendingVersion = null;
+      this.pendingReleaseNotes = null;
+    }
+    this.emit({
+      phase,
+      version: attempt.version,
+      ...(phase === 'downloaded' && notes !== null ? { releaseNotes: notes } : {}),
+    });
   }
 
-  private emit(payload: UpdateStatusPayload): void {
+  private emit(payload: UpdateStatusPayload, recordMetric = true): void {
     this.snapshot = payload;
-    switch (payload.phase) {
-      case 'checking':
-      case 'available':
-      case 'not-available':
-      case 'downloaded':
-      case 'cancelled':
-      case 'error':
-        recordUpdateEvent(payload.phase);
-        break;
-      default:
-        break;
+    if (recordMetric && payload.phase !== 'downloading') {
+      recordUpdateEvent(payload.phase);
     }
     for (const listener of this.statusListeners) {
       try {
@@ -495,9 +536,7 @@ export class UpdateService implements IUpdateService {
     }
   }
 
-  private afterCheck(succeeded: boolean): void {
-    const fired = this.firedKind;
-    this.firedKind = null;
+  private afterCheck(succeeded: boolean, fired: UpdateCheckTrigger | null): void {
     if (succeeded) {
       this.retryIndex = 0;
       if (this.timerKind === 'launch' || this.timerKind === 'retry') {
@@ -531,10 +570,9 @@ export class UpdateService implements IUpdateService {
     this.timerKind = kind;
     this.timer = setTimeout(() => {
       this.timer = null;
-      this.firedKind = this.timerKind;
       this.timerKind = null;
       if (this.started) {
-        void this.check(false);
+        void this.runCheck(kind, true);
       }
     }, delayMs);
     this.timer.unref();
@@ -547,60 +585,6 @@ export class UpdateService implements IUpdateService {
     }
     this.timerKind = null;
   }
-}
-
-export function classifyUpdateError(error: unknown): UpdateErrorKind {
-  const message = error instanceof Error ? error.message : String(error);
-  const code = readErrorField(error, 'code');
-  const statusCode = readErrorField(error, 'statusCode');
-
-  if (
-    statusCode === 403 ||
-    statusCode === 429 ||
-    code === 'HTTP_ERROR_403' ||
-    code === 'HTTP_ERROR_429'
-  ) {
-    return 'rate-limited';
-  }
-  if (/sha512|checksum/i.test(message)) {
-    return 'checksum';
-  }
-  if (code === 'ENOSPC' || code === 'EDQUOT' || /ENOSPC|no space left/i.test(message)) {
-    return 'disk';
-  }
-  if (
-    /net::ERR_|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT|ENETUNREACH|socket hang up|timeout/i.test(
-      message,
-    ) ||
-    code === 'ENOTFOUND' ||
-    code === 'EAI_AGAIN' ||
-    code === 'ECONNREFUSED' ||
-    code === 'ECONNRESET' ||
-    code === 'ETIMEDOUT'
-  ) {
-    return 'network';
-  }
-  return 'unknown';
-}
-
-export function toReleaseNotes(value: unknown): string | null {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed === '' ? null : trimmed;
-  }
-  if (Array.isArray(value)) {
-    const parts = value
-      .map((item) => {
-        if (typeof item === 'object' && item !== null) {
-          const note = Reflect.get(item, 'note');
-          return typeof note === 'string' ? note.trim() : '';
-        }
-        return '';
-      })
-      .filter((part) => part !== '');
-    return parts.length === 0 ? null : parts.join('\n\n');
-  }
-  return null;
 }
 
 function describeCheckFailure(
@@ -616,38 +600,5 @@ function describeCheckFailure(
   return {
     message: error instanceof Error ? error.message : String(error),
     errorKind: classifyUpdateError(error),
-  };
-}
-
-function readErrorField(error: unknown, field: string): unknown {
-  if (typeof error !== 'object' || error === null) {
-    return undefined;
-  }
-  return Reflect.get(error, field) as unknown;
-}
-
-function toLogText(value: unknown): string {
-  if (typeof value === 'string') {
-    return value;
-  }
-  if (value instanceof Error) {
-    return value.stack ?? value.message;
-  }
-  try {
-    return JSON.stringify(value) ?? String(value);
-  } catch {
-    return String(value);
-  }
-}
-
-function createUpdaterLogger(): UpdaterLoggerLike {
-  const forward = (level: 'info' | 'warn' | 'error' | 'debug', args: readonly unknown[]): void => {
-    logger[level]({ scope: 'auto-updater' }, args.map((arg) => toLogText(arg)).join(' '));
-  };
-  return {
-    info: (message, ...params) => forward('info', [message, ...params]),
-    warn: (message, ...params) => forward('warn', [message, ...params]),
-    error: (message, ...params) => forward('error', [message, ...params]),
-    debug: (message, ...params) => forward('debug', [message, ...params]),
   };
 }

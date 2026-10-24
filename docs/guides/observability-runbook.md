@@ -2,7 +2,7 @@
 
 > 面向维护者：把模板的可观测性从「代码已接入」变成「本机可验证、告警可配置」。
 > 设计边界与信号清单见 [23 可观测性规范](../design/23-otel-spec.md)。
-> 最后验证：2026-10-23（Windows 11 + Docker 29.4.3 + Foundry；验证记录见 §八）
+> 最后验证：2026-10-24（Windows 11 + Docker 29.4.3 + Foundry + Collector 0.163.2；验证记录见 §八）
 
 ---
 
@@ -69,12 +69,12 @@ docker compose -f .tmp/signoz-pours/deployment/compose.yaml down
 
 ### 2.3 让应用指向本地栈
 
-开发期推荐直接导出环境变量（不要提交 `.env`）：
+新安装默认 off；先在「设置 → 通用 → 遥测」选择 full，再重启。配置端点本身不会替用户同意采集。开发期可使用以下 PowerShell 命令（不要提交实际 `.env`）：
 
-```bash
-export OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:4318"
-export OTEL_METRIC_EXPORT_INTERVAL="5000"   # 验收时缩短导出间隔；生产用默认 60000
-export OTEL_LOG_LEVEL="info"
+```powershell
+$env:OTEL_EXPORTER_OTLP_ENDPOINT = "http://127.0.0.1:4318"
+$env:OTEL_METRIC_EXPORT_INTERVAL = "5000" # 验收时缩短间隔，日常默认 60000
+$env:OTEL_LOG_LEVEL = "info"
 pnpm dev
 ```
 
@@ -121,17 +121,46 @@ pnpm observability:doctor --release --offline  # CI 发布前：半配置上传�
 pnpm observability:doctor --json          # 机器可读输出
 ```
 
-设置页「遥测」区块也会展示 Sentry/OTel 状态、导出健康（成功/失败/丢弃）与「测试连接」按钮：
+本地 doctor 读取应用相同的 `.env` 和开发 userData 偏好，可用 `--env-file=<path>`、`--user-data=<path>`、`--level=<level>` 指定；`APP_ENV_FILE` 为空表示不加载文件。`--release` 默认不载入本机 `.env`，按 CI 进程环境模拟 full 以发现半配置，不代表安装用户已同意遥测。`--json` 只输出一个 JSON 文档。
+
+设置页「遥测」展示活动级别与待重启选择、Sentry/OTel 状态、导出健康与 Sentry 重复/配额抑制数，页面挂载时定期刷新：
 
 - OTLP：发送空 resource 载荷验证可达/鉴权，不产生业务数据；
 - Sentry：只校验 DSN 结构，不发送测试事件。
+
+### 2.6 本地持久中继 Collector（可选）
+
+仓库提供与 SigNoz 解耦的持久中继配置：[collector.yaml](../../observability/collector/collector.yaml)、[compose.yaml](../../observability/collector/compose.yaml)、[tail-sampling.yaml](../../observability/collector/tail-sampling.yaml)。固定 `otel/opentelemetry-collector-contrib:0.163.2`；`0.163.0` 的发布资产不含 contrib，不能沿用旧标签。
+
+```powershell
+docker compose -p otel-relay -f observability/collector/compose.yaml up -d
+# 应用改为指向中继（仍需设置页选择 full 并重启）
+$env:OTEL_EXPORTER_OTLP_ENDPOINT = "http://127.0.0.1:14318"
+$env:OTEL_TRACES_SAMPLER = "always_on"  # 仅当需要尾采样覆盖全部候选
+pnpm dev
+```
+
+- 中继只发布环回端口：OTLP HTTP `14318`、自身指标 `18888`；容器内无外网。
+- 队列使用 `file_storage`，`queue_size` 单位是请求批次；`max_size` 是每个数据库文件上限。只有已入发送队列的数据可跨 SIGKILL 恢复；SDK、batch 和尾采样待决缓冲不在其中。
+- 默认不启用尾采样。可选 overlay 保留 ERROR、1500ms 以上慢 trace，其余 10%；客户端 head drop 的数据无法恢复，多实例尾采样需要按 trace ID 亲和。
+- 生产入口需自行部署 TLS/鉴权、磁盘加密、容量与多实例隔离；本地环回明文不是生产部署模板。
+
+自动化验收（只创建带专属 label/随机前缀的本地资源，结束清理；不读真实 `.env` 或遥测）：
+
+```powershell
+pnpm observability:collector-smoke
+```
+
+它先对三份配置和合成 sink 执行 `validate`，再验证三信号、下游断开、队列非空稳定、SIGKILL 后同卷恢复、下游恢复后全部合成 ID 到达并排空，以及尾采样保留/丢弃策略。只有真实容器步骤全部通过才返回0。
+
+SigNoz 保留期入口以目标版本 UI 为准：**Settings → Workspace → Retention Controls**（Logs/Traces/Metrics 各自设置）。正式环境不要照搬本地默认天数，也不要在仓库维护 ClickHouse TTL DDL。
 
 ## 三、验证清单（本地）
 
 | 信号 | 操作 | 预期 |
 |---|---|---|
 | Trace | 打开设置/关于页，触发任意 IPC（如 `app:getInfo`） | SigNoz Traces 出现 `ipc app:getInfo`，服务名 `electron-desktop-template-dev` |
-| Logs | 应用启动 / 切换设置 | SigNoz Logs 出现 `IPC 请求成功`、`应用启动`；`app.trace_id` 与 trace 对得上 |
+| Logs | 应用启动 / 切换设置 | info 可见「应用启动」「设置已更新」；IPC 成功明细仅在 `OTEL_LOG_LEVEL=debug` 时导出；活动 span 的原生 traceId 可关联 |
 | Renderer error | DevTools Console 执行 `setTimeout(() => { throw new Error('observability-verify') })` | 本地 `main.log` 有「渲染层错误上报」；SigNoz Logs 有 `renderer.error`（无 DSN 时 Sentry 不发送） |
 | Metrics | 等待 ≥1 个导出周期 | Metrics 出现 `ipc.server.requests`、`process.memory.usage`；更新检查后出现 `app.update.events` |
 | Web Vitals | 页面可见后等待 5s 或切后台 | Metrics 出现 `web_vitals.lcp` 等（无渲染时可能只出现部分指标） |
@@ -146,8 +175,7 @@ pnpm build              # 需要 out/main + out/renderer
 pnpm observability:smoke
 ```
 
-该脚本启动真实 Electron，指向本机临时 OTLP 接收器，断言 traces/metrics/logs 各至少到达 1 次，
-并检查 `db.init` / `window.create` span 与 `app.db.recovery` 指标出现在原始载荷中；失败会打印各信号计数并以非零退出。
+脚本使用专属临时 userData、明确的用户选择和三信号环回端点，禁用本机 `.env` 与继承的后端配置。按 OTLP JSON 字段验证启动父子 trace、renderer-ready、指标和脱敏错误，并用本地 Sentry 合成接收器验收事件；off/error-only/full 分别验证。只有全部断言通过才返回0。它不验证 Sentry 云端、原生 minidump 或 source map 反解。
 
 ## 四、Sentry（可选）
 
@@ -187,24 +215,29 @@ pnpm observability:smoke
 > 下列阈值为模板起点，接入业务后按真实基线调整；改阈值时同步本表。
 > 指标名以 OTel 原名为准；SigNoz 查询构建器/ PromQL 会把点转为下划线，以 UI 自动补全为准。
 
-机器可读定义在 [observability/slo.json](../../observability/slo.json)；`pnpm check:observability-slo` 会校验
-id/指标名/阈值并确认本表覆盖全部 id。改阈值时同步 JSON、本表与后端告警。
+机器可读 v2 契约在 [observability/slo.json](../../observability/slo.json)。校验覆盖类型、单位、属性值域、分子/分母关系、阈值方向与文档 ID；不代表后端查询或通知已经部署。时间阈值全部使用仪表原单位 **ms**，比例/CLS 使用 **1**，后端不得直接按秒数比较。
 
-| ID | SLO | 指标 / 公式 | 目标 | 告警 |
-|---|---|---|---|---|
-| `crash-free-sessions` | Crash-free sessions | Sentry release health | ≥99.5%（7d） | <99% 持续 1h → critical |
-| `ipc-error-rate` | IPC 成功率 | `ipc.server.requests{outcome="success"}` / 总数 | ≥99.5%（1h） | 错误率 >1% 10m → warning；>5% 5m → critical |
-| `ipc-p95-latency` | IPC 延迟 | `ipc.server.request.duration` p95 | ≤300ms（1h） | p95 >1s 10m → warning |
-| `startup-p95` | 启动耗时 | `app.startup.duration{phase="window"}` p95 | ≤3s（1h） | p95 >5s 15m → warning |
-| `update-check-failure` | 更新检查失败率 | `app.update.events{phase="error"}` / 总数 | ≤2%（24h） | 失败率 >5% 1h → warning |
-| `update-download-p95` | 下载耗时 | `app.update.download.duration` p95 | ≤10s（24h，按包体调整） | >30s 1h → warning |
-| `db-backup-success` | 数据库备份成功率 | `app.db.backup{outcome="success"}` / 总数 | ≥99%（24h） | 错误率 >5% 1h → warning |
-| `event-loop-p99` | 事件循环 p99 | `nodejs.eventloop.delay` p99 | ≤200ms | >1s 5m → warning；>2s 5m → critical |
-| `web-vitals-lcp` | LCP | `web_vitals.lcp` p75 | ≤2.5s（24h） | >4s 30m → warning |
-| `web-vitals-inp` | INP | `web_vitals.inp` p75 | ≤200ms（24h） | >500ms 30m → warning |
-| `web-vitals-cls` | CLS | `web_vitals.cls` p75 | ≤0.1（24h） | >0.25 30m → warning |
+| ID | 指标 / 公式 | 目标 | 告警 |
+|---|---|---|---|
+| `crash-free-sessions` | 外部 Sentry Release Health，7d | ≥0.995 | <0.99 持续 1h → critical |
+| `ipc-error-rate` | `ipc.server.requests`：system error / (none + system)，1h | ≤0.005 | >0.05 持续 5m → critical |
+| `ipc-p95-latency` | `ipc.server.request.duration` 全请求 p95，1h | ≤300ms | >1000ms 持续 10m → warning |
+| `startup-p95` | `app.startup.duration`，foreground + renderer-ready，p95，1h | ≤3000ms | >5000ms 持续 15m → warning |
+| `update-check-failure` | `app.update.checks` error / total，24h | ≤0.02 | >0.05 持续 1h → warning |
+| `update-download-p95` | `app.update.download.duration`，仅 downloaded，p95，24h | ≤10000ms | >30000ms 持续 1h → warning |
+| `db-backup-success` | `app.db.backup` error / total，24h | ≤0.01（成功率≥99%） | >0.05 持续 1h → warning |
+| `event-loop-p99` | `nodejs.eventloop.delay` 的5秒窗口 p99 样本分布 p99，5m | ≤200ms | >2000ms 持续 5m → critical |
+| `web-vitals-lcp` | `web_vitals.lcp` p75，24h | ≤2500ms | >4000ms 持续 30m → warning |
+| `web-vitals-inp` | `web_vitals.inp` p75，24h | ≤200ms | >500ms 持续 30m → warning |
+| `web-vitals-cls` | `web_vitals.cls` p75，24h | ≤0.1 | >0.25 持续 30m → warning |
+| `db-recovery-rebuilt` | `app.db.recovery{outcome=rebuilt}`，5m increase | 独立事故告警 | >0 持续 1m → critical |
+| `renderer-recovery-stopped` | `app.renderer.crashes{recovery=stopped}`，5m increase | 独立事故告警 | >0 持续 1m → critical |
 
-`nodejs.memory.growth`、`app.db.recovery`、`app.db.backup.duration`、`app.renderer.crashes` 是观察指标，不纳入 SLO 表。
+`query.minSamples` 必须一起配置：比例取分母事件数，百分位取观测数，独立告警取筛选后的事件数。缺数据、分母为0、样本不足不能解释为健康。比例逐序列计算 counter reset 后的窗口 increase 再汇总；百分位合并 histogram，不平均各实例 p95。`alert.for` 为持续越界时间，不是采样窗口。
+
+新增属性会生成新时间序列；部署切换期不能把没有 failureClass 的旧数据硬当 system/none，历史口径不可直接拼接。启动指标是 Node 进程时钟到初始路由提交，不包含启动器启动进程之前的时间；hidden 启动被排除。事件循环样本不是总体 p99 原始分布。
+
+`nodejs.memory.growth` 与 `app.db.backup.duration` 保留为诊断趋势，不强行给每个指标设告警。
 
 SigNoz 配置路径（以当前 UI 为准）：
 
@@ -230,7 +263,8 @@ SigNoz 配置路径（以当前 UI 为准）：
 - 不采集：用户输入正文、凭据、窗口标题全文；Sentry 不附加截图、不采集 local variables。
 - minidump 为二进制附件，不经过 `beforeSend`；启用原生崩溃上报前需确认组织的数据处理要求。
 - 后端保留策略由部署方设置；本地 compose 数据默认仅在本机。
-- 用户可在设置页把遥测切到 `off`（重启生效），或直接删除 `telemetry-pref.json` 回到默认 `full`。
+- 用户可在设置页切换级别（重启生效）；偏好缺失/损坏时回到 off。已保存选择与当前活动级别分别显示，不把保存成功等同于已停止所有在途外发。
+- Sentry 文本事件有同指纹5/min、总60/min预算，致命/未处理事件豁免；被抑制数可在状态页查看，原生附件不受该闸保护。
 
 ## 八、本地验证记录
 
@@ -252,6 +286,8 @@ SigNoz 配置路径（以当前 UI 为准）：
    - `signoz_metrics.distributed_samples_v4` 有 `ipc.server.requests`、`ipc.server.request.duration.*`、`process.memory.usage`、`electron.process.memory/cpu`、`web_vitals.fcp.*`、`web_vitals.ttfb.*`。
 8. 关键兼容修正：SigNoz v0.147 仍读取 `deployment.environment`；资源属性同时写入
    `deployment.environment` 与 `deployment.environment.name`，否则 Services/Explorer 的环境过滤看不到数据。
+
+**2026-10-24 本地 Collector 故障验收通过**：`otel/opentelemetry-collector-contrib:0.163.2` 四组 `validate` 通过；三信号基线到达合成 sink；停 sink 后发送 4608 个合成 ID，三队列稳定非空，SIGKILL 后用同卷重启，恢复 sink 后全部 ID 到达且队列归零；尾采样保留 ERROR/1500ms、丢弃 0% 正常样本；隔离资源已清理，既有容器未改变。
 
 未验证（需外部凭据/服务）：
 
