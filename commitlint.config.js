@@ -67,6 +67,7 @@ export default {
         'remote',
         'telemetry',
         'update',
+        'proxy',
         // 前端与设计
         'ui',
         'i18n',
