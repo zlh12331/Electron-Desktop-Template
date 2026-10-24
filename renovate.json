@@ -7,15 +7,34 @@
   "prConcurrentLimit": 3,
   "semanticCommits": "enabled",
   "minimumReleaseAge": "1 day",
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["dependencies", "security"]
+  },
   "packageRules": [
     {
-      "description": "非 major 更新归一组，减少 PR 数量",
+      "description": "Electron patch/minor 独立成组：升级后必须重编原生模块并跑 native-arch/smoke",
+      "matchPackageNames": ["electron"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "electron runtime",
+      "groupSlug": "electron-runtime",
+      "labels": ["dependencies", "electron"]
+    },
+    {
+      "description": "非 major 更新归一组，减少 PR 数量；Electron 已单独分组",
       "matchUpdateTypes": ["minor", "patch", "digest"],
+      "excludePackageNames": ["electron"],
       "groupName": "all non-major dependencies",
       "groupSlug": "all-minor-patch"
     },
     {
-      "description": "electron major 需人工评审（主框架升级影响面大）",
+      "description": "主版本一律人工确认：TypeScript / Vite / electron-vite / React Router / i18next / Electron",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "labels": ["dependencies", "major"]
+    },
+    {
+      "description": "electron major 需单独排期（主框架升级影响面大）",
       "matchPackageNames": ["electron"],
       "matchUpdateTypes": ["major"],
       "enabled": false
