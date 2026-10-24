@@ -192,9 +192,18 @@ export function resolveOtlpHeaders(raw: string): Record<string, string> {
 
 /** 把 base URL 落到某个信号的 /v1/{signal} 路径；误填完整信号路径时替换最后一段 */
 export function deriveSignalEndpoint(base: string, signal: 'traces' | 'metrics' | 'logs'): string {
-  const trimmed = base.replace(/\/+$/, '');
-  if (/\/v1\/(?:traces|metrics|logs)$/i.test(trimmed)) {
-    return trimmed.replace(/\/v1\/(?:traces|metrics|logs)$/i, `/v1/${signal}`);
+  // 不用 /\/+$/ 正则：base 来自环境变量，长斜杠串会触发 ReDoS 告警/慢路径
+  let end = base.length;
+  while (end > 0 && base[end - 1] === '/') {
+    end -= 1;
+  }
+  const trimmed = base.slice(0, end);
+  const lower = trimmed.toLowerCase();
+  const matched = ['/v1/traces', '/v1/metrics', '/v1/logs'].find((suffix) =>
+    lower.endsWith(suffix),
+  );
+  if (matched !== undefined) {
+    return `${trimmed.slice(0, trimmed.length - matched.length)}/v1/${signal}`;
   }
   return `${trimmed}/v1/${signal}`;
 }

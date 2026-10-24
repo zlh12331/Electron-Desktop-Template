@@ -36,6 +36,15 @@ describe('端点与请求头', () => {
     );
   });
 
+  it('去除任意数量尾斜杠，且大小写信号路径可替换', () => {
+    expect(deriveSignalEndpoint('https://otlp.example.com///', 'traces')).toBe(
+      'https://otlp.example.com/v1/traces',
+    );
+    expect(deriveSignalEndpoint('https://otlp.example.com/V1/TRACES///', 'metrics')).toBe(
+      'https://otlp.example.com/v1/metrics',
+    );
+  });
+
   it('带子路径的 base 保留前缀', () => {
     expect(deriveSignalEndpoint('https://example.com/tenant/otlp', 'traces')).toBe(
       'https://example.com/tenant/otlp/v1/traces',
