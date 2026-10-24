@@ -41,7 +41,7 @@ jobs:
       release_sha: ${{ steps.detect.outputs.release_sha }}
       artifact_base: ${{ steps.detect.outputs.artifact_base }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Detect release-please commit
@@ -168,15 +168,15 @@ jobs:
         with:
           egress-policy: audit
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 26
           cache: pnpm
@@ -273,7 +273,7 @@ jobs:
       # artifact 名含 artifact-suffix（全局唯一）+ ref_name；merge/release job 按子目录取用
       - name: Upload build artifacts
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: release-${{ matrix.artifact-suffix }}-${{ github.ref_name }}
           path: |
@@ -298,13 +298,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 26
           cache: pnpm
@@ -313,7 +313,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Download build artifacts (keep subdirectories)
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           path: artifacts
 
@@ -339,7 +339,7 @@ jobs:
         run: pnpm exec tsx scripts/merge-update-metadata.ts
 
       - name: Upload merged metadata
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: merged-update-metadata
           path: merged-meta/latest*.yml
@@ -364,10 +364,10 @@ jobs:
         with:
           egress-policy: audit
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Download all artifacts (keep subdirectories)
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           path: artifacts
 
@@ -417,7 +417,7 @@ jobs:
           fi
 
       - name: Create GitHub Release (tag + draft)
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           tag_name: v${{ needs.gate.outputs.version }}
           # target_commitish 必须显式给 release_sha：缺省取触发分支 tip，
@@ -564,7 +564,7 @@ jobs:
       # 公告版块仅维护者可发帖（CD 以仓库身份发帖满足）；draft 态不发，故放 publish
       - name: Post release announcement to Discussions (公告版块)
         continue-on-error: true
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           RELEASE_VERSION: ${{ needs.gate.outputs.version }}
           PRERELEASE: ${{ needs.gate.outputs.prerelease }}
