@@ -5,7 +5,9 @@
 | 路径 | 用途 |
 |---|---|
 | `signoz/casting.yaml` | SigNoz Foundry 部署声明（Docker Compose，UI 8080 / OTLP 4317+4318） |
-| `slo.json` | 机器可读的 SLO/告警定义（`pnpm check:observability-slo` 校验） |
+| `slo.json` | 后端无关的 SLO/告警契约（`pnpm check:observability-slo` 校验） |
+| `collector/` | 固定版本 OTel Collector 持久中继、双网络 Compose 与可选尾采样配置 |
+| `collector/compose.yaml` | 仅发布环回端口的本地中继，验证命令 `pnpm observability:collector-smoke` |
 
 启动、验证、SLO 与告警配置步骤见 [docs/guides/observability-runbook.md](../docs/guides/observability-runbook.md)。
 

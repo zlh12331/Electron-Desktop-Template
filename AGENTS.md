@@ -40,6 +40,7 @@ pnpm check:observability-config # 可观测性变量注册表 ↔ 代码/.env/�
 pnpm check:observability-slo    # SLO 定义 ↔ 指标注册表/运行手册
 pnpm observability:doctor    # 脱敏生效配置 + 格式校验 + OTLP 探测（--release 发布断言）
 pnpm observability:smoke     # 真实 Electron → 本地 OTLP 三类信号到达（需先 pnpm build）
+pnpm observability:collector-smoke # 隔离本地 Collector：持久队列 SIGKILL 恢复与尾采样（需 Docker）
 pnpm check:secrets-git      # gitleaks 扫 <远端 main>..HEAD（pre-push 与 CI 用）
 pnpm check:secrets          # gitleaks 扫工作区全量文件（手动排查用，含未提交改动）
 pnpm knip                   # 死代码 / 死依赖（CI 卡关）

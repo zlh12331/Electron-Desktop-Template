@@ -36,7 +36,7 @@
 ### 2.2 traceId 贯穿
 
 - 每次 IPC invoke 生成 `crypto.randomUUID()` 作为 traceId（preload `ipc-bridge.ts` 自动附加，第三参数传主进程）
-- 日志条目必须包含 traceId（结构化字段），支持按 traceId 串联一次调用的全链路日志
+- IPC 日志带请求 traceId；后台事件可能没有请求 ID。`app.trace_id` 是请求 UUID，不是 OTel 原生 traceId；Sentry 的 `contexts.opentelemetry` 与 OTel LogRecord 另保留原生链路 ID（存在活动 span 时）
 - 渲染层 console 禁用（Biome 规则），调试用 logger/日志文件
 
 ### 2.3 日志纪律
@@ -63,7 +63,7 @@
 
 ## 三、错误上报、Sentry 与 OTel
 
-- **error-report**（`src/main/utils/error-report.ts` / `src/renderer/lib/error-report.ts`）：异常单一出口，先落本地日志（渲染层经 electron-log 转发主进程，随诊断包导出并做导出期脱敏），再交可选后端。主进程 `reportError` 支持 `message`（本地日志正文）与 `fields`（仅本地的排障字段）；`tags` 才进入 Sentry，避免路径等细节外发。
+- **error-report**（`src/main/utils/error-report.ts` / `src/renderer/lib/error-report.ts`）：异常单一出口，先落本地日志（渲染层经 electron-log 转发主进程，随诊断包导出并做导出期脱敏），再交可选后端。主进程 `reportError` 的自定义 `message` 和 `fields` 仅写本地；logger 旁路显式使用独立远端上下文，Sentry/OTel 只接收允许的 tags、组件栈和错误对象。SDK console 面包屑被排除以免重新携带本地字段。错误对象本身仍可能含路径，不承诺任意路径自动消失。
 - **Sentry**（`@sentry/electron/main`）：主进程错误聚合、原生崩溃与 release health；DSN 未配置时完整 no-op。渲染层错误经 `telemetry:captureError` IPC 转发（渲染层不引入 Sentry SDK），报障深链仍指向 GitHub Issue。
 - **OTel**（@opentelemetry/*）：trace（IPC/启动/更新检查与下载）+ metrics（RED、漏斗、资源、Web Vitals）+ logs（主进程结构化日志）；未配置 OTLP 端点时打包版不外发，dev 仅 Console trace。
 - 三者的级别语义、脱敏边界与指标清单见 [23 可观测性规范](23-otel-spec.md)。

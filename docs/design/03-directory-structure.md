@@ -14,6 +14,7 @@
 │   └── history/              # 实施记录（一次性归档）
 ├── drizzle/                  # 数据库迁移（schema.ts 派生产物，禁止手写）
 ├── e2e/                      # Playwright：浏览器模式 / Electron / 生产 smoke
+├── observability/            # 本地 SigNoz 声明、SLO 契约、Collector 中继与尾采样
 ├── packages/
 │   ├── shared/               # @code-agent/shared：IPC 契约、schema、常量
 │   └── tsconfig/             # @code-agent/tsconfig：TS 预设三档
@@ -100,7 +101,7 @@ packages/shared/src/
 ├── renderer.ts               # 渲染层出口（schema 一律 type-only）
 ├── preload.ts                # preload 出口（零第三方依赖）
 ├── constants/                # brand（生成物）/ errors / protocol / zoom
-├── observability/            # 配置注册表（env）/ 纯解析 / 指标名 / SLO 校验 / OTLP 探测
+├── observability/            # 配置注册表（env）/ 纯解析 / 指标契约 / SLO 类型 / OTLP 探测
 ├── ipc/
 │   ├── meta.ts               # channel 元数据（零依赖）
 │   ├── domains/              # 按域定义 + index.ts 域册
@@ -116,5 +117,5 @@ packages/shared/src/
 
 - 单测与源码 colocation：`*.test.ts(x)`
 - 集成测试：`tests/integration/`（真实 SQLite，Electron SDK 替身）
-- E2E：`e2e/`（浏览器 / Electron / 生产 smoke）
+- E2E：`e2e/`（浏览器 / Electron / 生产 smoke）；本地可观测性另有 `observability:smoke` 与需 Docker 的 `observability:collector-smoke`
 - 门禁入口：`pnpm verify:local`；完整打包验证 `pnpm verify:local:full`
