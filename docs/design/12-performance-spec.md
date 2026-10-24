@@ -1,7 +1,7 @@
 # 12. 性能规范
 
-> 面向模板现状的性能门槛与纪律。数字为 2026-10-21 实测；随构建产物变化，以 `pnpm check:bundle` 输出为准。
-> 最后同步：2026-10-21
+> 面向模板现状的性能门槛与纪律。数字为 2026-10-24 实测；随构建产物变化，以 `pnpm check:bundle` 输出为准。
+> 最后同步：2026-10-24
 
 ---
 > 工程化强制：`pnpm check:bundle`（构建产物门槛，超限卡关）+ `pnpm analyze:bundle`（体积报告）
@@ -18,10 +18,10 @@
 
 | 指标 | 门槛 | 当前实测 | 说明 |
 |---|---|---|---|
-| 单个 chunk | ≤ 5120 KB | 1125 KB（SettingsDialog） | 路由级 lazy 已把页面拆出主包 |
-| 渲染层总包（JS 合计） | ≤ 16384 KB | 3307 KB | 20 个 chunk |
-| 首载同步体积 | ≤ 3072 KB | 2101 KB | `index.html` 的 script/modulepreload 合计，即 Electron 首帧必须下载的 JS |
-| 主进程 bundle | 告警线 5120 KB | 471 KB | 只告警不卡关 |
+| 单个 chunk | ≤ 5120 KB | 1110 KB（SettingsDialog） | 路由级 lazy 已把页面拆出主包 |
+| 渲染层总包（JS 合计） | ≤ 16384 KB | 3343 KB | 20 个 chunk |
+| 首载同步体积 | ≤ 3072 KB | 2122 KB | `index.html` 的 script/modulepreload 合计，即 Electron 首帧必须下载的 JS |
+| 主进程 bundle | 告警线 5120 KB | 561 KB | 只告警不卡关 |
 
 门槛写在 `scripts/check-bundle.ts` 顶部的三个常量里，改门槛需同步改本节。
 
