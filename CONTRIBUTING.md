@@ -7,8 +7,8 @@
 
 | 工具    | 版本         | 说明                                                                                                                                |
 | ------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Node.js | **≥ 26.0.0** | 真源是 `package.json` 的 `engines`；`.nvmrc` 钉 26.8.1 供 `nvm use` 使用                                                            |
-| pnpm    | **≥ 12.0.0** | 真源是 `engines` + `packageManager: pnpm@12.10.1`。**不要用 npm / yarn**：仓库依赖 `workspace:*` 协议，npm 无法解析，安装会直接失败 |
+| Node.js | **≥ 26.0.0** | 真源是 `package.json` 的 `engines`；`.nvmrc` 钉 26.12.1 供 `nvm use` 使用                                                           |
+| pnpm    | **≥ 12.0.0** | 真源是 `engines` + `packageManager: pnpm@12.15.0`。**不要用 npm / yarn**：仓库依赖 `workspace:*` 协议，npm 无法解析，安装会直接失败 |
 | Git     | 任意较新版本 | 跨平台均可（Windows / macOS / Linux）                                                                                               |
 
 ```bash

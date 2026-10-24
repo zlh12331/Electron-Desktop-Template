@@ -7,8 +7,11 @@ import {
   type MetricData,
   PeriodicExportingMetricReader,
 } from '@opentelemetry/sdk-metrics';
-import { InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
-import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
+import {
+  InMemorySpanExporter,
+  SimpleSpanProcessor,
+  TracerProvider,
+} from '@opentelemetry/sdk-trace';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { readFile } = vi.hoisted(() => ({ readFile: vi.fn() }));
@@ -53,7 +56,7 @@ let updater: FakeUpdater;
 let service: UpdateService;
 let provider: MeterProvider;
 let exporter: InMemoryMetricExporter;
-let traceProvider: NodeTracerProvider;
+let traceProvider: TracerProvider;
 let spanExporter: InMemorySpanExporter;
 
 function createService(packaged = true): UpdateService {
@@ -110,10 +113,10 @@ beforeEach(() => {
   });
   initOtelMetrics(provider.getMeter('update-test'));
   spanExporter = new InMemorySpanExporter();
-  traceProvider = new NodeTracerProvider({
-    spanProcessors: [new SimpleSpanProcessor(spanExporter)],
+  traceProvider = new TracerProvider({
+    spanProcessors: [new SimpleSpanProcessor({ exporter: spanExporter })],
   });
-  traceProvider.register();
+  trace.setGlobalTracerProvider(traceProvider);
 });
 
 afterEach(async () => {
