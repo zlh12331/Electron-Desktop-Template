@@ -1,5 +1,5 @@
 import type { LoginItemSettingsRes } from '@code-agent/shared/renderer';
-import { Check, Database, Languages } from 'lucide-react';
+import { Check, Languages } from 'lucide-react';
 import { type ReactElement, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -14,10 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 import { type AppLanguage, useSettingsStore } from '@/stores/persistent/settings-store';
 import { SegControl, SettingRow, ToggleRow } from '../settings-controls';
-import { DataSection } from './data-section';
-import { NotificationSection } from './notification-section';
 import { TelemetrySection } from './telemetry-section';
-import { ZoomSection } from './zoom-section';
 
 /** 语言切换行（真实 i18n：changeLanguage 立即生效；P2：同步写入 SQLite 设置链路） */
 function LanguageRow(): ReactElement {
@@ -60,7 +57,7 @@ function LanguageRow(): ReactElement {
   );
 }
 
-/** 通用 pane：语言 + 窗口行为 + 数据管理 + 遥测 + 编辑器/快捷键/提示词（导航收敛后并入） */
+/** 通用 pane：语言 + 窗口行为 + 遥测；其余能力由独立导航分区承载 */
 export function GeneralSection(): ReactElement {
   const { t } = useTranslation();
   const closeAction = useSettingsStore((s) => s.window.closeAction);
@@ -134,20 +131,6 @@ export function GeneralSection(): ReactElement {
             disabled={autostart?.supported === false}
             onChange={(checked) => void handleToggleAutostart(checked)}
           />
-        </div>
-      </div>
-
-      <NotificationSection />
-
-      <ZoomSection />
-
-      <div>
-        <div className="flex items-center gap-2">
-          <Database className="text-muted-foreground size-3.5" strokeWidth={1.5} />
-          <h3 className="text-foreground text-sm font-semibold">{t('settings.dataTitle')}</h3>
-        </div>
-        <div className="mt-2">
-          <DataSection />
         </div>
       </div>
 

@@ -2,7 +2,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactElement } from 'react';
-import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { i18n } from '@/i18n';
@@ -12,17 +11,9 @@ import { GeneralSection } from './general-section';
 
 const t = i18n.t.bind(i18n);
 
-/**
- * GeneralSection 内含 TanStack Query 消费者与 DataSection（36-D 起用 useNavigate），
- * 无 provider 会抛「No QueryClient set」/「useNavigate only in Router」
- */
 function renderWithQuery(ui: ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter>{ui}</MemoryRouter>
-    </QueryClientProvider>,
-  );
+  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
 beforeEach(() => {
@@ -30,12 +21,14 @@ beforeEach(() => {
 });
 
 describe('GeneralSection', () => {
-  it('正向：渲染语言行与各子区块（编辑器/提示词/数据/遥测）', () => {
+  it('正向：只渲染通用职责，不重复挂载通知/外观/数据分区', () => {
     renderWithQuery(<GeneralSection />);
 
     expect(screen.getByText(t('settings.language'))).toBeDefined();
-    expect(screen.getByText(t('settings.dataTitle'))).toBeDefined();
     expect(screen.getByText(t('settings.telemetryTitle'))).toBeDefined();
+    expect(screen.queryByText(t('settings.dataSection'))).toBeNull();
+    expect(screen.queryByText(t('settings.zoomTitle'))).toBeNull();
+    expect(screen.queryByText(t('settings.notificationTitle'))).toBeNull();
   });
 
   it('正向：点 English → 写入 settings-store（SQLite 写穿透真源）', async () => {

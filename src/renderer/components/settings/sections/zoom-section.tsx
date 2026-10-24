@@ -12,7 +12,7 @@ import {
 import { useTranslation } from '@/i18n/use-translation';
 import { useSettingsStore } from '@/stores/persistent/settings-store';
 
-/** 界面缩放区块（通用分区：窗口行为/系统通知之后的显示域） */
+/** 界面缩放区块（独立「外观与缩放」分区） */
 export function ZoomSection(): ReactElement {
   const { t } = useTranslation();
   const zoom = useSettingsStore((s) => s.appearance.zoom);

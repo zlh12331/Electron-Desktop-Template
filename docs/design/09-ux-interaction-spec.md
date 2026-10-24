@@ -202,7 +202,7 @@ stateDiagram-v2
 
 | 分区 | 组件 | 消费的真源 |
 |---|---|---|
-| 常规 | `general-section` | 语言 / 关窗行为 / 开机自启 / 数据目录 / 遥测（组合页） |
+| 常规 | `general-section` | 语言 / 关窗行为 / 开机自启 / 遥测（组合页；数据目录在「数据」分区） |
 | 外观 | `zoom-section` | `appearance.zoom` → `window:applyZoom` |
 | 通知 | `notification-section` | `notification.enabled` → 主进程 `tray.ts` 读取 |
 | 数据 | `data-section` | 导出/导入设置、打开数据目录、更新缓存、数据库备份 |
