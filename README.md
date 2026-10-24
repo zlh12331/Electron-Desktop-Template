@@ -11,7 +11,7 @@ Electron 44 + React 19 + TypeScript + Vite 8 的工程级桌面应用模板（Wi
 
 **还需要发布方完成的**：
 
-- **签名与自动更新演练**：仓库内没有发布 tag，签名/公证依赖 CI Secrets。正式对外发布前请在隔离仓库完成一次「签名构建 → 发布 → 安装 → 更新 → 卸载」全链路演练。
+- **签名与自动更新**：当前发布口径为**三平台未签名包**；macOS 需手动绕过 Gatekeeper，未签名自动更新未验证。面向普通用户正式分发前，再完成签名/公证与「安装 → 更新 → 卸载」演练。
 - **可观测性后端**：SLO、指标与 Collector 配置已定义；生产 Collector/告警后端不包含在模板内。
 - **性能画像**：有 bundle 预算、启动耗时与启动趋势；没有 FCP/LCP/INP 硬门槛。
 - **依赖基线**：Node 26 LTS、TypeScript 7、Vite 8 属前沿栈；升级与 override 规则见 [dependency-policy.md](docs/guides/dependency-policy.md)。
