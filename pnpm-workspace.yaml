@@ -1,7 +1,3 @@
-# pnpm-workspace.yaml
-# pnpm 11 起所有非 auth/registry 配置统一在本文件声明（不再读 package.json#pnpm）
-# 参考 https://pnpm.io/settings
-
 packages:
   - 'packages/*'
   - 'tools/*'
@@ -83,7 +79,7 @@ overrides:
   # 2026-10-21 升级：14.3.2 → 14.3.3（GHSA-gfr2-rv44-r23c / CVE-2026-111758 high：
   # 多行链接引用定义未闭合时渲染呈二次复杂度，构造输入可阻塞 Node 进程；patched 14.3.3）。
   # 传递链 tools/typedoc→typedoc→markdown-it，dev 文档工具链，不进运行时包
-  markdown-it: 14.3.3
+  markdown-it: 15.0.3
   # Dependabot GHSA-mh99-v99m-4gvg / GHSA-rgw5-rvv9-x895：DoS，仅命中 typedoc 工具链的 4.x 线；1.x/2.x 合法共存不动
   # 2026-09-30 三线全升（6 条告警：4 high + 2 moderate + cdxgen 链 3 moderate）：
   # 1.1.18→1.1.21 / 2.1.4→2.1.7 / 5.0.9→5.0.12（递归 DoS 与二次展开 DoS 全系修复）
