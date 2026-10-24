@@ -43,7 +43,7 @@
 |---|---|---|---|
 | quality | ubuntu ×1 | typecheck / lint / gitleaks / check:static / tokens / knip / depcruise / schema 漂移 / `test:coverage` / test:scripts / audit / CHANGELOG 润色（仅 Release PR） | 3m36s |
 | integration-tests | ubuntu ×1 | `test:integration` | 0m36s |
-| e2e-browser | ubuntu ×1 | 浏览器模式 E2E（唯一需 Chromium） | 4m45s |
+| e2e-browser | ubuntu ×1 | 浏览器模式 E2E（唯一需 Chromium；含 a11y 无障碍扫描） | 4m45s |
 | e2e-electron | windows / ubuntu / macos ×3 | dev 构建 + 真实 Electron E2E + 性能基准 | win 5m21s / mac 2m56s / linux 2m16s |
 
 **当前 wall-clock ≈ 5m21s**（由最慢 job 决定）。
@@ -202,7 +202,7 @@ flowchart TB
 | **quality** | 1 | ① `pnpm typecheck` ② `pnpm lint` ③ gitleaks 密钥扫描（依赖 `fetch-depth: 0`，浅克隆会假绿；仅 `pull_request` 事件跑，merge_group 队列树无对应 PR diff 区间故跳过）④ `pnpm check:static`（16 项静态审计）⑤ `pnpm tokens:check` ⑥ `pnpm knip` ⑦ `pnpm depcruise` ⑧ `pnpm check:schema-drift`（与本地 verify:local 共用同一脚本，2026-09-22 起）⑨ `pnpm test:scripts` ⑩ `pnpm audit` ⑪ **`pnpm check:changelog-polish`（仅 Release PR：`if: startsWith(github.head_ref, 'release-please--')`）** ⑫ **`pnpm check:release-pr-scope --branch <headRef>` + `pnpm check:release-anchor`（仅 Release PR，2026-10-06 护栏 C+B：内容边界白名单 + 锚点三态自洽，GITHUB_TOKEN 注入；其余 Release PR 重步骤 ①-⑩ 全跳，2026-10-05 瘦身）** |
 | **unit** | 6 | `pnpm test:main` + `pnpm test:renderer`；**ubuntu-latest 实例改跑 `pnpm test:coverage`**（覆盖率阈值唯一把关点，覆盖率产物也从这里上传）；其余 5 个平台跑不带阈值的同套用例。`test:scripts` 不在此 job（与平台无关，留在 quality 单次执行，避免 6 倍重复） |
 | **integration** | 1 | `pnpm test:integration`（`tests/integration/`，20+ 文件；用户决策不扩平台） |
-| **e2e-browser** | 1 | `playwright install --with-deps chromium` → `playwright test --config e2e/playwright.config.ts --retries=2` |
+| **e2e-browser** | 1 | `playwright install --with-deps chromium` → `playwright test --config e2e/playwright.config.ts --retries=2`（完整浏览器套件，含 `a11y.spec.ts` 的 WCAG 2.1 AA 扫描） |
 | **e2e-electron** | 6 | `node node_modules/electron/install.js`（CI 兜底；根 postinstall 已负责安装并校验）→ `playwright install-deps`（**仅 ffmpeg，不装 Chromium**）→ `pnpm build`（dev 产物）→ `pnpm check:bundle`（单 chunk ≤5MB / 总包 ≤16MB）→ `pnpm check:compiler`（断言 React Compiler 未静默失效）→ `playwright test --config e2e/playwright.electron.config.ts --retries=2`（Linux 实例走 `xvfb-run -a`） |
 | **unit-summary** | 1 | 无检查步骤，只汇总 unit 矩阵结果（`if: always()`，见 §3.3） |
 | **e2e-electron-summary** | 1 | 无检查步骤，只汇总 e2e-electron 矩阵结果（`if: always()`，见 §3.3） |

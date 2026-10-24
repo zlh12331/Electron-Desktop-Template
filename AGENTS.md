@@ -21,7 +21,8 @@ pnpm test:integration
 pnpm test:scripts
 
 # E2E（@playwright/test 升级后需 npx playwright install）
-pnpm test:e2e               # 浏览器模式
+pnpm test:e2e               # 浏览器模式（含 a11y 扫描）
+pnpm test:a11y              # 无障碍扫描（WCAG 2.1 AA，axe）
 pnpm test:e2e:electron      # Electron 真实窗口
 pnpm test:smoke             # 生产构建 smoke（需先 build:dist）
 
