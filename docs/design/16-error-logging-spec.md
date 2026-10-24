@@ -10,7 +10,7 @@
 
 ### 1.1 AppError
 
-- 主进程所有可预期失败返回 `AppError`（继承 Error）：`code`（ErrorCode 枚举）+ `statusCode` + `message`
+- 主进程所有可预期失败返回 `AppError`（继承 Error）：`code`（ErrorCode 枚举）+ `message` + 可选 `details`
 - 错误码集中在 `packages/shared/src/constants/`（ErrorCode），跨进程共享
 - IPC 失败走 `IpcResponse.error` 判别联合（`{ data } | { error }`），渲染层 `unwrap()` 解包（已有 `lib/ipc.ts`）
 
@@ -77,7 +77,7 @@
 
 ## 五、检查清单
 
-- [ ] 可预期失败返回 AppError（code + statusCode），不抛裸 Error
+- [ ] 可预期失败返回 AppError（code + message），不抛裸 Error
 - [ ] IPC 入参过 zod（13-form-validation L2）
 - [ ] catch 按 unknown 缩小，含 traceId 日志，无空 catch
 - [ ] 渲染层错误走 ErrorBoundary 体系 + i18n 文案

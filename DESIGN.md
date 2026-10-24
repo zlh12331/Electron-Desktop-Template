@@ -62,8 +62,8 @@ design_tokens:
 - **其余字体轴**：font-weight / letter-spacing 走 Tailwind 标准工具类（font-bold /
   tracking-*），未令牌化——标准 Tailwind 用法，非缺口；终端 lineHeight 为 xterm
   单值（1.3），settings 仅 fontSize 档位（36 号），lineHeight 档位化留待需要时。
-- **settings 无 fontFamily 自定义面**（终端/编辑器仅 fontSize 档位）：有意——防
-  用户配置缺 CJK 回退的栈复发掉宋体问题。
+- **settings 无 fontFamily 自定义面**（模板无编辑器/终端，仅保留字号与缩放档位）：有意——
+  防用户配置缺 CJK 回退的栈复发掉宋体问题。
 
 ## 2. 双主题机制
 

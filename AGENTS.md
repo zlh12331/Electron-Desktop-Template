@@ -31,7 +31,7 @@ pnpm acceptance:derived
 pnpm acceptance:nsis --installer <path-to.exe> --yes
 
 # 质量门禁
-pnpm check:static           # 静态审计 18 项（见下）
+pnpm check:static           # 静态审计 19 项（见下）
 pnpm check:tokens           # 设计令牌：裸色/hex/字号/间距双写
 pnpm check:i18n             # i18n：缺失 + 双语一致 + 冗余（默认 --strict）
 pnpm check:brand            # 品牌一致性：app.config.json ↔ 生成物与构建配置
@@ -58,7 +58,7 @@ pnpm docs:types             # TypeDoc 契约文档
 pnpm tokens:build           # Style Dictionary 生成 tokens.css
 ```
 
-`check:static` 覆盖：tokens + i18n + comments（过期注释/失效文件引用）+ tsdoc（export 符号 TSDoc 棘轮）+ file-size（净行 ≤600）+ functions（形参 ≤4 / 函数体 ≤200）+ complexity（认知复杂度 ≤15）+ coverage-floors + observability-config（变量注册表/文档/CI 一致）+ observability-slo（SLO 定义与指标名/手册一致）+ docs + docs-scripts + test-boundary + csp-hash + css-vars + animations + ui-consistency + brand，全部棘轮只收紧。
+`check:static` 覆盖：tokens + i18n + comments（过期注释/失效文件引用）+ tsdoc（export 符号 TSDoc 棘轮）+ file-size（净行 ≤600）+ functions（形参 ≤4 / 函数体 ≤200）+ complexity（认知复杂度 ≤15）+ coverage-floors + observability-config（变量注册表/文档/CI 一致）+ observability-slo（SLO 定义与指标名/手册一致）+ docs + docs-scripts + docs-contracts（IPC 计数/门禁数/ErrorCode/路径引用）+ test-boundary + csp-hash + css-vars + animations + ui-consistency + brand，全部棘轮只收紧。
 
 本地全量验证：`pnpm verify:local`（质量层）/ `pnpm verify:local:full`（追加构建与打包）。
 

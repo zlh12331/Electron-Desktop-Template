@@ -21,7 +21,7 @@
       "measuredAt": "2026-08-31"
     },
     "renderer": {
-      "$comment": "渲染层门槛曾显著低于业务层规范值（历史缺口：Markdown/message-item 等纯展示组件由 E2E journey+visual 兜底；settings 子集单列见 rendererSettings 层）。2026-08-31 P1 补测后实测 75.35/66.16/71.25/76.36；2026-09-26 direct-ipc 清迁 + memo→Compiler + lib 桥接模块补测后实测 89.56/81.93/87.42/90.32；2026-10-22 删除死组件（AsyncSection / loading-ui / 死工具）后分母缩小，复测 88.86/80.9/88.14/89.48，仍高于 floor。floor 按 min(规范目标, 实测−缓冲) 升至规范值 80/75/80/80（「真实下限」语义由 scripts/lib/coverage-floors.test.ts 的「floor ≤ 实测可复现上限」护栏承接，伪造仍会被拦）",
+      "$comment": "渲染层门槛曾显著低于业务层规范值（历史缺口：Markdown/message-item 等纯展示组件由 E2E journey 兜底；模板无 visual 基线；settings 子集单列见 rendererSettings 层）。2026-08-31 P1 补测后实测 75.35/66.16/71.25/76.36；2026-09-26 direct-ipc 清迁 + memo→Compiler + lib 桥接模块补测后实测 89.56/81.93/87.42/90.32；2026-10-22 删除死组件（AsyncSection / loading-ui / 死工具）后分母缩小，复测 88.86/80.9/88.14/89.48，仍高于 floor。floor 按 min(规范目标, 实测−缓冲) 升至规范值 80/75/80/80（「真实下限」语义由 scripts/lib/coverage-floors.test.ts 的「floor ≤ 实测可复现上限」护栏承接，伪造仍会被拦）",
       "specTarget": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
       "floor": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
       "ratchet": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },

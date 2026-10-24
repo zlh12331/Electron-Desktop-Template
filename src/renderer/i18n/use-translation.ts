@@ -12,7 +12,7 @@ export { useTranslation };
  *
  * @example
  * const { getErrorMessage } = useErrorMessage();
- * toast.error(getErrorMessage(ErrorCode.AI_TIMEOUT));
+ * toast.error(getErrorMessage(ErrorCode.INVALID_INPUT));
  */
 export function useErrorMessage() {
   const { t } = useTranslation('errors');

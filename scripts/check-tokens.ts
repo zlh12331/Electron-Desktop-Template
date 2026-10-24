@@ -18,13 +18,8 @@ const SCAN_DIR = join(ROOT, 'src', 'renderer');
 const EXCLUDE_DIRS = new Set(['test', 'coverage']);
 const EXCLUDE_FILES = new Set(['tokens.css']);
 
-// 存量豁免（新增违规仍卡关，重构为语义令牌后移除）：badge=shadcn 官方 destructive 变体；
-// inline-approval-card/DialogHost=语义色背景上的白字（对比度需求）
-const MONO_EXEMPT_FILES = new Set([
-  'src/renderer/components/ui/badge.tsx',
-  'src/renderer/components/agent/inline-approval-card.tsx',
-  'src/renderer/components/common/DialogHost.tsx',
-]);
+// 存量豁免（新增违规仍卡关，重构为语义令牌后移除）：DialogHost=语义色背景上的白字（对比度需求）
+const MONO_EXEMPT_FILES = new Set(['src/renderer/components/common/DialogHost.tsx']);
 
 function collectFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {

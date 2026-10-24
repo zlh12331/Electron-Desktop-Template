@@ -80,7 +80,7 @@ export function deriveChannels<D extends Record<string, Record<string, MetaEntry
         );
       }
       // key 由 channel 折叠而来，理论上可撞名并被 result[key] 静默覆盖（丢通道不报错）；
-      // 「键数 = 通道数」由契约测试兜底（packages/shared/src/__tests__/shared-gaps.test.ts）
+      // 「键数 = 通道数」由通道值唯一性契约测试兜底（packages/shared/src/__tests__/channels.test.ts）
       const key = toConstantKey(def.channel);
       result[key] = def.channel;
     }

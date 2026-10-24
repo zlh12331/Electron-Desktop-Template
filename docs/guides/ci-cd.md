@@ -165,7 +165,7 @@ path: Code-Agent-Desktop-macOS-x64.zip         # 指向 files 中第一个 zip
 flowchart TB
   PR(["PR → main"]) --> FAN{{"5 类作业同时启动 · 互不依赖<br/>wall-clock = 最慢实例，不是累加"}}
 
-  FAN --> Q["quality · ubuntu-latest ×1<br/>11 项检查（见下表）"]
+  FAN --> Q["quality · ubuntu-latest ×1<br/>12 项检查（见下表）"]
   FAN --> U["unit · 6 平台矩阵<br/>test:main + test:renderer"]
   FAN --> I["integration · ubuntu-latest ×1<br/>test:integration"]
   FAN --> EB["e2e-browser · ubuntu-latest ×1<br/>浏览器模式 E2E"]
@@ -199,22 +199,22 @@ flowchart TB
 
 | job | 实例 | 步骤 |
 |---|---|---|
-| **quality** | 1 | ① `pnpm typecheck` ② `pnpm lint` ③ gitleaks 密钥扫描（依赖 `fetch-depth: 0`，浅克隆会假绿；仅 `pull_request` 事件跑，merge_group 队列树无对应 PR diff 区间故跳过）④ `pnpm check:static`（16 项静态审计）⑤ `pnpm tokens:check` ⑥ `pnpm knip` ⑦ `pnpm depcruise` ⑧ `pnpm check:schema-drift`（与本地 verify:local 共用同一脚本，2026-09-22 起）⑨ `pnpm test:scripts` ⑩ `pnpm audit` ⑪ **`pnpm check:changelog-polish`（仅 Release PR：`if: startsWith(github.head_ref, 'release-please--')`）** ⑫ **`pnpm check:release-pr-scope --branch <headRef>` + `pnpm check:release-anchor`（仅 Release PR，2026-10-06 护栏 C+B：内容边界白名单 + 锚点三态自洽，GITHUB_TOKEN 注入；其余 Release PR 重步骤 ①-⑩ 全跳，2026-10-05 瘦身）** |
+| **quality** | 1 | ① `pnpm typecheck` ② `pnpm lint` ③ gitleaks 密钥扫描（依赖 `fetch-depth: 0`，浅克隆会假绿；仅 `pull_request` 事件跑，merge_group 队列树无对应 PR diff 区间故跳过）④ `pnpm check:static`（19 项静态审计）⑤ `pnpm tokens:check` ⑥ `pnpm knip` ⑦ `pnpm depcruise` ⑧ `pnpm check:schema-drift`（与本地 verify:local 共用同一脚本，2026-09-22 起）⑨ `pnpm test:scripts` ⑩ `pnpm audit` ⑪ **`pnpm check:changelog-polish`（仅 Release PR：`if: startsWith(github.head_ref, 'release-please--')`）** ⑫ **`pnpm check:release-pr-scope --branch <headRef>` + `pnpm check:release-anchor`（仅 Release PR，2026-10-06 护栏 C+B：内容边界白名单 + 锚点三态自洽，GITHUB_TOKEN 注入；其余 Release PR 重步骤 ①-⑩ 全跳，2026-10-05 瘦身）** |
 | **unit** | 6 | `pnpm test:main` + `pnpm test:renderer`；**ubuntu-latest 实例改跑 `pnpm test:coverage`**（覆盖率阈值唯一把关点，覆盖率产物也从这里上传）；其余 5 个平台跑不带阈值的同套用例。`test:scripts` 不在此 job（与平台无关，留在 quality 单次执行，避免 6 倍重复） |
-| **integration** | 1 | `pnpm test:integration`（`tests/integration/`，20+ 文件；用户决策不扩平台） |
+| **integration** | 1 | `pnpm test:integration`（`tests/integration/`，2 个 spec / 8 用例；用户决策不扩平台） |
 | **e2e-browser** | 1 | `playwright install --with-deps chromium` → `playwright test --config e2e/playwright.config.ts --retries=2`（完整浏览器套件，含 `a11y.spec.ts` 的 WCAG 2.1 AA 扫描） |
-| **e2e-electron** | 6 | `node node_modules/electron/install.js`（CI 兜底；根 postinstall 已负责安装并校验）→ `playwright install-deps`（**仅 ffmpeg，不装 Chromium**）→ `pnpm build`（dev 产物）→ `pnpm check:bundle`（单 chunk ≤5MB / 总包 ≤16MB）→ `pnpm check:compiler`（断言 React Compiler 未静默失效）→ `playwright test --config e2e/playwright.electron.config.ts --retries=2`（Linux 实例走 `xvfb-run -a`） |
+| **e2e-electron** | 6 | 验证 postinstall 已安装 Electron 二进制 → Playwright 依赖（**仅 ffmpeg，不装 Chromium**；Linux 另装系统依赖）→ `pnpm build`（dev 产物）→ `pnpm check:bundle`（单 chunk ≤5MB / 总包 ≤16MB）→ `pnpm check:compiler`（断言 React Compiler 未静默失效）→ `pnpm check:devtools`（产物不含 DevTools 残留）→ `playwright test --config e2e/playwright.electron.config.ts --retries=2`（Linux 实例走 `xvfb-run -a`） |
 | **unit-summary** | 1 | 无检查步骤，只汇总 unit 矩阵结果（`if: always()`，见 §3.3） |
 | **e2e-electron-summary** | 1 | 无检查步骤，只汇总 e2e-electron 矩阵结果（`if: always()`，见 §3.3） |
 
-**quality 的 11 项检查逐条展开**（现状是 12 项：`test:coverage` 已移入 unit job）：
+**quality 的 12 项检查逐条展开**（其中第 11、12 项仅 Release PR 执行；`test:coverage` 已移入 unit job）：
 
 | # | 步骤 | 命令 | 卡什么 |
 |---|---|---|---|
 | 1 | Typecheck | `pnpm typecheck` | `tsc --build` 全量类型（含 project references） |
 | 2 | Lint | `pnpm lint` | Biome 检查 + 格式 + import 排序 |
-| 3 | 密钥扫描 | `gitleaks-action@v2` | 全历史无泄漏；**`fetch-depth: 0` 是前提**（浅克隆会假绿） |
-| 4 | 静态审计 | `pnpm check:static` | 16 项：tokens / i18n / 过期注释 / tsdoc（export 符号 TSDoc 缺失）/ 文件体积 / 函数指标 / 复杂度 / 覆盖率下限 / docs / docs-scripts / test-boundary / csp-hash / css-vars / animations / ui-consistency / brand（棘轮只许下降） |
+| 3 | 密钥扫描 | `gitleaks-action@v3` | 全历史无泄漏；**`fetch-depth: 0` 是前提**（浅克隆会假绿） |
+| 4 | 静态审计 | `pnpm check:static` | 19 项：tokens / i18n / 过期注释 / tsdoc（export 符号 TSDoc 缺失）/ 文件体积 / 函数指标 / 复杂度 / 覆盖率下限 / docs / docs-scripts / docs-contracts（IPC 计数/门禁数/ErrorCode/路径引用）/ test-boundary / csp-hash / css-vars / animations / ui-consistency / observability-config / observability-slo / brand（棘轮只许下降） |
 | 5 | 令牌审计 | `pnpm tokens:check` | 裸色 / `dark:` / 间距双写 / hex 写法 |
 | 6 | 死代码 | `pnpm knip` | files / deps / binaries 级 |
 | 7 | 依赖方向 | `pnpm depcruise` | 分层依赖约束 |
@@ -264,12 +264,12 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  S1["① 准备<br/>checkout（fetch-depth: 0）<br/>pnpm → node 24 → install --frozen-lockfile"]
+  S1["① 准备<br/>checkout（fetch-depth: 0）<br/>pnpm → node 26 → install --frozen-lockfile"]
   S2["② SBOM 与系统依赖<br/>CycloneDX JSON（按架构命名）<br/>仅 Linux：libfuse2 / rpm / xz-utils"]
   S3["③ 打包与产物断言<br/>打包（证书空值防护）<br/>→ check:native-arch（读 ELF/PE/Mach-O 头）"]
   S4["④ smoke 与上传<br/>playwright deps（仅 ffmpeg）<br/>→ test:smoke（Linux 走 xvfb-run）<br/>→ upload-artifact（按架构命名）"]
   S1 --> S2 --> S3 --> S4
-  S4 -.-> SM[["smoke 的 6 个断言<br/>① 渲染出主界面　② window.api 已注入<br/>③ session:list 可查 SQLite　④ system:getStatus 可用<br/>⑤ 启动 < 10s　　⑥ 无控制台错误"]]
+  S4 -.-> SM[["smoke 的 6 个断言<br/>① 渲染出主界面　② window.api 已注入<br/>③ settings:getAll 可查 SQLite　④ system:getStatus 可用<br/>⑤ 启动 < 10s　　⑥ 无控制台错误"]]
 ```
 
 **读图要点**：
@@ -295,7 +295,7 @@ flowchart LR
 ```mermaid
 flowchart LR
   DEV([push 分支]) --> PR[开 PR]
-  PR --> CI[["CI：5 类作业<br/>quality（11 项）/ unit ×6<br/>integration / e2e-browser / e2e-electron ×6"]]
+  PR --> CI[["CI：5 类作业<br/>quality（12 项）/ unit ×6<br/>integration / e2e-browser / e2e-electron ×6"]]
   CI -->|全绿| MG[squash 合并 main]
   CI -->|有红| FIX[修复后重推] --> DEV
 
@@ -587,7 +587,7 @@ artifacts/mac-arm64/latest-mac.yml
 | 第三步 | `ci.yml`：新增 `unit`（6 平台）+ `unit-summary` + `e2e-electron` 扩 6 平台 + `e2e-electron-summary`；quality 移除 `test:coverage` | 7 个 job；ruleset 5 个 context 字符串与 job `name:` **逐字比对通过**；summary job 均带 `if: always()` |
 | 文档同步 | `AGENTS.md`（ruleset 5 项 + job 清单）、`27-auto-update-spec.md` §14.8（"Windows 不可拆 job"已由 merge job 解决）、`release.yml` 矩阵注释（修正"windows-11-arm 不含 VS"的错误说法） | — |
 
-**本地门禁实测**：`typecheck` ✅、`lint` ✅（1002 文件）、`check:static` ✅（12 项全绿）、`test:scripts` ✅ 241/241、`knip` ✅、`depcruise` ✅（1054 模块）、`audit` ✅。
+**本地门禁实测**：`typecheck` ✅、`lint` ✅（1002 文件）、`check:static` ✅（当时 12 项全绿）、`test:scripts` ✅ 241/241、`knip` ✅、`depcruise` ✅（1054 模块）、`audit` ✅。
 
 **Windows x64 原生单测实测**（对应新 unit job 的命令，R1 的 x64 场景）：`test:main` 1896 passed / `test:renderer` 1533 passed，全绿——证明该平台确实能跑这两套，无需降级。
 
@@ -667,7 +667,7 @@ gh api repos/{owner}/{repo}/rulesets/<id> --jq '.rules[] | select(.type=="requir
 
 | 层 | 在哪跑 | 内容 |
 |---|---|---|
-| 质量验证 | **本地** | 密钥扫描 / typecheck / lint / 16 项静态检查 / tokens 一致性 / knip / depcruise / schema 漂移 / audit / 5 层测试 |
+| 质量验证 | **本地** | 密钥扫描 / typecheck / lint / 19 项静态检查 / tokens 一致性 / knip / depcruise / schema 漂移 / audit / 5 层测试 |
 | 产物验证（Windows） | **本地** | build / bundle 门槛 / compiler 门槛 / E2E 浏览器 + Electron / `build:win:x64` / 引擎与架构断言 / 产物 smoke |
 | 多端适配 | **云端**（配额恢复后） | 六平台矩阵（Linux/macOS 的构建、单测、E2E） |
 

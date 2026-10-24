@@ -137,6 +137,7 @@ src/main/ipc/wrap.ts            # sender 校验 + zod 双向校验 + traceId
 |---|---|---|
 | `check:comments` | 注释/文档里的失效文件路径、行号、`@param` 漂移、`pnpm` 命令不存在 | 文档指向已删文件，新人照着做必失败 |
 | `check:docs-scripts` | 文档脚本表 ↔ `package.json` 不一致 | 文档里的命令实际不存在 |
+| `check:docs-contracts` | IPC 计数/域清单、静态门禁数、`ErrorCode` 符号或代码路径引用过期 | 文档声称的契约与当前代码不一致 |
 | `tokens:check` | 设计令牌生成物 ↔ 真源不一致 | 改了令牌忘了重新生成 |
 | `check:csp-hash` | CSP 内联脚本 hash 未锚定 | 注释掉的旧脚本被静默放行 |
 | `check:css-vars` | `var(--x)` 引用了未定义的变量 | 样式静默失效 |

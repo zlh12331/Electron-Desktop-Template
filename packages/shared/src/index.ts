@@ -17,7 +17,7 @@ export * from './ipc/payloads';
 export * from './ipc/response';
 export * from './observability';
 
-// zod schema：入参/出参校验的单一真源（主进程 IPC 定义表引用，见 src/main/utils/wrap.ts），避免类型与校验双向漂移
+// zod schema：入参/出参校验的单一真源（主进程 IPC 定义表引用，见 src/main/ipc/wrap.ts），避免类型与校验双向漂移
 export * from './schemas/app';
 export * from './schemas/devtools';
 export * from './schemas/dialog';

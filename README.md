@@ -10,7 +10,7 @@ Electron 44 + React 19 + TypeScript + Vite 8 的生产级桌面应用模板（Wi
 - **四层状态架构**：useState / Zustand / TanStack Query / IPC 事件流，判定标准明确
 - **三平台打包与自动更新**：electron-builder + electron-updater，CI/CD 与发版流程已接线
 - **凭据存储**：safeStorage 加密落盘（DPAPI / Keychain / libsecret），渲染层只见掩码
-- **质量门禁**：类型、lint、16 项静态审计、单测、集成测试、E2E、死代码检测、密钥扫描
+- **质量门禁**：类型、lint、19 项静态审计、单测、集成测试、E2E、死代码检测、密钥扫描
 - **品牌单一真源**：`app.config.json` 一处改产品名 / appId / 协议 / 存储前缀
 
 ## 快速开始

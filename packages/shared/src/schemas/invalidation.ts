@@ -1,6 +1,6 @@
 // invalidation.ts：失效域契约——invalidation:event:domains 事件 payload + 域词表
-// 域元素形如 'settings' / 'entity:<id>'：渲染层 split(':') 得 queryKey 前缀，前半段与渲染层
-// QUERY_KEY_ROOTS 的键对齐（src/renderer/lib/query/keys.ts）。失效「知识」收敛在写入端声明，
+// 域元素形如 'settings' / 'entity:<id>'：渲染层 split(':') 得 queryKey 前缀并逐域失效
+//（实现见 src/renderer/lib/invalidation/invalidation.ts）。失效「知识」收敛在写入端声明，
 // 收发实现分处 src/main/infra/invalidation/ 与 src/renderer/lib/invalidation/，本文件只定义契约。
 
 import { z } from 'zod';
