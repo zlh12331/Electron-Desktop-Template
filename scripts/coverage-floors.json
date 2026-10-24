@@ -5,11 +5,11 @@
   "$comment2": "校验规则（scripts/check-coverage-floors.ts）：① 各层 vitest.config.ts 不得再内联数字，只能读本文件；② floor ≥ ratchet（棘轮只能升，降级需显式改 ratchet 并说明理由）；③ measured ≥ floor（数字必须自洽，禁止美化实测）；④ measuredAt 不得超过 maxStaleDays 天，否则重跑 pnpm test:coverage 回填。",
   "layers": {
     "shared": {
-      "$comment": "契约层：zod schema/类型映射的有效分支天然难覆盖，分支/函数低于业务层是有意的类型包定位（非漏测），故 specTarget 单独定为 80/30/40/80",
-      "specTarget": { "statements": 80, "branches": 30, "functions": 40, "lines": 80 },
-      "floor": { "statements": 80, "branches": 30, "functions": 40, "lines": 80 },
-      "ratchet": { "statements": 80, "branches": 30, "functions": 40, "lines": 80 },
-      "measured": { "statements": 90.98, "branches": 81.03, "functions": 82.35, "lines": 91.69 },
+      "$comment": "契约层：2026-10-24 显式 include 后实测 91.01/81.03/82.35/91.71；原 30/40 分支/函数门槛过低，按实测−约 6pp 收紧到 85/75/75/85，防止契约层大面积回退",
+      "specTarget": { "statements": 85, "branches": 75, "functions": 75, "lines": 85 },
+      "floor": { "statements": 85, "branches": 75, "functions": 75, "lines": 85 },
+      "ratchet": { "statements": 85, "branches": 75, "functions": 75, "lines": 85 },
+      "measured": { "statements": 91.01, "branches": 81.03, "functions": 82.35, "lines": 91.71 },
       "measuredAt": "2026-10-24"
     },
     "main": {
@@ -17,7 +17,7 @@
       "specTarget": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
       "floor": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
       "ratchet": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
-      "measured": { "statements": 86.88, "branches": 82.54, "functions": 89.03, "lines": 87.04 },
+      "measured": { "statements": 81.39, "branches": 76.54, "functions": 82.17, "lines": 81.46 },
       "measuredAt": "2026-10-24"
     },
     "renderer": {
@@ -25,14 +25,14 @@
       "specTarget": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
       "floor": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
       "ratchet": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
-      "measured": { "statements": 89.88, "branches": 81.78, "functions": 88.53, "lines": 90.49 },
+      "measured": { "statements": 89.31, "branches": 81.74, "functions": 87.87, "lines": 89.96 },
       "measuredAt": "2026-10-24"
     },
     "renderer-settings": {
-      "$comment": "settings 子集单列（2026-09-24 新增，scripts/measure-settings-coverage.ts 从 coverage-summary.json 按 components/settings 前缀聚合，test:coverage 链尾自动回填）：使洼地债从汇总数字中可见、可棘轮。specTarget 同业务层；floor = 实测 − 5 缓冲，随实测提升经 --tighten 抬升（只升不降）。不接 vitest thresholds（LAYER_CONFIGS 无此项）——本层是 JSON 治理层，硬卡关仍由 renderer 汇总 thresholds 承担。2026-10-24 实测 82.45/75.9/82/82.75，四项均达到 specTarget 75/80 目标；floor 随本轮实测收紧。",
+      "$comment": "settings 子集单列（2026-09-24 新增，scripts/measure-settings-coverage.ts 从 coverage-summary.json 按 components/settings 前缀聚合）：使洼地债从汇总数字中可见、可棘轮。2026-10-24 实测 82.45/75.9/82/82.75；test:coverage 链尾以 --check 硬卡 floor（低于即失败），不再只回填数字。specTarget 同业务层 80/75/80/80；分支按实测留 2.9pp 缓冲收到 73。",
       "specTarget": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
-      "floor": { "statements": 77, "branches": 70, "functions": 77, "lines": 77 },
-      "ratchet": { "statements": 77, "branches": 70, "functions": 77, "lines": 77 },
+      "floor": { "statements": 80, "branches": 73, "functions": 80, "lines": 80 },
+      "ratchet": { "statements": 80, "branches": 73, "functions": 80, "lines": 80 },
       "measured": { "statements": 82.45, "branches": 75.9, "functions": 82, "lines": 82.75 },
       "measuredAt": "2026-10-24"
     }

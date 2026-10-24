@@ -6,7 +6,7 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadCoverageFloors, METRIC_KEYS } from './lib/coverage-floors';
+import { findMetricShortfalls, loadCoverageFloors, METRIC_KEYS } from './lib/coverage-floors';
 
 const ROOT = join(import.meta.dirname, '..');
 const SUMMARY_PATH = join(ROOT, 'src', 'renderer', 'coverage', 'coverage-summary.json');
@@ -107,6 +107,17 @@ function writeMeasured(pcts: MetricPcts): void {
 }
 
 const pcts = aggregate();
-if (!process.argv.slice(2).includes('--print')) {
+const argv = process.argv.slice(2);
+if (argv.includes('--check')) {
+  const floor = loadCoverageFloors(FLOORS_PATH).layers['renderer-settings'].floor;
+  const shortfalls = findMetricShortfalls(pcts, floor);
+  if (shortfalls.length > 0) {
+    console.error(
+      `[coverage:settings] ❌ settings 覆盖率低于门槛：${shortfalls.map((m) => `${m} ${pcts[m]}% < ${floor[m]}%`).join('；')}`,
+    );
+    process.exit(1);
+  }
+  console.log('[coverage:settings] ✅ settings 覆盖率不低于门槛');
+} else if (!argv.includes('--print')) {
   writeMeasured(pcts);
 }

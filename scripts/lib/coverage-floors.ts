@@ -203,6 +203,17 @@ export function validateCoverageFloors(file: CoverageFloorsFile, today: Date): F
  * @param entry 单层门槛记录
  * @returns 指标名 → 建议门槛
  */
+/**
+ * 找出实测低于 floor 的指标（供运行时覆盖率检查使用）
+ *
+ * @param measured 本次实测四项指标
+ * @param floor 当前强制门槛
+ * @returns 未达标的指标名（空数组 = 通过）
+ */
+export function findMetricShortfalls(measured: MetricSet, floor: MetricSet): MetricKey[] {
+  return METRIC_KEYS.filter((metric) => measured[metric] < floor[metric]);
+}
+
 export function proposeTighten(entry: LayerFloors): MetricSet {
   const out = {} as MetricSet;
   for (const metric of METRIC_KEYS) {

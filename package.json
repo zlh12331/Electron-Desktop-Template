@@ -74,7 +74,7 @@
     "test:a11y": "cross-env E2E_MODE=true playwright test --config e2e/playwright.config.ts e2e/a11y.spec.ts",
     "test:e2e:electron": "playwright test --config e2e/playwright.electron.config.ts",
     "test:smoke": "playwright test --config e2e/playwright.smoke.config.ts",
-    "test:coverage": "pnpm --filter \"@code-agent/shared\" exec vitest run --coverage && pnpm test:main --coverage && pnpm test:renderer --coverage && pnpm coverage:settings",
+    "test:coverage": "pnpm --filter \"@code-agent/shared\" exec vitest run --coverage && pnpm test:main --coverage && pnpm test:renderer --coverage && pnpm coverage:settings --check && pnpm check:coverage-scope && pnpm check:critical-coverage",
     "coverage:settings": "tsx scripts/measure-settings-coverage.ts",
     "audit": "audit-ci --config .nsprc --moderate --high --critical --report-type summary --registry https://registry.npmjs.org",
     "prepare:build-info": "node scripts/generate-build-info.mjs",
@@ -108,7 +108,9 @@
     "check:test-boundary": "tsx scripts/check-test-boundary.ts",
     "sbom:generate": "cdxgen -t pnpm --spec-version 1.6 -o bom.json",
     "brand:sync": "node scripts/generate-brand.mjs",
-    "check:brand": "tsx scripts/check-brand.ts"
+    "check:brand": "tsx scripts/check-brand.ts",
+    "check:coverage-scope": "tsx scripts/check-coverage-scope.ts",
+    "check:critical-coverage": "tsx scripts/check-critical-coverage.ts"
   },
   "lint-staged": {
     "{src,scripts,packages,tools,e2e,tests}/**/*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc,css}": [
