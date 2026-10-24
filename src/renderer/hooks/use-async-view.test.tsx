@@ -1,18 +1,18 @@
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { describe, expect, it } from 'vitest';
 
 import { type AsyncView, useAsyncView } from './use-async-view';
 
-function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: 0, gcTime: 0 } },
-  });
-  function Wrapper({ children }: { readonly children: ReactNode }): ReactNode {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
-  }
-  return Wrapper;
+function Wrapper({ children }: { readonly children: ReactNode }): ReactNode {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: { queries: { retry: false, staleTime: 0, gcTime: 0 } },
+      }),
+  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
 /** 组合测试 hook：useQuery + useAsyncView，同时暴露 refetch 以驱动 refreshing */
@@ -32,13 +32,13 @@ function pending(): Promise<string[]> {
 
 describe('useAsyncView', () => {
   it('loading：首次加载无数据 → loading', () => {
-    const { result } = renderHook(() => useTestHook(pending), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useTestHook(pending), { wrapper: Wrapper });
     expect(result.current.view.state).toBe('loading');
   });
 
   it('ready：成功且非空 → ready 携带 data', async () => {
     const { result } = renderHook(() => useTestHook(async () => ['a', 'b']), {
-      wrapper: createWrapper(),
+      wrapper: Wrapper,
     });
     await waitFor(() => expect(result.current.view.state).toBe('ready'));
     expect(result.current.view).toEqual({ state: 'ready', data: ['a', 'b'] });
@@ -46,7 +46,7 @@ describe('useAsyncView', () => {
 
   it('empty：成功但 isEmpty 为真 → empty', async () => {
     const { result } = renderHook(() => useTestHook(async () => []), {
-      wrapper: createWrapper(),
+      wrapper: Wrapper,
     });
     await waitFor(() => expect(result.current.view.state).toBe('empty'));
   });
@@ -57,7 +57,7 @@ describe('useAsyncView', () => {
         useTestHook(async () => {
           throw new Error('[INTERNAL_ERROR] boom');
         }),
-      { wrapper: createWrapper() },
+      { wrapper: Wrapper },
     );
     await waitFor(() => expect(result.current.view.state).toBe('error'));
     const view = result.current.view;
@@ -76,7 +76,7 @@ describe('useAsyncView', () => {
       if (call === 1) return ['a'];
       return pending();
     };
-    const { result } = renderHook(() => useTestHook(queryFn), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useTestHook(queryFn), { wrapper: Wrapper });
     await waitFor(() => expect(result.current.view.state).toBe('ready'));
 
     result.current.refetch();

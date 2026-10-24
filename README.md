@@ -10,7 +10,6 @@ Electron 44 + React 19 + TypeScript + Vite 8 的工程级桌面应用模板（Wi
 **已经验证的**：类型检查、lint、19 项静态审计、单测/集成/E2E、覆盖率范围与关键模块阈值、Windows 视觉基线、生产启动 <10s，全部在本仓库本地实测通过。
 
 **还需要发布方完成的**：
-
 - **签名与自动更新**：当前发布口径为**三平台未签名包**；macOS 需手动绕过 Gatekeeper，未签名自动更新未验证。面向普通用户正式分发前，再完成签名/公证与「安装 → 更新 → 卸载」演练。
 - **可观测性后端**：SLO、指标与 Collector 配置已定义；生产 Collector/告警后端不包含在模板内。
 - **性能画像**：有 bundle 预算、启动耗时与启动趋势；没有 FCP/LCP/INP 硬门槛。
@@ -59,7 +58,6 @@ pnpm init:template --name "演示应用" --executable demo-app \
 ```
 
 之后：
-
 1. 替换 `src/renderer/routes/home.tsx` 为你的首屏
 2. 按需接入业务：新增 IPC 域、数据表、设置分区、页面，方法见 AGENTS.md「扩展点速查」
 

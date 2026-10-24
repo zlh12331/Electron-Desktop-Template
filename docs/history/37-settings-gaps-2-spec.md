@@ -1,7 +1,6 @@
 # 37 · 设置面补全二期（编辑器域补全 / 备份可见性）
 
 > ⚠️ 模板裁剪提示（2026-10-22）：仅「备份可见性」保留；编辑器域（自动换行 / Tab 宽度）已随编辑器一并删除，模板无编辑器。
-
 - **状态**：**已实施**（2026-09-30；a9a2bafb → 本提交共 7 提交，V 矩阵核对见 §3.2）
 - **判级**：37-A 全链路（新持久化字段 + 跨层消费：store→CSS 变量/组件双路径）；37-B
   全链路（新 IPC 域 + 文件系统操作 + 危险恢复语义）。合入单 spec（同一批设置面缺口）
@@ -25,7 +24,6 @@
   `tabSize: 2|4|8`（默认 8=浏览器默认=现状）。
 
 **验收标准**：
-
 - **V1** 缺失/损坏（无字段）→ 行为与现状完全一致（不换行 / tab-size 8）。
 - **V2** 开启自动换行 → 编辑态 textarea `wrap="soft"`，高亮叠加层与查看态
   shiki/plaintext 同步 `pre-wrap`（长行折行不破版式）。
@@ -99,7 +97,6 @@
   （轮转自动管理，不做 UI 删除）。
 
 **验收标准**：
-
 - **V1** 列表展示名称/时间/大小/健康徽标，最新在前；目录不存在/为空 → 空态文案。
 - **V2** 立即备份：落盘成功后列表即时出现新条目（失效重拉），超 3 份最旧被轮转删除。
 - **V3** 恢复确认（danger）+ 有运行中回合 → SESSION_IN_USE 拒绝（文案泛化为
@@ -164,7 +161,7 @@
 
 1. `a9a2bafb` `docs(design)` 本 spec 初稿；
 2. `8df2a435` `feat(shared)` 37-A 地基：editor 域值扩展（wordWrap/tabSize）+ constants/editor
-   + 值级门禁 + 契约测试；
+   - 值级门禁 + 契约测试；
 3. `fbee6901` `feat(ui)` 37-A 渲染层：设置行 + --code-tab-size 单点 effect + 查看器
    自动换行双层同步 + i18n + 测试；
 4. `16ef539f` `feat(ipc)` 37-B 主进程侧：backup 域三通道 + backup-store 抽离 +
@@ -214,9 +211,9 @@
 **37-A（V1-V8）**：shared 常量测试（clamp 非有限数前置拦截）+ editor 门禁测试（V7）；
 store 快照缺字段回落 + 损坏 tabSize clamp + wordWrap 非布尔回落（V1/V5）+ 写穿透；
 组件测试（设置行 toggle/档位）；FileViewerPanel wrap 行为测试（V2：textarea wrap=soft
-+ 双层类名；查看态 pre-wrap）＋ 对齐算法经 Playwright 实证（V3，见 §3.1-1/2）；
-V4 tab-size 四代码面消费（CSS 变量单点 + check:css-vars 门禁）；V6 resetAll 走
-SETTING_KEYS 白名单自动覆盖（零代码）；V8 applyMainChange 合并不回写断言。**全过**。
+- 双层类名；查看态 pre-wrap）＋ 对齐算法经 Playwright 实证（V3，见 §3.1-1/2）；
+  V4 tab-size 四代码面消费（CSS 变量单点 + check:css-vars 门禁）；V6 resetAll 走
+  SETTING_KEYS 白名单自动覆盖（零代码）；V8 applyMainChange 合并不回写断言。**全过**。
 
 **37-B（V1-V8）**：backup-store 测试（v1 列表排序/健康度/空目录；V2 轮转删除最旧 +
 毫秒命名；V4 暂存与启动应用（含暂存消费后消失/幂等）；V5 损坏备份拒绝；

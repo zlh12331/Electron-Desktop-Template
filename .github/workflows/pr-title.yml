@@ -35,7 +35,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           # 与 commitlint subject-case 既有规则对齐：拦拉丁大写开头
-          subjectPattern: '^(?![A-Z]).+$'
+          subjectPattern: "^(?![A-Z]).+$"
           subjectPatternError: >-
             Subject 不应以拉丁大写字母开头（与 commitlint subject-case 规则一致，
             中文/小写开头均可）

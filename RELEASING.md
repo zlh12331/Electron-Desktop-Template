@@ -5,14 +5,14 @@
 
 ## 一、责任分工
 
-| 环节 | 负责 | 说明 |
-|---|---|---|
-| 版本推导 | release-please | 读 Conventional Commits，更新 `.release-please-manifest.json` + `package.json`，生成 CHANGELOG |
-| Release PR | release-please | 标题形如 `chore(main): release X.Y.Z`；**不要配 auto-merge**，合并即触发 CD |
-| 打 tag / 建 Release | `release.yml` | 六架构构建 + 产物 smoke 全绿后才打 tag；失败不占版本号 |
-| label 收尾 | `release.yml` release job | 把 Release PR 从 `autorelease: pending` 改为 `autorelease: tagged`。这是 release-please 的进度游标，漏写会导致下一次发版被 abort |
-| 对外发布 | `release.yml` publish job | 校验安装包与四份 `latest*.yml` 齐全后，draft Release 转正式 |
-| tag 保护 | ruleset `protect-release-tags` | `refs/tags/v*` 禁止删除与强推 |
+| 环节                | 负责                           | 说明                                                                                                                             |
+| ------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| 版本推导            | release-please                 | 读 Conventional Commits，更新 `.release-please-manifest.json` + `package.json`，生成 CHANGELOG                                   |
+| Release PR          | release-please                 | 标题形如 `chore(main): release X.Y.Z`；**不要配 auto-merge**，合并即触发 CD                                                      |
+| 打 tag / 建 Release | `release.yml`                  | 六架构构建 + 产物 smoke 全绿后才打 tag；失败不占版本号                                                                           |
+| label 收尾          | `release.yml` release job      | 把 Release PR 从 `autorelease: pending` 改为 `autorelease: tagged`。这是 release-please 的进度游标，漏写会导致下一次发版被 abort |
+| 对外发布            | `release.yml` publish job      | 校验安装包与四份 `latest*.yml` 齐全后，draft Release 转正式                                                                      |
+| tag 保护            | ruleset `protect-release-tags` | `refs/tags/v*` 禁止删除与强推                                                                                                    |
 
 ## 二、版本基线（必读）
 
@@ -78,13 +78,11 @@ pnpm check:changelog-polish   # 验证通过后再合并 Release PR
 ## 四、失败与重放
 
 任一环节失败（构建、smoke、merge、release、publish）都不会产生 tag，版本号不占号：
-
 - 修代码后重新走 PR；或
 - 手动重放 CD：Actions → Release → Run workflow。`confirm_version` 必须等于
   `package.json` 当前版本，否则 gate 拒绝。
 
 注意：
-
 - **不要移动已发布的 tag。** release job 显式使用 `target_commitish: release_sha`，重跑也钉在
   同一发布提交；改用 `github.sha`（main tip）会让 tag 漂移，release-please 下次会版本倒退。
 - tag 受 `protect-release-tags` 保护，手动删除/强推会被拒。确需修复时临时调整 ruleset 或走
@@ -94,12 +92,12 @@ pnpm check:changelog-polish   # 验证通过后再合并 Release PR
 
 ### 4.1 常见故障
 
-| 现象 | 原因与处置 |
-|---|---|
+| 现象                                                                                           | 原因与处置                                                                                                                                               |
+| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | push 后不再开 Release PR，日志 `There are untagged, merged release PRs outstanding - aborting` | 存在已合并但仍带 `autorelease: pending` 的 Release PR（判定只读 label，不检查 tag）。手工改为 `autorelease: tagged` 后，手动重跑 Release Please workflow |
-| Release PR 迟迟等不到检查 | 缺少 `RELEASE_PLEASE_TOKEN`。`GITHUB_TOKEN` 产生的事件不触发其他 workflow，必需检查永远等不到。配置细粒度 PAT（contents + pull-requests 写权限） |
-| 手动 dispatch 报「未能在最近 300 个提交中找到发布提交」 | 该版本的 Release PR 尚未合并，或版本号填错。确认 `chore(main): release X.Y.Z` 已在 main 上 |
-| 更新已存在的 Release 报 403 | 对已存在 release 做 update 会被拒；正常路径是 create。重放已存在 tag 时用 `gh release edit` 手动处理 |
+| Release PR 迟迟等不到检查                                                                      | 缺少 `RELEASE_PLEASE_TOKEN`。`GITHUB_TOKEN` 产生的事件不触发其他 workflow，必需检查永远等不到。配置细粒度 PAT（contents + pull-requests 写权限）         |
+| 手动 dispatch 报「未能在最近 300 个提交中找到发布提交」                                        | 该版本的 Release PR 尚未合并，或版本号填错。确认 `chore(main): release X.Y.Z` 已在 main 上                                                               |
+| 更新已存在的 Release 报 403                                                                    | 对已存在 release 做 update 会被拒；正常路径是 create。重放已存在 tag 时用 `gh release edit` 手动处理                                                     |
 
 ## 五、签名与分发
 
@@ -107,7 +105,6 @@ pnpm check:changelog-polish   # 验证通过后再合并 Release PR
 产物为未签名包，适合自用、内测与模板演示，**不适合面向普通用户的正式分发**。
 
 未签名安装包的用户侧限制：
-
 - **Windows**：可能触发 SmartScreen，选择「更多信息 → 仍要运行」。
 - **macOS**：未签名/未公证，首次打开需在「系统设置 → 隐私与安全性」允许，或手动清隔离属性：
 
@@ -120,7 +117,6 @@ pnpm check:changelog-polish   # 验证通过后再合并 Release PR
 `release.yml` 会在检测到 Windows 或 macOS 签名凭据缺失时，自动把上述提示追加到 GitHub Release 正文，避免用户下载后才遇到拦截。
 
 后续要转为正式分发，配置：
-
 - Windows / macOS 代码签名：`CSC_LINK` + `CSC_KEY_PASSWORD`
 - macOS 公证：`APPLE_API_KEY` + `APPLE_API_KEY_ID` + `APPLE_API_ISSUER`
   （或 `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` + `APPLE_TEAM_ID`）
@@ -128,7 +124,6 @@ pnpm check:changelog-polish   # 验证通过后再合并 Release PR
 ### 5.1 可观测性（可选）
 
 发布构建会自动尝试上传 Sentry source map；以下 Secrets 任一缺失时脚本打印跳过原因并继续构建：
-
 - `SENTRY_DSN`：构建期注入的默认 DSN（运行时环境变量可覆盖；不配则错误上报 no-op）
 - `SENTRY_AUTH_TOKEN` + `SENTRY_ORG` + `SENTRY_PROJECT`：source map 上传凭据
 

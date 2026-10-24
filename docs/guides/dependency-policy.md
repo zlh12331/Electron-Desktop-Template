@@ -6,14 +6,14 @@
 
 ## 1. 支持矩阵
 
-| 组件 | 口径 | 真源 |
-|---|---|---|
-| Node.js | **26 LTS**（当前 `.nvmrc` 26.8.1；`engines.node >=26`） | `package.json` / `.nvmrc` / CI |
-| pnpm | 12.x（`packageManager` 固定 12.10.1；`engines.pnpm >=12`） | `package.json` |
-| Electron | 44.x（当前 44.9.1；major 人工评审） | `package.json` / `renovate.json` |
-| TypeScript | 7.x | `package.json` |
-| Vite / electron-vite | Vite 8.x / electron-vite 6.0.0 稳定版 | `package.json` |
-| React / Router / i18next | React 19.x / React Router 8.x / i18next 26.x | `package.json` |
+| 组件                     | 口径                                                       | 真源                             |
+| ------------------------ | ---------------------------------------------------------- | -------------------------------- |
+| Node.js                  | **26 LTS**（当前 `.nvmrc` 26.8.1；`engines.node >=26`）    | `package.json` / `.nvmrc` / CI   |
+| pnpm                     | 12.x（`packageManager` 固定 12.10.1；`engines.pnpm >=12`） | `package.json`                   |
+| Electron                 | 44.x（当前 44.9.1；major 人工评审）                        | `package.json` / `renovate.json` |
+| TypeScript               | 7.x                                                        | `package.json`                   |
+| Vite / electron-vite     | Vite 8.x / electron-vite 6.0.0 稳定版                      | `package.json`                   |
+| React / Router / i18next | React 19.x / React Router 8.x / i18next 26.x               | `package.json`                   |
 
 CI 的六平台矩阵统一使用 Node 26。Node 27+ 尚未验证；`engines` 不设上限是为了避免新 Node 发布后用户被 `package.json` 直接挡住，但不代表已验证。升级 Node 主版本必须同时更新 CI 矩阵、`.nvmrc`、本文与 `engines`。
 
@@ -57,7 +57,6 @@ Electron major 在 `renovate.json` 中直接禁用，由维护者单独排期；
 ## 5. beta / RC 禁令
 
 主依赖（dependencies / devDependencies）不得使用 beta、rc、canary 等预发布版本。确需使用时必须：
-
 - 单独 ADR 或设计记录说明原因；
 - 明确退出计划与目标稳定版本；
 - 不进入模板默认分支的 lockfile，除非该记录已合并。
@@ -67,7 +66,6 @@ electron-vite 曾使用 beta.1，2026-10-24 已收敛到 6.0.0 稳定版；后�
 ## 6. override 生命周期
 
 `pnpm-workspace.yaml` 中每条 override 必须包含：
-
 - 对应 advisory / CVE；
 - 加入日期；
 - 上游修复后的移除条件。
