@@ -25,16 +25,16 @@
 
 ### 0.2 八项拍板（2026-10-07）
 
-| # | 事项 | 拍板 | 依据（一句话） |
-|---|---|---|---|
-| 1 | Agent 身份 | 用户本人账号，不建 bot 身份 | agent 就是本人；多账号是多余的审计装置 |
-| 2 | Issue 自动回执 workflow | 不做 | 有 CI 与欢迎语在场，回执是锦上添花 |
-| 3 | 后台自治面 | 概念作废 | 见 §1.2——自治模型在单人维护下不可修复 |
-| 4 | 修复边界 | 本机 vs 出网 | 见 §4——本地修复全免审，push/PR 才卡审批 |
-| 5 | README 诚实声明 | 不做 | — |
-| 6 | 代码签名 | 不上 | 签名摩擦集中在首次安装，升级链路不受影响 |
-| 7 | Actions 默认权限 | 维持 write | 9 个 workflow 全部显式声明权限，纪律已兜底 |
-| 8 | 版本发布 | 暂不发布 | 模板打磨阶段，仓库保持 `0.1.0` 基线；发版需维护者明确授权 |
+| #   | 事项                    | 拍板                        | 依据（一句话）                                            |
+| --- | ----------------------- | --------------------------- | --------------------------------------------------------- |
+| 1   | Agent 身份              | 用户本人账号，不建 bot 身份 | agent 就是本人；多账号是多余的审计装置                    |
+| 2   | Issue 自动回执 workflow | 不做                        | 有 CI 与欢迎语在场，回执是锦上添花                        |
+| 3   | 后台自治面              | 概念作废                    | 见 §1.2——自治模型在单人维护下不可修复                     |
+| 4   | 修复边界                | 本机 vs 出网                | 见 §4——本地修复全免审，push/PR 才卡审批                   |
+| 5   | README 诚实声明         | 不做                        | —                                                         |
+| 6   | 代码签名                | 不上                        | 签名摩擦集中在首次安装，升级链路不受影响                  |
+| 7   | Actions 默认权限        | 维持 write                  | 9 个 workflow 全部显式声明权限，纪律已兜底                |
+| 8   | 版本发布                | 暂不发布                    | 模板打磨阶段，仓库保持 `0.1.0` 基线；发版需维护者明确授权 |
 
 ---
 
@@ -63,7 +63,6 @@ GitHub（云端基线 · 2026-10-09 起含 pr-title.yml，见 §9 v4.1）
 
 v3 曾按「云端自治 agent 分层（T0-T3 自治级别）」设计。该模型在单人维护下有三个
 不可修复的失败模式，这是整个 v4 重写的动机：
-
 1. **质量事故发生在无人复核时。** 单人项目里「agent 自治」实际等于「没有第二双人」；
    自动化出错的速度远快于人工纠错，而错误产出（误标、错评、坏修复）在无人值守时
    会持续累积而不是被拦住。
@@ -78,7 +77,6 @@ v3 曾按「云端自治 agent 分层（T0-T3 自治级别）」设计。该模�
 ### 1.3 唯一边界：本机 vs 出网
 
 判据不是动作大小，而是**可逆性与可见性**：
-
 - **不出本机**（免审）：不可见外人、随时可撤销、不改变远端任何状态。读、分析、
   写码、测试、起草、**本地 commit** 均属此类——commit 只是本地版本控制操作，
   不出网；push 才是出网。
@@ -98,16 +96,15 @@ v3 曾按「云端自治 agent 分层（T0-T3 自治级别）」设计。该模�
 
 ### 2.1 档位定义
 
-| 档 | 判据（操作化） | 覆盖动作 | 形式 |
-|---|---|---|---|
-| **免审** | 不出本机 | 读、分析、摘要、写码、测试、本地 commit、起草 | 直接做，不打扰 |
-| **批量审** | 出网但可逆——可以被一个后续动作完全撤销且无残留（删评论、删标签、关 PR），且撤销动作同样在维护者权限内 | 打标签、发评论、Q&A 回复 | 攒一批出预览，整批放行或单条拦下 |
-| **逐项审** | 出网且不可逆——撤销需要外力（force push、重发版）或撤销有代价（已通知到人的内容收不回） | push、merge、publish、close issue | 每项单独确认，永不全批 |
+| 档         | 判据（操作化）                                                                                        | 覆盖动作                                      | 形式                             |
+| ---------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------- | -------------------------------- |
+| **免审**   | 不出本机                                                                                              | 读、分析、摘要、写码、测试、本地 commit、起草 | 直接做，不打扰                   |
+| **批量审** | 出网但可逆——可以被一个后续动作完全撤销且无残留（删评论、删标签、关 PR），且撤销动作同样在维护者权限内 | 打标签、发评论、Q&A 回复                      | 攒一批出预览，整批放行或单条拦下 |
+| **逐项审** | 出网且不可逆——撤销需要外力（force push、重发版）或撤销有代价（已通知到人的内容收不回）                | push、merge、publish、close issue             | 每项单独确认，永不全批           |
 
 ### 2.2 批量审的形态
 
 agent 呈现的批次预览必须包含三部分，缺一不可：
-
 1. **逐条动作清单**——对象（issue/PR 号）、动作、内容全文（评论贴原文，不贴摘要）；
 2. **影响面汇总**——这一批共动了多少个对象、涉及哪些标签/版块；
 3. **回滚方式**——整批撤销的具体操作。
@@ -152,21 +149,21 @@ agent 呈现的批次预览必须包含三部分，缺一不可：
 
 存于本机 `.agent-ops/state.json`（**不进 git**）：
 
-| 键 | 内容 | 丢失时的降级 |
-|---|---|---|
-| `last_sweep` | 上次清账时间戳 | 回退「近 7 天全量重扫」——所有写动作幂等或去重，重扫无害 |
-| `pending_batch` | 在途审批批次 + 进度游标 | 批内动作逐条核对现状后续跑（§2.4） |
-| `posted` | 已发评论/回复的内容指纹 | 按指纹去重，防重放重复发言 |
+| 键              | 内容                    | 丢失时的降级                                            |
+| --------------- | ----------------------- | ------------------------------------------------------- |
+| `last_sweep`    | 上次清账时间戳          | 回退「近 7 天全量重扫」——所有写动作幂等或去重，重扫无害 |
+| `pending_batch` | 在途审批批次 + 进度游标 | 批内动作逐条核对现状后续跑（§2.4）                      |
+| `posted`        | 已发评论/回复的内容指纹 | 按指纹去重，防重放重复发言                              |
 
 ### 3.3 增量抓取清单（清账查什么）
 
-| 面 | 查什么 | 方式 |
-|---|---|---|
-| Issue | 新开 issue / 有新评论的 issue | `gh issue list` |
-| PR | 新 PR / 新 commit / CI 结果变化 | `gh pr list` + `gh pr checks` |
-| Release PR | 存在性 + 内容变化（release-please 是否更新） | `gh pr list` + diff |
-| 告警面 | 最近失败的 workflow run / CodeQL 告警增量 / Dependabot alerts | `gh run list` / Security 页 |
-| Discussions | Q&A 版块新帖 | 本机轮询（无云端组件） |
+| 面          | 查什么                                                        | 方式                          |
+| ----------- | ------------------------------------------------------------- | ----------------------------- |
+| Issue       | 新开 issue / 有新评论的 issue                                 | `gh issue list`               |
+| PR          | 新 PR / 新 commit / CI 结果变化                               | `gh pr list` + `gh pr checks` |
+| Release PR  | 存在性 + 内容变化（release-please 是否更新）                  | `gh pr list` + diff           |
+| 告警面      | 最近失败的 workflow run / CodeQL 告警增量 / Dependabot alerts | `gh run list` / Security 页   |
+| Discussions | Q&A 版块新帖                                                  | 本机轮询（无云端组件）        |
 
 ### 3.4 能力项
 
@@ -193,11 +190,11 @@ agent 呈现的批次预览必须包含三部分，缺一不可：
 
 **3.4.5.1 Discussions 运维协议（2026-10-08 补，⑤⑧⑥）**
 
-| 项 | 协议 |
-|---|---|
-| **帖终态语义（⑤）** | Q&A：答案被勾选 = 闭环（可加 `discussion/answered`）；Ideas：采纳 = 转 issue 后原帖回复互链并关闭；重复 = `discussion/duplicate` + 链接原帖后关闭；缺信息 = `discussion/needs-info`（只标记，**永不自动关闭**——对齐 issue 面同一红线） |
+| 项                       | 协议                                                                                                                                                                                                                                            |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **帖终态语义（⑤）**      | Q&A：答案被勾选 = 闭环（可加 `discussion/answered`）；Ideas：采纳 = 转 issue 后原帖回复互链并关闭；重复 = `discussion/duplicate` + 链接原帖后关闭；缺信息 = `discussion/needs-info`（只标记，**永不自动关闭**——对齐 issue 面同一红线）          |
 | **moderation 预案（⑧）** | 三步 escalating：单帖违规 = 隐藏（hide）；版块被刷 = 临时锁版块（lock）；惯犯 = 拉黑（block user）。触发全人工——moderation 是定性判断，不自动化。维护者需在网页确认 Discussions 的 report 通知处于开启（Settings → Discussions → 勾选活动通知） |
-| **SLO（⑥）** | Q&A 首答 < 48h（agent 上线时段内实际目标 < 1h）；周度量由 issue-metrics 的 discussions job 产出，Time to Answer 连续两周超标 = 提高清账频率而非加自动化 |
+| **SLO（⑥）**             | Q&A 首答 < 48h（agent 上线时段内实际目标 < 1h）；周度量由 issue-metrics 的 discussions job 产出，Time to Answer 连续两周超标 = 提高清账频率而非加自动化                                                                                         |
 
 **3.4.6 告警分诊**——CI 失败 / CodeQL 告警增量归类为「真故障 / 已知 flaky / 噪音」；
 处置（重跑、开修复分支、关单）逐项审。已知 flaky 沉淀为本机清单，避免每次重新归因。
@@ -222,8 +219,8 @@ agent 呈现的批次预览必须包含三部分，缺一不可：
 
 从 main 切分支（约定 `fix/<issue号>-<slug>`）→ 修复 → 补测试（业务逻辑不 mock、
 基础设施可 stub 的既有原则）→ `pnpm typecheck && pnpm lint && pnpm check:static`
-+ 相关测试 → commit（Conventional Commits，type 决定 release-please 升版——
-feat/fix/perf 计入，其余不升）。
+- 相关测试 → commit（Conventional Commits，type 决定 release-please 升版——
+  feat/fix/perf 计入，其余不升）。
 
 本段纪律与日常开发**完全一致**，因为这就是日常开发——运维与开发共用同一条
 管道是本模型的自然结果，不需要第二套规范。
@@ -232,7 +229,6 @@ feat/fix/perf 计入，其余不升）。
 
 push 分支 → 开 PR（走仓库 PR 模板：变更内容/变更类型/自检三项）。两个既有纪律
 自动生效：
-
 - 涉及 `.github/`、打包链（`electron-builder.yml` / `scripts/prepare-*` / NSIS）的
   PR：本地打包全链验证后才请求合并（AGENTS.md 纪律）；
 - 合并由维护者亲手执行——ruleset 本来也不允许任何其他人（bypass 为空）。
@@ -256,13 +252,13 @@ release-please 的**常驻 Release PR 就是「随时可发」状态**：只要�
 
 ### 5.2 发布预检（逐项审的前置材料，agent 负责备齐）
 
-| # | 检查 | 方式 |
-|---|---|---|
-| 1 | 锚点三态自洽（tag ↔ 已收尾 Release PR ↔ 待合并版本方向） | `pnpm check:release-anchor` |
-| 2 | Release PR 内容边界（只含 CHANGELOG / manifest / 版本行） | `pnpm check:release-pr-scope` |
-| 3 | Release PR CI 全绿（含 CHANGELOG 润色门禁） | `gh pr checks` |
-| 4 | CHANGELOG 已人工润色 | agent 只提醒不代笔（润色是维护者的判断） |
-| 5 | 本地无未推交付物 / 工作区干净 | `git status` + ahead/behind |
+| #   | 检查                                                      | 方式                                     |
+| --- | --------------------------------------------------------- | ---------------------------------------- |
+| 1   | 锚点三态自洽（tag ↔ 已收尾 Release PR ↔ 待合并版本方向）  | `pnpm check:release-anchor`              |
+| 2   | Release PR 内容边界（只含 CHANGELOG / manifest / 版本行） | `pnpm check:release-pr-scope`            |
+| 3   | Release PR CI 全绿（含 CHANGELOG 润色门禁）               | `gh pr checks`                           |
+| 4   | CHANGELOG 已人工润色                                      | agent 只提醒不代笔（润色是维护者的判断） |
+| 5   | 本地无未推交付物 / 工作区干净                             | `git status` + ahead/behind              |
 
 预检全绿 → 维护者在 GitHub 上点合并（逐项审的本体动作）。预检有红 → 不合并，
 先修——CD 半成品态（tag 已打资产未齐）的修复代价很高。
@@ -311,31 +307,31 @@ release-please 会按该版本开 Release PR，其余预检与合并流程不变
 
 ### 6.1 设置实测
 
-| 项 | 实测值 |
-|---|---|
-| ruleset「protect-main」 | active，bypass 为空；规则 = deletion + non_fast_forward + required_linear_history + required_status_checks×6（strict：Typecheck / Unit Tests / Integration / E2E ×2 / Lint PR Title）。**无 merge queue、无 required reviews**（单人下正确：自审死锁）⇒ **直推 main 必被拒，一切变更必须走 PR** |
-| ruleset「protect-release-tags」 | active，target `refs/tags/v*`；禁止删除与强推（不限制创建，CD 仍可打 tag） |
-| 仓库合并设置 | 仅允许 squash（merge/rebase 已关闭）/ `allow_auto_merge=true`（能力开启，Release PR 仍不配 auto-merge）/ `allow_update_branch=true` / `delete_branch_on_merge=true` |
-| 安全 | secret scanning ✅ / push protection ✅ / dependabot alerts ✅ |
-| Actions | 默认 workflow 权限 = **write**（拍板维持）；`sha_pinning_required=false`（pin SHA 靠 workflow 纪律；关键 action 以 SHA pin 为主，`softprops/action-gh-release` 仍用 `v3` tag）；`allowed_actions=all`；GITHUB_TOKEN 不可 approve PR |
-| 密钥/环境 | `RELEASE_PLEASE_TOKEN`（Release PR 必需）；签名密钥未配置，发布为未签名产物；environments 仅 copilot 自动项 |
-| 社区面 | Discussions 5 版块（General / Ideas / Polls / Q&A / 公告[仅维护者]）；**开帖表单 ×2 已配置（2026-10-07：`.github/DISCUSSION_TEMPLATE/q-a.yml` + `ideas.yml`，开帖即收集版本/系统/查重确认——替代事后追问）**；labels 28 个 taxonomy 全生效；issue 模板三件套 + blank_issues 关闭 + 安全私密上报引导 |
-| 社区面更正 | 「Discussions reply templates」**不是真实存在的 GitHub 功能**（2026-10-07 实证：SavedReply 为 viewer 级个人便签且无 API 管理入口，262 个 mutation 无一可写）——其意图由 **Discussion category forms**（开帖侧结构化表单，真实功能）更优实现，见上 |
-| Renovate | 周末批次 + 上海时区；非 major 归一组；electron major `enabled:false`；react-query 双包同 PR；`minimumReleaseAge: 1 day`（供应链 24h 缓冲） |
+| 项                              | 实测值                                                                                                                                                                                                                                                                                             |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ruleset「protect-main」         | active，bypass 为空；规则 = deletion + non_fast_forward + required_linear_history + required_status_checks×6（strict：Typecheck / Unit Tests / Integration / E2E ×2 / Lint PR Title）。**无 merge queue、无 required reviews**（单人下正确：自审死锁）⇒ **直推 main 必被拒，一切变更必须走 PR**    |
+| ruleset「protect-release-tags」 | active，target `refs/tags/v*`；禁止删除与强推（不限制创建，CD 仍可打 tag）                                                                                                                                                                                                                         |
+| 仓库合并设置                    | 仅允许 squash（merge/rebase 已关闭）/ `allow_auto_merge=true`（能力开启，Release PR 仍不配 auto-merge）/ `allow_update_branch=true` / `delete_branch_on_merge=true`                                                                                                                                |
+| 安全                            | secret scanning ✅ / push protection ✅ / dependabot alerts ✅                                                                                                                                                                                                                                     |
+| Actions                         | 默认 workflow 权限 = **write**（拍板维持）；`sha_pinning_required=false`（pin SHA 靠 workflow 纪律；关键 action 以 SHA pin 为主，`softprops/action-gh-release` 仍用 `v3` tag）；`allowed_actions=all`；GITHUB_TOKEN 不可 approve PR                                                                |
+| 密钥/环境                       | `RELEASE_PLEASE_TOKEN`（Release PR 必需）；签名密钥未配置，发布为未签名产物；environments 仅 copilot 自动项                                                                                                                                                                                        |
+| 社区面                          | Discussions 5 版块（General / Ideas / Polls / Q&A / 公告[仅维护者]）；**开帖表单 ×2 已配置（2026-10-07：`.github/DISCUSSION_TEMPLATE/q-a.yml` + `ideas.yml`，开帖即收集版本/系统/查重确认——替代事后追问）**；labels 28 个 taxonomy 全生效；issue 模板三件套 + blank_issues 关闭 + 安全私密上报引导 |
+| 社区面更正                      | 「Discussions reply templates」**不是真实存在的 GitHub 功能**（2026-10-07 实证：SavedReply 为 viewer 级个人便签且无 API 管理入口，262 个 mutation 无一可写）——其意图由 **Discussion category forms**（开帖侧结构化表单，真实功能）更优实现，见上                                                   |
+| Renovate                        | 周末批次 + 上海时区；非 major 归一组；electron major `enabled:false`；react-query 双包同 PR；`minimumReleaseAge: 1 day`（供应链 24h 缓冲）                                                                                                                                                         |
 
 ### 6.2 workflow 一览（9 个，全部 active、显式 permissions；第三方 action 以 SHA pin 为主，`softprops/action-gh-release@v3` 例外）
 
-| workflow | 职责一句话 |
-|---|---|
-| ci.yml | PR 质量门禁（quality + unit/integration/E2E × 6 平台矩阵 + 两个 summary）；Release PR 瘦身至润色门禁 + scope/anchor 两闸门 |
-| release.yml | CD 五段（gate→build 6 架构→merge→release→publish），tag 后置防空占号，concurrency 串行不取消 |
-| release-please.yml | 版本推导 + Release PR（skip-github-release；禁 release-type 输入；独立 RELEASE_PLEASE_TOKEN） |
-| codeql.yml | advanced setup（排除 vendored 路径），javascript-typescript + actions 双语言 |
-| labeler.yml | PR 区域标签（8 个，v5，pin SHA） |
-| discussion-welcome.yml | Discussions 新帖自动接纳（首发判定 + 版块固定欢迎文案，github-script 实现，2026-10-08 新增） |
-| first-interaction.yml | 首次 issue/PR 欢迎固定文案（`pull_request_target`——fork PR 令牌可写、可正常发评论，2026-10-07 收口） |
-| issue-metrics.yml | 周一 cron 只读统计，输出 Job Summary |
-| pr-title.yml | PR 标题语义校验（2026-10-09 新增，ruleset 第 6 项必需检查 `Lint PR Title`；squash 标题 = commit message，release-please 升版链护栏；全 PR 含 Release PR 必跑） |
+| workflow               | 职责一句话                                                                                                                                                     |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ci.yml                 | PR 质量门禁（quality + unit/integration/E2E × 6 平台矩阵 + 两个 summary）；Release PR 瘦身至润色门禁 + scope/anchor 两闸门                                     |
+| release.yml            | CD 五段（gate→build 6 架构→merge→release→publish），tag 后置防空占号，concurrency 串行不取消                                                                   |
+| release-please.yml     | 版本推导 + Release PR（skip-github-release；禁 release-type 输入；独立 RELEASE_PLEASE_TOKEN）                                                                  |
+| codeql.yml             | advanced setup（排除 vendored 路径），javascript-typescript + actions 双语言                                                                                   |
+| labeler.yml            | PR 区域标签（8 个，v5，pin SHA）                                                                                                                               |
+| discussion-welcome.yml | Discussions 新帖自动接纳（首发判定 + 版块固定欢迎文案，github-script 实现，2026-10-08 新增）                                                                   |
+| first-interaction.yml  | 首次 issue/PR 欢迎固定文案（`pull_request_target`——fork PR 令牌可写、可正常发评论，2026-10-07 收口）                                                           |
+| issue-metrics.yml      | 周一 cron 只读统计，输出 Job Summary                                                                                                                           |
+| pr-title.yml           | PR 标题语义校验（2026-10-09 新增，ruleset 第 6 项必需检查 `Lint PR Title`；squash 标题 = commit message，release-please 升版链护栏；全 PR 含 Release PR 必跑） |
 
 ---
 
@@ -358,33 +354,33 @@ Renovate `minimumReleaseAge`（新版发布 24h 后才进升级 PR）+ electron 
 
 ### 7.3 知情接受的风险登记
 
-| 风险 | 现状缓解 |
-|---|---|
+| 风险                                          | 现状缓解                                                            |
+| --------------------------------------------- | ------------------------------------------------------------------- |
 | agent 持本人全权账号（进程被注入 = 账号全权） | 事事事前审批是主要约束器；出网动作全部留痕于 GitHub（评论/PR 可见） |
-| 发布未签名 | 摩擦集中首次安装；升级链路不受影响（§5.6） |
-| Actions 默认 write | 9 个 workflow 均显式声明收窄权限；新增 workflow 时沿用同一纪律 |
+| 发布未签名                                    | 摩擦集中首次安装；升级链路不受影响（§5.6）                          |
+| Actions 默认 write                            | 9 个 workflow 均显式声明收窄权限；新增 workflow 时沿用同一纪律      |
 
 ---
 
 ## 8. 遗留未拍板（挂起，不阻塞本方案）
 
-| 项 | 设计保留 | 现状与建议 |
-|---|---|---|
-| **L2-Socket** | 设计保留：GitHub App 只读评审，盯依赖变更的恶意行为——typosquat / postinstall 外联 / 代码混淆 / 包接管（已知 CVE 库之外的行为面，与 CodeQL/Dependabot 互补）；安装时索要 `contents: write` 直接拒 | **✅ 已安装并定为常设（2026-10-07 装 / 2026-10-09 用户拍板取消观察期）**。自动评审每个依赖 PR（Socket Security: Project Report + Pull Request Alerts 两个 check 随每个 PR 运行，生效期内历次 PR 全 pass、零噪音）；不再设卸载判据 |
-| **L2-Harden-Runner** | 设计保留：runner 出口 DNS/HTTP 审计（step 形式，`egress-policy: audit` 起步，仅 release.yml 持密钥 job）；三平台采集能力需先核实 | **✅ 已接入并完成试跑判定（2026-10-09）**：release.yml build×6 + release job 各挂第一步（v2.22.1 pin SHA）。平台核实结果：hosted Linux 全功能 / hosted Windows+macOS 仅 audit / self-hosted 需 Enterprise（公开仓亦收费）——我们是全 hosted 免费档，audit 需求全满足。**ARM 采集能力实测已证实**（首个 CD 六 build job 含 windows-11-arm/ubuntu-24.04-arm 全 success）——试跑期 `continue-on-error` 已撤（v4.5） |
-| **merge queue** | ruleset `merge_queue` 规则 + ci.yml 监听 `merge_group` | **⛔ 判定不可用（2026-10-07 关闭）**：REST / GraphQL / 网页 UI 三通道均无此能力（UI 的 Add rule 下拉无 Merge queue 项；API 双通道正确 schema 仍报 "Invalid rule 'merge_queue'"；独立 ruleset 探针同拒）——账号上下文门，社区 [#137097](https://github.com/orgs/community/discussions/137097) 同源。**防护不缺位**：strict policy（分支须含 main 最新提交）继续挡过时合并；ci.yml 的 merge_group 触发已合入 main、无害保留（将来功能开放即自动接通）。过期再评估 |
+| 项                   | 设计保留                                                                                                                                                                                         | 现状与建议                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **L2-Socket**        | 设计保留：GitHub App 只读评审，盯依赖变更的恶意行为——typosquat / postinstall 外联 / 代码混淆 / 包接管（已知 CVE 库之外的行为面，与 CodeQL/Dependabot 互补）；安装时索要 `contents: write` 直接拒 | **✅ 已安装并定为常设（2026-10-07 装 / 2026-10-09 用户拍板取消观察期）**。自动评审每个依赖 PR（Socket Security: Project Report + Pull Request Alerts 两个 check 随每个 PR 运行，生效期内历次 PR 全 pass、零噪音）；不再设卸载判据                                                                                                                                                                                                                              |
+| **L2-Harden-Runner** | 设计保留：runner 出口 DNS/HTTP 审计（step 形式，`egress-policy: audit` 起步，仅 release.yml 持密钥 job）；三平台采集能力需先核实                                                                 | **✅ 已接入并完成试跑判定（2026-10-09）**：release.yml build×6 + release job 各挂第一步（v2.22.1 pin SHA）。平台核实结果：hosted Linux 全功能 / hosted Windows+macOS 仅 audit / self-hosted 需 Enterprise（公开仓亦收费）——我们是全 hosted 免费档，audit 需求全满足。**ARM 采集能力实测已证实**（首个 CD 六 build job 含 windows-11-arm/ubuntu-24.04-arm 全 success）——试跑期 `continue-on-error` 已撤（v4.5）                                                 |
+| **merge queue**      | ruleset `merge_queue` 规则 + ci.yml 监听 `merge_group`                                                                                                                                           | **⛔ 判定不可用（2026-10-07 关闭）**：REST / GraphQL / 网页 UI 三通道均无此能力（UI 的 Add rule 下拉无 Merge queue 项；API 双通道正确 schema 仍报 "Invalid rule 'merge_queue'"；独立 ruleset 探针同拒）——账号上下文门，社区 [#137097](https://github.com/orgs/community/discussions/137097) 同源。**防护不缺位**：strict policy（分支须含 main 最新提交）继续挡过时合并；ci.yml 的 merge_group 触发已合入 main、无害保留（将来功能开放即自动接通）。过期再评估 |
 
 ---
 
 ## 9. 变更日志（活文档）
 
-| 日期 | 版本 | 动作 |
-|---|---|---|
-| 2026-10-23 | v4.7 | 修正 action pin 表述：`softprops/action-gh-release` 仍用 `v3` tag，不再声称全部 pin；其余 workflow 说明与当前仓库对齐 |
-| 2026-10-23 | v4.6 | 模板化订正：移除 1.x/beta 历史版本内容；规则集名称、必需检查数与合并设置对齐当前仓库；删除本地未推提交台账 |
-| 2026-10-09 | v4.5 | Harden-Runner 试跑收尾：首个 CD 六 build job 含两类 ARM 全 success——ARM 采集能力实测证实，continue-on-error 撤销（§8） |
-| 2026-10-09 | v4.4 | stagingPercentage 灰度拍板不启用（无监控配套 + 用户规模小）；源码级机制与本仓接入路径留档 §5.6 |
-| 2026-10-09 | v4.3 | Harden-Runner 接入（用户拍板 A）：release.yml build×6 + release job 第一步挂 step-security/harden-runner v2.22.1（pin SHA，`egress-policy: audit`）；平台覆盖核实=hosted Linux 全功能 / Win+macOS 仅 audit / self-hosted 需付费（我们全 hosted 免费档）；ARM 两 job `continue-on-error` 试跑期（§8） |
-| 2026-10-09 | v4.2 | Socket 观察期取消（用户拍板）：由「观察至 10-21、不达标即卸载」转为常设评审——生效期内历次 PR 两个 Socket check 全 pass、零噪音，成功标准提前自证（§8） |
+| 日期       | 版本 | 动作                                                                                                                                                                                                                                                                                                                                                     |
+| ---------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-23 | v4.7 | 修正 action pin 表述：`softprops/action-gh-release` 仍用 `v3` tag，不再声称全部 pin；其余 workflow 说明与当前仓库对齐                                                                                                                                                                                                                                    |
+| 2026-10-23 | v4.6 | 模板化订正：移除 1.x/beta 历史版本内容；规则集名称、必需检查数与合并设置对齐当前仓库；删除本地未推提交台账                                                                                                                                                                                                                                               |
+| 2026-10-09 | v4.5 | Harden-Runner 试跑收尾：首个 CD 六 build job 含两类 ARM 全 success——ARM 采集能力实测证实，continue-on-error 撤销（§8）                                                                                                                                                                                                                                   |
+| 2026-10-09 | v4.4 | stagingPercentage 灰度拍板不启用（无监控配套 + 用户规模小）；源码级机制与本仓接入路径留档 §5.6                                                                                                                                                                                                                                                           |
+| 2026-10-09 | v4.3 | Harden-Runner 接入（用户拍板 A）：release.yml build×6 + release job 第一步挂 step-security/harden-runner v2.22.1（pin SHA，`egress-policy: audit`）；平台覆盖核实=hosted Linux 全功能 / Win+macOS 仅 audit / self-hosted 需付费（我们全 hosted 免费档）；ARM 两 job `continue-on-error` 试跑期（§8）                                                     |
+| 2026-10-09 | v4.2 | Socket 观察期取消（用户拍板）：由「观察至 10-21、不达标即卸载」转为常设评审——生效期内历次 PR 两个 Socket check 全 pass、零噪音，成功标准提前自证（§8）                                                                                                                                                                                                   |
 | 2026-10-09 | v4.1 | 用户拍板打破云端零新增一次：新增 pr-title.yml（amannn/action-semantic-pull-request v6.1.1 pin SHA + sticky-pull-request-comment 错误评论），并升级为 ruleset 第 6 项必需检查 `Lint PR Title`——封堵 squash 标题逃逸 commitlint → release-please 升版静默漏项的缺口。接线顺序硬约束：workflow 先进 main，ruleset 后加必需检查（反序 = 所有 PR 卡 pending） |
-| 2026-10-07 | v4.0 | 模型重写：本机审批门控 agent（八项拍板 §0 + 三档审批协议 §2 + 运维会话 §3）；云端零新增原则（§1.4）；既有发版护栏收编 §6；L2 设计保留于 §8 遗留项 |
+| 2026-10-07 | v4.0 | 模型重写：本机审批门控 agent（八项拍板 §0 + 三档审批协议 §2 + 运维会话 §3）；云端零新增原则（§1.4）；既有发版护栏收编 §6；L2 设计保留于 §8 遗留项                                                                                                                                                                                                        |

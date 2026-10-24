@@ -24,14 +24,12 @@ git diff HEAD...template/main -- scripts/ .github/ docs/
 ```
 
 优先同步：
-
 - `scripts/` 门禁与 `package.json` 脚本
 - `.github/workflows/` CI/CD
 - `docs/design/` 现行规范
 - `src/main` / `packages/shared` 的通用底座修复
 
 不要直接同步：
-
 - `app.config.json`、`packages/shared/src/constants/brand.ts`（品牌真源）
 - `electron-builder.yml` / `package.json` 里已改过的产品名、appId、仓库坐标
 - `src/renderer/i18n/locales/*/common.json` 中已替换的产品文案

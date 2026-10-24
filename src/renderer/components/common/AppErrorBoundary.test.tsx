@@ -50,6 +50,11 @@ function Exploding(): ReactElement {
   throw new Error('render boom');
 }
 
+/** 非 Error 抛出（字符串）子组件 */
+function ThrowString(): ReactElement {
+  throw 'string-error';
+}
+
 describe('AppErrorBoundary', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -171,10 +176,6 @@ describe('AppErrorBoundary', () => {
 
   it('异常边界：非 Error 抛出（字符串）→ fallback 显示 String(error)', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    function ThrowString(): ReactElement {
-      throw 'string-error';
-      // eslint-disable-next-line no-unreachable
-    }
     render(
       <AppErrorBoundary>
         <ThrowString />

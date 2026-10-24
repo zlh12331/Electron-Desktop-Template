@@ -1,11 +1,12 @@
 ---
+
 design_tokens:
-  name: Template Design Tokens
-  version: 1.2.0
-  source: tokens/aurora.json（Style Dictionary，生成 src/renderer/styles/tokens.css；文件名为历史名，内容为 Template 设计令牌）
-  themes: [light, dark]
-  mechanism: css-variables
-  last_synced: 2026-10-24
+name: Template Design Tokens
+version: 1.2.0
+source: tokens/aurora.json（Style Dictionary，生成 src/renderer/styles/tokens.css；文件名为历史名，内容为 Template 设计令牌）
+themes: [light, dark]
+mechanism: css-variables
+last_synced: 2026-10-24
 ---
 
 # DESIGN.md — Template 设计令牌契约
@@ -14,37 +15,37 @@ design_tokens:
 > **单一真源：`tokens/aurora.json`**（Style Dictionary 构建，`pnpm tokens:build` 生成 `src/renderer/styles/tokens.css`；改令牌只改 aurora.json，禁止手改生成物）。
 > **设计系统名：Template**（历史名 Aurora / 「文学风」不得当作现行设计体系；身份规则见下方 §0 身份宪法）。
 
-> 🔒 工程化强制：pnpm check:tokens（扫描裸色/dark:/space-*/w+h 双写/hex/裸 z-*/文字层/字体栈 CJK 回退，CI 卡关）
+> 🔒 工程化强制：pnpm check:tokens（扫描裸色/dark:/space-_/w+h 双写/hex/裸 z-_/文字层/字体栈 CJK 回退，CI 卡关）
 
 ## 0. 身份宪法（Template quiet）
 
-| 条 | 规则 |
-|---|---|
-| C1 | 表面 quiet：无默认品牌渐变、无彩色 blur 发光、无默认噪点 |
-| C2 | 品牌色稀缺：紫 accent 仅用于主操作/选中/焦点/关键状态 |
-| C3 | 品牌面实心：CTA/头像/BrandMark 用 `--primary`/`--accent` 实底，禁止 `accent→accent-2` 渐变填充 |
-| C4 | 阴影中性：elevation 用 shadow 语义；焦点允许 `0 0 0 Npx` soft ring；禁止 `0 0 Npx` 彩色 glow |
-| C5 | 状态用色层（`-*-text` / `*-emphasis` / `*-soft`），不用 blur 发光强调 |
-| C6 | 命名诚实：注释/文档不把 Aurora 或「文学风」写成现行设计轴 |
+| 条  | 规则                                                                                           |
+| --- | ---------------------------------------------------------------------------------------------- |
+| C1  | 表面 quiet：无默认品牌渐变、无彩色 blur 发光、无默认噪点                                       |
+| C2  | 品牌色稀缺：紫 accent 仅用于主操作/选中/焦点/关键状态                                          |
+| C3  | 品牌面实心：CTA/头像/BrandMark 用 `--primary`/`--accent` 实底，禁止 `accent→accent-2` 渐变填充 |
+| C4  | 阴影中性：elevation 用 shadow 语义；焦点允许 `0 0 0 Npx` soft ring；禁止 `0 0 Npx` 彩色 glow   |
+| C5  | 状态用色层（`-*-text` / `*-emphasis` / `*-soft`），不用 blur 发光强调                          |
+| C6  | 命名诚实：注释/文档不把 Aurora 或「文学风」写成现行设计轴                                      |
 
 ## 1. 令牌分组总览
 
-| 分组 | 前缀/模式 | 示例 | 说明 |
-|---|---|---|---|
-| 布局尺寸 | `--sidebar-w` / `--right-panel-w` / `--resizer-w` / `--topbar-h` | `clamp(200px,17vw,280px)` | 面板宽高，clamp 响应式 |
-| z-index 层级 | `--z-base:1` / `--z-surface:2` / `--z-raised:10` / `--z-popover:50` / `--z-modal:100` / `--z-boundary:999` | `z-(--z-popover)` | 6 档浮层体系；toast 用 sonner 库默认层级，不设令牌。禁止裸 z-* 数字 |
-| 字体 | `--font-mono/sans/serif` | `--font-mono: "JetBrains Mono", …, "Noto Sans SC", "Microsoft YaHei", monospace` | 等宽/无衬线/标题三族（策略详见 §1.1） |
-| 字号 | `--font-size-2xs:10px` … `--font-size-3xl:28px` | 9 级唯一阶梯 | `text-*` Tailwind 映射经 var 桥接单源化（base.css @theme 引用 --font-size-*，改令牌传导）；font-size-literal 卡关 |
-| 圆角 | `--radius:8px` + `--radius-sm/md/lg/xl` 派生（6/8/10/12px） | `rounded-md` | shadcn 圆角映射 |
-| 背景层级 | `--bg` / `--bg-elev` / `--bg-elev-2/3` | L0 页面底 → L3 悬浮态 | 3 层背景深度，双主题 |
-| shadcn 语义映射 | `--background/--foreground/--card/--popover/--muted/--accent/--destructive/--border/--ring/--input` 等 | `--muted: var(--bg-elev-2)` | 与 shadcn 标准语义对齐，双主题自适应 |
-| 品牌/强调 | `--accent`（紫 `#4B3FE3` / 暗 `#6A6FFF`）+ `--accent-2`（蓝）+ 派生 `--accent-dim/soft/glow` | `--accent-glow: rgba(75,63,227,.08)` | 双 accent 体系 |
-| 状态色（三层架构） | 基色 `--error/--success/--amber/--magenta` · 文本层 `--error-text/--success-text/--warn-text/--accent-text/--accent-2-text` · 实底层 `--error-emphasis/--success-emphasis` | `text-error-text` / `bg-error-emphasis` | WCAG AA 文本安全层与按钮实底层分离（详见 §3）；accent-2-text 补齐 accent-2 的文字层（基色 3.49:1 不达标） |
-| 主按钮 | `--primary`（暗 `#5D62FF`） | `bg-primary text-primary-foreground` | 按钮实底与品牌强调职责分离 |
-| 遮罩 | `--overlay-bg` / `--overlay-blur` | `--overlay-blur: 8px` | 模态遮罩 |
-| 滚动条 | `--scrollbar-thumb(-hover)` | 双主题 | 滚动条令牌 |
-| 阴影 | `--shadow-modal` / `--shadow-dropdown` / `--shadow-pop` / `--shadow-card(-hover)` | 中性阴影 | Template 无 glow，柔和阴影体系 |
-| 动效 | `--ease-soft/paper/out` + `--duration-fast/state/reveal`（120/200/300ms）+ tw-animate-css | `var(--duration-fast)` | 缓动曲线 + 时长三档与动画关键帧（时长此前散写 7 种已收敛） |
+| 分组               | 前缀/模式                                                                                                                                                                  | 示例                                                                             | 说明                                                                                                              |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| 布局尺寸           | `--sidebar-w` / `--right-panel-w` / `--resizer-w` / `--topbar-h`                                                                                                           | `clamp(200px,17vw,280px)`                                                        | 面板宽高，clamp 响应式                                                                                            |
+| z-index 层级       | `--z-base:1` / `--z-surface:2` / `--z-raised:10` / `--z-popover:50` / `--z-modal:100` / `--z-boundary:999`                                                                 | `z-(--z-popover)`                                                                | 6 档浮层体系；toast 用 sonner 库默认层级，不设令牌。禁止裸 z-* 数字                                               |
+| 字体               | `--font-mono/sans/serif`                                                                                                                                                   | `--font-mono: "JetBrains Mono", …, "Noto Sans SC", "Microsoft YaHei", monospace` | 等宽/无衬线/标题三族（策略详见 §1.1）                                                                             |
+| 字号               | `--font-size-2xs:10px` … `--font-size-3xl:28px`                                                                                                                            | 9 级唯一阶梯                                                                     | `text-*` Tailwind 映射经 var 桥接单源化（base.css @theme 引用 --font-size-*，改令牌传导）；font-size-literal 卡关 |
+| 圆角               | `--radius:8px` + `--radius-sm/md/lg/xl` 派生（6/8/10/12px）                                                                                                                | `rounded-md`                                                                     | shadcn 圆角映射                                                                                                   |
+| 背景层级           | `--bg` / `--bg-elev` / `--bg-elev-2/3`                                                                                                                                     | L0 页面底 → L3 悬浮态                                                            | 3 层背景深度，双主题                                                                                              |
+| shadcn 语义映射    | `--background/--foreground/--card/--popover/--muted/--accent/--destructive/--border/--ring/--input` 等                                                                     | `--muted: var(--bg-elev-2)`                                                      | 与 shadcn 标准语义对齐，双主题自适应                                                                              |
+| 品牌/强调          | `--accent`（紫 `#4B3FE3` / 暗 `#6A6FFF`）+ `--accent-2`（蓝）+ 派生 `--accent-dim/soft/glow`                                                                               | `--accent-glow: rgba(75,63,227,.08)`                                             | 双 accent 体系                                                                                                    |
+| 状态色（三层架构） | 基色 `--error/--success/--amber/--magenta` · 文本层 `--error-text/--success-text/--warn-text/--accent-text/--accent-2-text` · 实底层 `--error-emphasis/--success-emphasis` | `text-error-text` / `bg-error-emphasis`                                          | WCAG AA 文本安全层与按钮实底层分离（详见 §3）；accent-2-text 补齐 accent-2 的文字层（基色 3.49:1 不达标）         |
+| 主按钮             | `--primary`（暗 `#5D62FF`）                                                                                                                                                | `bg-primary text-primary-foreground`                                             | 按钮实底与品牌强调职责分离                                                                                        |
+| 遮罩               | `--overlay-bg` / `--overlay-blur`                                                                                                                                          | `--overlay-blur: 8px`                                                            | 模态遮罩                                                                                                          |
+| 滚动条             | `--scrollbar-thumb(-hover)`                                                                                                                                                | 双主题                                                                           | 滚动条令牌                                                                                                        |
+| 阴影               | `--shadow-modal` / `--shadow-dropdown` / `--shadow-pop` / `--shadow-card(-hover)`                                                                                          | 中性阴影                                                                         | Template 无 glow，柔和阴影体系                                                                                    |
+| 动效               | `--ease-soft/paper/out` + `--duration-fast/state/reveal`（120/200/300ms）+ tw-animate-css                                                                                  | `var(--duration-fast)`                                                           | 缓动曲线 + 时长三档与动画关键帧（时长此前散写 7 种已收敛）                                                        |
 
 ### 1.1 字体策略（2026-10-09 同步）
 
@@ -75,11 +76,11 @@ design_tokens:
 
 单一颜色 token 无法同时满足「暗底文字要亮」与「白字按钮底要深」（对比度约束不相交），因此语义色拆三层：
 
-| 层 | 令牌 | 用途 | 对比度要求 |
-|---|---|---|---|
-| 基色 | `--accent/--error/--success/--amber` | 图形/边框/软底/图标 | ≥3:1 |
-| **-text 层** | `--accent-text/--error-text/--success-text/--warn-text` | 彩色**文字**（亮色取深档、暗色取亮档） | ≥4.5:1 |
-| **-emphasis 层** | `--error-emphasis/--success-emphasis` | 实底按钮 + 白字（双主题同值锁定） | 白字 ≥4.5:1 |
+| 层               | 令牌                                                    | 用途                                   | 对比度要求  |
+| ---------------- | ------------------------------------------------------- | -------------------------------------- | ----------- |
+| 基色             | `--accent/--error/--success/--amber`                    | 图形/边框/软底/图标                    | ≥3:1        |
+| **-text 层**     | `--accent-text/--error-text/--success-text/--warn-text` | 彩色**文字**（亮色取深档、暗色取亮档） | ≥4.5:1      |
+| **-emphasis 层** | `--error-emphasis/--success-emphasis`                   | 实底按钮 + 白字（双主题同值锁定）      | 白字 ≥4.5:1 |
 
 规则：新增彩色文字一律用 `text-xxx-text` 类；实底彩按钮前景恒 `text-primary-foreground`/`text-destructive-foreground`；`--primary`（暗 `#5D62FF`）专供按钮实底，与 `--accent`（文本/图形）职责分离。
 
@@ -95,4 +96,4 @@ design_tokens:
 
 - `design-debt-review`：扫描硬编码颜色/任意 Tailwind 值/px 魔法数字对照本契约
 - `design-md-review`：本文件 + `styles/tokens.css`/`styles/*` 一致性（token 增删同步更新本文件）
-- `check:tokens`：裸色/dark:/space-*/w+h 双写/hex/裸 z-*/文字层/字体栈 CJK 回退（含 font 简写与任意值字体）全量卡关（CI）
+- `check:tokens`：裸色/dark:/space-_/w+h 双写/hex/裸 z-_/文字层/字体栈 CJK 回退（含 font 简写与任意值字体）全量卡关（CI）

@@ -1,7 +1,6 @@
 # 36 · 设置面缺口补全（审批等待通知 / 终端设置 / 快捷键冲突与重置 / 清空全部会话）
 
 > ⚠️ 模板裁剪提示（2026-10-22）：四个子功能中仅「快捷键冲突检测 + 恢复默认」保留；审批等待通知、终端设置、清空全部会话已随业务剥离。
-
 - **状态**：**已实施**（2026-09-30；9b0d191e → e2228749 共 10 提交，V 矩阵逐条核对见
   §3.2；门禁实录见 §3.3）
 - **判级**：四个子功能均为「全链路」形态（存储/契约 + 主进程或纯渲染层消费 + UI），合入
@@ -11,12 +10,12 @@
 
 ## 0 四个子功能判级与边界总览
 
-| # | 子功能 | 判级依据 | 链路形态 |
-|---|---|---|---|
-| A | 审批等待通知 | 新持久化字段 + 跨进程副作用（通知发送） | shared 字段 + main 消费 + UI 开关 |
-| B | 终端设置域 | 新持久化域 + 主进程消费（PTY spawn）+ UI | shared 常量/门禁 + main 解析 + 新分区 |
-| C | 快捷键冲突检测 + 恢复默认 | 纯渲染层（L2 store 已有域，零新增持久化） | renderer 纯函数 + 组件 |
-| D | 清空全部会话 | 新 IPC 通道 + 破坏性数据操作 + UI | shared 契约 + main 服务 + 数据区 danger |
+| #   | 子功能                    | 判级依据                                  | 链路形态                                |
+| --- | ------------------------- | ----------------------------------------- | --------------------------------------- |
+| A   | 审批等待通知              | 新持久化字段 + 跨进程副作用（通知发送）   | shared 字段 + main 消费 + UI 开关       |
+| B   | 终端设置域                | 新持久化域 + 主进程消费（PTY spawn）+ UI  | shared 常量/门禁 + main 解析 + 新分区   |
+| C   | 快捷键冲突检测 + 恢复默认 | 纯渲染层（L2 store 已有域，零新增持久化） | renderer 纯函数 + 组件                  |
+| D   | 清空全部会话              | 新 IPC 通道 + 破坏性数据操作 + UI         | shared 契约 + main 服务 + 数据区 danger |
 
 ---
 
@@ -33,7 +32,6 @@
 - **不做清单**：按会话粒度通知、免打扰时段、通知声音开关。
 
 **验收标准**：
-
 - **V1** 缺失/损坏（无字段）→ 审批通知照发（fail-open）。
 - **V2** 总开关关 → 审批通知不弹。
 - **V3** 只关审批开关 → 审批不弹，回合结束通知照旧。
@@ -75,7 +73,7 @@
 ### 1A.3 测试
 
 - 主进程 `notification.test.ts` 扩展：mountApprovalNotifications 矩阵（V1/V2/V3/V4/V8
-  + 通知 body 含工具名 + 默认音断言）。
+  - 通知 body 含工具名 + 默认音断言）。
 - 组件 `notification-section.test.tsx` 扩展：第三开关 toggle 写穿透 + V9 disabled。
 - store 测试：快照缺字段回落 + applyMainChange 合并不回写（V5/V7）。
 
@@ -97,7 +95,6 @@
   - cwd 回退、env 过滤、resize/kill 行为。
 
 **验收标准**：
-
 - **V1** 缺失/损坏 → 行为与现状完全一致（win32 powershell.exe / unix $SHELL、字号 13）。
 - **V2** 选 auto → 平台默认（即现状）。
 - **V3** 选平台不适用档位（如 macOS 选 wsl）→ 回落平台默认（fail-open）+ warn 痕迹。
@@ -116,7 +113,7 @@
 - **shared 常量**（新 `packages/shared/src/constants/terminal-shell.ts`，对齐 constants/zoom.ts
   先例，main/renderer 双 barrel 导出）：
   - `TERMINAL_SHELL_CHOICES`：`['auto','powershell','cmd','gitbash','wsl','bash','zsh','fish']`
-    + `TerminalShellChoice` 类型；
+    - `TerminalShellChoice` 类型；
   - `terminalShellChoicesForPlatform(platform)`：win32 → auto/powershell/cmd/gitbash/wsl；
     darwin → auto/zsh/bash；linux → auto/bash/zsh/fish（UI 选项与主进程适用性共用）；
   - `TERMINAL_FONT_SIZES = [12,13,14,16,18]` + `DEFAULT_TERMINAL_FONT_SIZE = 13`（**13 是
@@ -173,7 +170,6 @@
   的规模不值得）；快捷键录制交互改版（formatShortcut/IGNORED_KEYS 不动）。
 
 **验收标准**：
-
 - **V1** 录入与其他自定义键重复 → toast 指明冲突动作，store 不写。
 - **V2** 录入与固定键重复（Ctrl+B / Ctrl+K / ? / F1 / Ctrl+` / Alt+← / 面板键 / 缩放键）
   → 同上。
@@ -188,7 +184,7 @@
 
 - **归一化**（renderer 新 `lib/shortcut-conflicts.ts` 纯函数）：
   `normalizeShortcutForCompare(s)`：修饰符归一（Meta→Ctrl 等价，V3）+ 排序（alt<ctrl<shift）
-  + 主键 lower；空串 → null。
+  - 主键 lower；空串 → null。
 - **固定键清单**：`use-keyboard-shortcuts.ts` 导出 `FIXED_SHORTCUT_CONFLICTS`
   （`{ match: 归一化串; labelKey: i18n }[]`，labelKey 复用 shortcutHelp.item.* 文案），
   与 useHotkeys 绑定串同文件相邻维护（V8）。缩放键的 shift 变体（ctrl+shift+=）与
@@ -227,7 +223,6 @@
 - **不做清单**：软删除/回收站（导出已是用户级备份手段）；按工作目录批量删除。
 
 **验收标准**：
-
 - **V1** 清空后 sessions/messages/turns/goals 表空，响应含真实删除计数。
 - **V2** 有运行中回合 → 拒绝（新错误码 `SESSION_IN_USE`），不删任何数据（先停后删）。
 - **V3** 级联完整性：消息/回合/目标一并删除（FK cascade 构造性 + 测试断言）。
@@ -241,7 +236,7 @@
 
 - **shared**：`SessionClearAllReqSchema = z.object({})` + `SessionClearAllRes { deleted: number }`
   （schema/interface 双登记，对齐 SessionDeleteRes 形态）；meta `clearAll: request('session:clearAll')`
-  + definitions withSchema（定义表红利：preload API/类型/注册自动生成）。
+  - definitions withSchema（定义表红利：preload API/类型/注册自动生成）。
 - **错误码**：`ErrorCode.SESSION_IN_USE`（constants/errors.ts）+ ERROR_META 全覆盖
   （既有单测锚定）+ errors.json 双语。
 - **main 服务**：`SessionService.clearAll()`——`db.delete(sessions).run()`（drizzle 无

@@ -5,7 +5,7 @@ import { dump, load } from 'js-yaml';
 /** Fixed upstream release used by both relay and synthetic sink. */
 export const COLLECTOR_IMAGE: string = 'otel/opentelemetry-collector-contrib:0.163.2';
 /** Volume initialization only; never mounts a host directory or an existing external volume. */
-export const STORAGE_INIT_IMAGE: string = 'busybox:1.37.0';
+export const STORAGE_INIT_IMAGE: string = 'busybox:1.38.0';
 /** The three independent persistent exporter queues. */
 export const SIGNALS: readonly ['traces', 'metrics', 'logs'] = ['traces', 'metrics', 'logs'];
 /** Supported synthetic OTLP signals. */
