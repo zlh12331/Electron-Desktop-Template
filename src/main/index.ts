@@ -185,14 +185,15 @@ app
         applyCspToSession(session.defaultSession, !app.isPackaged);
         logger.info({ isPackaged: app.isPackaged }, 'CSP 策略已注入');
 
+        // 权限收口双保险：request handler 拒绝申请，check handler 拒绝权限查询/隐式授予
         session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-          // 白名单式收口：渲染层对系统权限（通知/摄像头/地理位置等）的请求一律拒绝
           logger.warn(
             { permission, url: webContents.getURL() },
             '拒绝渲染层权限请求（未授权权限类型）',
           );
           callback(false);
         });
+        session.defaultSession.setPermissionCheckHandler(() => false);
 
         logger.info({}, '应用启动');
         recordStartupMilestone('services');

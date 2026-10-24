@@ -18,7 +18,12 @@ function isAllowedSenderUrl(rawUrl: string): boolean {
   try {
     const parsed = new URL(rawUrl);
     if (parsed.protocol === 'file:') {
-      return parsed.pathname.endsWith('/renderer/index.html');
+      // 只认产物入口本身：拒绝 query/hash 与任意目录下同后缀文件，缩小 sender 伪造面
+      return (
+        parsed.pathname.endsWith('/renderer/index.html') &&
+        parsed.search === '' &&
+        parsed.hash === ''
+      );
     }
     const devUrl = process.env['ELECTRON_RENDERER_URL'];
     if (devUrl !== undefined && devUrl.length > 0) {
@@ -48,10 +53,12 @@ function validateSender(
   traceId: string,
 ): IpcError | null {
   const win = BrowserWindow.fromWebContents(evt.sender);
-  if (win !== null && isAllowedSenderUrl(evt.sender.getURL())) {
+  const topFrame = evt.sender.mainFrame;
+  const isTopFrame = evt.senderFrame !== null && evt.senderFrame === topFrame;
+  if (win !== null && isTopFrame && isAllowedSenderUrl(evt.sender.getURL())) {
     return null;
   }
-  logger.error({ traceId, channel, senderUrl: evt.sender.getURL() }, 'IPC sender 无效');
+  logger.error({ traceId, channel, senderUrl: evt.sender.getURL(), isTopFrame }, 'IPC sender 无效');
   return new AppError(ErrorCode.IPC_SENDER_INVALID).toIpcError();
 }
 

@@ -34,13 +34,25 @@ describe('app.handler', () => {
 
   it('openExternal（http）：调用 shell.openExternal 并返回 ok', async () => {
     const result = await appHandlers.openExternal({ url: 'https://example.com' }, EMPTY_CTX);
-    expect(shell.openExternal).toHaveBeenCalledWith('https://example.com');
+    expect(shell.openExternal).toHaveBeenCalledWith('https://example.com/');
     expect(result).toEqual({ ok: true });
   });
 
   it('openExternal（https）：允许', async () => {
     await appHandlers.openExternal({ url: 'https://deepseek.com' }, EMPTY_CTX);
-    expect(shell.openExternal).toHaveBeenCalledWith('https://deepseek.com');
+    expect(shell.openExternal).toHaveBeenCalledWith('https://deepseek.com/');
+  });
+
+  it('openExternal（大写 HTTP）：解析后按 http 放行并归一化', async () => {
+    await appHandlers.openExternal({ url: 'HTTP://EXAMPLE.COM/path' }, EMPTY_CTX);
+    expect(shell.openExternal).toHaveBeenCalledWith('http://example.com/path');
+  });
+
+  it('openExternal（畸形 URL）：拒绝并抛 INVALID_INPUT', async () => {
+    await expect(appHandlers.openExternal({ url: 'not a url' }, EMPTY_CTX)).rejects.toMatchObject({
+      code: ErrorCode.INVALID_INPUT,
+    });
+    expect(shell.openExternal).not.toHaveBeenCalled();
   });
 
   it('openExternal（javascript 协议）：拒绝并抛 INVALID_INPUT', async () => {

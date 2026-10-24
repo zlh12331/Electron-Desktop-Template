@@ -43,11 +43,17 @@ export const appHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContex
   },
 
   openExternal: async (input) => {
-    // 协议白名单：shell.openExternal 对 file:/自定 scheme 会被系统关联程序处理，只放行 http/https
-    if (!input.url.startsWith('http://') && !input.url.startsWith('https://')) {
+    // 先解析再判协议：避免前缀匹配放过畸形串；file:/自定义 scheme 交系统关联程序处理，一律拒绝
+    let parsed: URL;
+    try {
+      parsed = new URL(input.url);
+    } catch {
+      throw new AppError(ErrorCode.INVALID_INPUT, 'URL 格式非法');
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       throw new AppError(ErrorCode.INVALID_INPUT, '仅允许 http/https 协议');
     }
-    await shell.openExternal(input.url);
+    await shell.openExternal(parsed.href);
     return { ok: true };
   },
 
