@@ -23,9 +23,9 @@
     {
       "description": "非 major 更新归一组，减少 PR 数量；Electron 已单独分组",
       "matchUpdateTypes": ["minor", "patch", "digest"],
-      "excludePackageNames": ["electron"],
       "groupName": "all non-major dependencies",
-      "groupSlug": "all-minor-patch"
+      "groupSlug": "all-minor-patch",
+      "matchPackageNames": ["!electron"]
     },
     {
       "description": "主版本一律人工确认：TypeScript / Vite / electron-vite / React Router / i18next / Electron",
@@ -36,6 +36,13 @@
     {
       "description": "electron major 需单独排期（主框架升级影响面大）",
       "matchPackageNames": ["electron"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "tools 工具子包固定在 TypeScript 6.x：TypeDoc 0.28 的 peer 仅到 6.x，dependency-cruiser 同样未兼容 TS 7（根工程已是 TS 7）",
+      "matchFileNames": ["tools/typedoc/package.json", "tools/depcruise/package.json"],
+      "matchPackageNames": ["typescript"],
       "matchUpdateTypes": ["major"],
       "enabled": false
     },

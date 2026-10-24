@@ -4,6 +4,7 @@
 import { APP_ID, PRODUCT_NAME, type TelemetryLevel } from '@code-agent/shared/main';
 import { type OtelResolvedConfig, resolveOtelConfig } from '@code-agent/shared/observability';
 import {
+  context,
   DiagConsoleLogger,
   DiagLogLevel,
   diag,
@@ -14,6 +15,7 @@ import {
   trace,
 } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
+import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
@@ -25,8 +27,8 @@ import {
   ConsoleSpanExporter,
   ParentBasedSampler,
   TraceIdRatioBasedSampler,
-} from '@opentelemetry/sdk-trace-base';
-import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
+  TracerProvider,
+} from '@opentelemetry/sdk-trace';
 import { app } from 'electron';
 import { logger, setLogSink } from '../../utils/logger';
 import { registerTelemetryFlush } from '../../utils/telemetry-flush';
@@ -56,7 +58,7 @@ export interface OtelRuntimeStatus {
 
 let tracer: Tracer | null = null;
 
-let tracerProvider: NodeTracerProvider | null = null;
+let tracerProvider: TracerProvider | null = null;
 
 let meterProvider: MeterProvider | null = null;
 
@@ -68,6 +70,7 @@ let activeLevel: TelemetryLevel = 'off';
 
 let activeConfig: OtelResolvedConfig | null = null;
 let unregisterFatalFlush: (() => void) | null = null;
+let contextManager: AsyncLocalStorageContextManager | null = null;
 
 /** 退出善后各 provider 的 flush/shutdown 上限（超时不阻塞应用退出） */
 const SHUTDOWN_TIMEOUT_MS = 3_000;
@@ -98,6 +101,16 @@ function getResource(config: OtelResolvedConfig): ReturnType<typeof resourceFrom
   return resourceFromAttributes(attributes);
 }
 
+/** 3.x 的 TracerProvider 不再自动注册 Node 上下文管理器，需显式启用一次 */
+function ensureContextManager(): void {
+  if (contextManager !== null) {
+    return;
+  }
+  contextManager = new AsyncLocalStorageContextManager();
+  contextManager.enable();
+  context.setGlobalContextManager(contextManager);
+}
+
 function initTracing(
   config: OtelResolvedConfig,
   resource: ReturnType<typeof resourceFromAttributes>,
@@ -115,13 +128,14 @@ function initTracing(
   const sampler = new ParentBasedSampler({
     root: new TraceIdRatioBasedSampler(config.traceSampleRatio),
   });
-  const provider = new NodeTracerProvider({
+  const provider = new TracerProvider({
     resource,
     sampler,
-    spanProcessors: [new BatchSpanProcessor(exporter)],
+    spanProcessors: [new BatchSpanProcessor({ exporter })],
   });
   tracerProvider = provider;
-  provider.register();
+  ensureContextManager();
+  trace.setGlobalTracerProvider(provider);
   tracer = provider.getTracer(PRODUCT_NAME, app.getVersion());
 }
 
@@ -183,7 +197,7 @@ function initializeSignal(signal: 'traces' | 'metrics' | 'logs', initialize: () 
   try {
     initialize();
   } catch {
-    let failedProvider: NodeTracerProvider | MeterProvider | LoggerProvider | null;
+    let failedProvider: TracerProvider | MeterProvider | LoggerProvider | null;
     if (signal === 'traces') {
       failedProvider = tracerProvider;
       tracerProvider = null;

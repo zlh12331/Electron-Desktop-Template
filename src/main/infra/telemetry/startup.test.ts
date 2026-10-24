@@ -1,6 +1,10 @@
 import { context, trace } from '@opentelemetry/api';
-import { InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
-import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
+import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
+import {
+  InMemorySpanExporter,
+  SimpleSpanProcessor,
+  TracerProvider,
+} from '@opentelemetry/sdk-trace';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('electron', () => ({ app: { getAppMetrics: () => [] } }));
@@ -14,12 +18,15 @@ import {
 } from './startup';
 
 let exporter: InMemorySpanExporter;
-let provider: NodeTracerProvider;
+let provider: TracerProvider;
 
 beforeEach(() => {
   exporter = new InMemorySpanExporter();
-  provider = new NodeTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] });
-  provider.register();
+  context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
+  provider = new TracerProvider({
+    spanProcessors: [new SimpleSpanProcessor({ exporter })],
+  });
+  trace.setGlobalTracerProvider(provider);
 });
 
 afterEach(async () => {
