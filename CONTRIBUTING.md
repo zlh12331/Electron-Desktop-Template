@@ -157,14 +157,16 @@ BREAKING CHANGE: 旧字段 `modelConfig` 不再被读取，需迁移到 `models`
 - 测试文件与源码**同目录**：`**/*.test.ts` / `*.test.tsx`；集成测试放 `tests/integration/`；
   E2E 在 `e2e/`。
 - Vitest globals 已开启（`describe`/`it`/`expect` 无需 import）。
-- **覆盖率下限是棘轮门禁**（`scripts/coverage-floors.json`），改动后覆盖率不能下降。
+- **覆盖率下限是棘轮门禁**（`scripts/coverage-floors.json`），改动后覆盖率不能下降；`pnpm test:coverage` 还会跑范围门禁、关键模块阈值与 settings 子集硬卡。
 
 ```bash
 pnpm test:main          # 单层
 pnpm test:renderer
 pnpm test:integration
+pnpm test:coverage      # 覆盖率 + 范围/关键模块/settings 硬门槛
 pnpm test:e2e           # 浏览器 E2E
 pnpm test:e2e:electron  # 真实 Electron 窗口
+pnpm test:visual        # Windows 视觉基线
 ```
 
 ## 六、提 PR 的流程

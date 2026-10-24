@@ -86,6 +86,8 @@
 |---|---|---|
 | 构建产物体积 | `pnpm check:bundle` | `verify:local:full` |
 | 生产启动到可交互 | `pnpm test:smoke`（`smoke.prod.spec.ts`，<10s） | CD smoke |
+| 启动耗时趋势 | `smoke.prod.spec.ts` 写入 `stats/startup-history.json`（保留 30 次，环比 >20% 告警） | 本地 / CD |
+| 视觉基线 | `pnpm test:visual`（首页亮/暗 + 设置通用页，Windows 专用） | CI visual job |
 | React Compiler 生效 | `pnpm check:compiler` | 同上 |
 | React DevTools 可注入 | `pnpm check:devtools` | 同上 |
 | 死代码 / 死依赖 | `pnpm knip` | CI quality |
@@ -106,7 +108,7 @@ pnpm preview          # 启动构建产物，配合 DevTools Performance 面板�
 
 ### 4.3 接入业务后的建议
 
-模板的自动预算只有 bundle 体积与生产启动 <10s；**没有 FCP/LCP/INP 硬门槛，也没有 visual regression 基线**（共享 CI runner 抖动会让这类门槛长期假红）。接入业务时按需补真实用户指标预算：
+模板的自动预算为 bundle 体积、生产启动 <10s、启动趋势告警与 3 张 Windows 视觉基线；**没有 FCP/LCP/INP 硬门槛**。视觉基线固定 Windows 平台，避免 Linux 字体抗锯齿造成长期假红；接入业务后按需扩充页面与真实用户指标预算：
 
 - **主进程**：SQLite 查询（万级行 + `EXPLAIN` 验证索引命中）、外部进程吞吐
 - **渲染层**：长列表 DOM 规模、滚动长任务、首载 JS 体积趋势

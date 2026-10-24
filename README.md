@@ -1,7 +1,21 @@
 # Electron 桌面端模板
 
-Electron 44 + React 19 + TypeScript + Vite 8 的生产级桌面应用模板（Windows / macOS / Linux）。
+Electron 44 + React 19 + TypeScript + Vite 8 的工程级桌面应用模板（Windows / macOS / Linux）。
 底座能力开箱可用，业务页面待接入。
+
+![模板首页](docs/assets/home-dark.png)
+
+## 成熟度与边界
+
+**已经验证的**：类型检查、lint、19 项静态审计、单测/集成/E2E、覆盖率范围与关键模块阈值、Windows 视觉基线、生产启动 <10s，全部在本仓库本地实测通过。
+
+**还需要发布方完成的**：
+
+- **签名与自动更新演练**：仓库内没有发布 tag，签名/公证依赖 CI Secrets。正式对外发布前请在隔离仓库完成一次「签名构建 → 发布 → 安装 → 更新 → 卸载」全链路演练。
+- **可观测性后端**：SLO、指标与 Collector 配置已定义；生产 Collector/告警后端不包含在模板内。
+- **性能画像**：有 bundle 预算、启动耗时与启动趋势；没有 FCP/LCP/INP 硬门槛。
+- **依赖基线**：Node >=26、TypeScript 7、Vite 8 属前沿栈，采用前请确认团队环境。
+- **内部包作用域**：`@code-agent/*` 是模板内部 workspace 包名，`init:template` 不会重写；它不出现在用户可见品牌位点中。
 
 ## 包含什么
 
@@ -10,7 +24,7 @@ Electron 44 + React 19 + TypeScript + Vite 8 的生产级桌面应用模板（Wi
 - **四层状态架构**：useState / Zustand / TanStack Query / IPC 事件流，判定标准明确
 - **三平台打包与自动更新**：electron-builder + electron-updater，CI/CD 与发版流程已接线
 - **凭据存储**：safeStorage 加密落盘（DPAPI / Keychain / libsecret），渲染层只见掩码
-- **质量门禁**：类型、lint、19 项静态审计、单测、集成测试、E2E、死代码检测、密钥扫描
+- **质量门禁**：类型、lint、19 项静态审计、单测、集成测试、E2E、视觉回归、覆盖率范围/关键模块阈值、死代码检测、密钥扫描
 - **品牌单一真源**：`app.config.json` 一处改产品名 / appId / 协议 / 存储前缀
 
 ## 快速开始
@@ -19,6 +33,8 @@ Electron 44 + React 19 + TypeScript + Vite 8 的生产级桌面应用模板（Wi
 pnpm install
 pnpm dev          # Electron 窗口
 pnpm dev:web      # 浏览器模式（mock api）
+pnpm test:coverage # 覆盖率 + 范围/关键模块/设置层硬门槛
+pnpm test:visual   # Windows 视觉基线（需先安装 Playwright Chromium）
 ```
 
 > 首次安装会下载 Electron 二进制（约 100+ MB），需要网络；安装钩子失败会明确报错，不会留下「能装不能跑」的状态。
@@ -49,7 +65,11 @@ pnpm init:template --name "演示应用" --executable demo-app \
 
 只改个别字段也可以手改 `app.config.json` → `pnpm brand:sync` → `pnpm check:brand`。
 
-模板底座改动后的验收流程见 [docs/guides/template-acceptance.md](docs/guides/template-acceptance.md)。
+模板底座改动后的验收流程见 [docs/guides/template-acceptance.md](docs/guides/template-acceptance.md)；从上游模板同步变更见 [docs/guides/updating-from-template.md](docs/guides/updating-from-template.md)。
+
+### 覆盖率口径
+
+`coverage.include` 已显式纳入三层源码；仅排除入口文件（`main/index.ts`、`renderer/main.tsx`/`App.tsx`）与由 E2E 覆盖的应用壳/路由装配。`check:coverage-scope` 防止新源码再次隐身，`check:critical-coverage` 对 db/CSP/IPC/更新/凭据等高风险模块按文件卡关，settings 子集由 `coverage:settings --check` 硬卡。
 
 ## 目录
 

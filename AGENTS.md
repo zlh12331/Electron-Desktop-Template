@@ -19,11 +19,13 @@ pnpm test:main
 pnpm test:renderer
 pnpm test:integration
 pnpm test:scripts
+pnpm test:coverage          # 覆盖率 + 范围/关键模块/settings 硬门槛
 
 # E2E（@playwright/test 升级后需 npx playwright install）
 pnpm test:e2e               # 浏览器模式（含 a11y 扫描）
 pnpm test:a11y              # 无障碍扫描（WCAG 2.1 AA，axe）
 pnpm test:e2e:electron      # Electron 真实窗口
+pnpm test:visual            # Windows 视觉基线（独立配置，避免 Linux 字体假红）
 pnpm test:smoke             # 生产构建 smoke（需先 build:dist）
 
 # 模板底座验收（仓库外副本；--nsis 会真实安装/卸载测试应用）
@@ -125,6 +127,7 @@ tools/           → 独立 TS 子包（depcruise / typedoc）
 - 业务逻辑不 mock：测试真实实现（DI 注入 fake）；基础设施（electron / 原生模块）可 stub。
 - 测试与源码 colocation：`*.test.ts(x)`；集成测试在 `tests/integration/`。
 - 覆盖率下限真源 = `scripts/coverage-floors.json`（棘轮，只收紧）。
+- `pnpm test:coverage` 额外执行：`check:coverage-scope`（未进入 lcov 的源码必须显式登记为入口/E2E 责任）、`check:critical-coverage`（db/CSP/IPC/更新/凭据等按文件阈值）、`coverage:settings --check`（settings 子集硬卡）。
 - 纯函数适合用 fast-check 属性测试补强。
 - 模板底座改动（`init-template` / `postinstall` / 打包 / 发版基线）必须按 [派生验收指南](docs/guides/template-acceptance.md)在干净副本验证；源仓库 `verify:local` 全绿不代表派生项目可用。
 

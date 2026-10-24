@@ -19,7 +19,8 @@
 - **CSP**：`src/main/security/csp.ts` 对 `defaultSession` 统一注入；产线 `script-src` 只认自身、wasm 与**一个内联脚本哈希**（`check:csp-hash` 卡关——改 CSP 或 `index.html` 内联脚本必须同步重算）。`init:template` 改写 `storagePrefix` 时会同步重算该哈希，回归见 `scripts/init-template.test.ts`。
 - **开发期**放宽项（Vite HMR / React DevTools）只在 `!app.isPackaged` 生效，禁止进产线策略。
 - **导航**：`will-navigate` 拦截站外跳转；`setWindowOpenHandler` 统一改为系统浏览器打开；外链只走 `app:openExternal`。
-- **权限**：`setPermissionRequestHandler` 白名单式收口，渲染层系统权限请求一律拒绝（当前无任何授权项）。
+- **权限**：`setPermissionRequestHandler` 与 `setPermissionCheckHandler` 双收口，渲染层系统权限请求/查询一律拒绝（当前无任何授权项）。
+- **IPC 来源**：仅接受主 frame（`senderFrame === sender.mainFrame`）且 URL 白名单；`file:` 入口拒绝 query/hash，避免同后缀路径伪造。
 
 ## 三、密钥与凭据
 
@@ -36,10 +37,11 @@
 
 ## 四、输入验证与文件访问
 
-1. **IPC**：所有入参过 zod（定义表单一真源，`register.ts` 统一 wrap），响应契约同样校验。
+1. **IPC**：所有入参过 zod（定义表单一真源，`register.ts` 统一 wrap），响应契约同样校验；来源必须是主 frame 且通过 URL 白名单。
 2. **文件路径**：`dialog:pickFiles` 选中的**文件**写入 `infra/file/user-grants.ts`（realpath 规范化 + LRU 200 条）；`dialog:pickDirectory` 只返回目录路径、不登记授权（目录粒度会放大到其下全部文件）。业务读取用户文件前查询 `isUserGrantedRead`，不自行拼接路径。
-3. **SQL**：Drizzle 绑定参数，禁止字符串拼接（18-data-layer-spec）。
-4. **外部数据**：设置导入文件先过版本与白名单，再逐键过值级 zod schema；任一白名单键的值非法则整批拒绝、库零写入；白名单外字段丢弃。
+3. **外链**：`app:openExternal` 先 `new URL()` 解析，再只放行 `http:`/`https:`；拒绝 `file:`、自定义 scheme 与畸形字符串。
+4. **SQL**：Drizzle 绑定参数，禁止字符串拼接（18-data-layer-spec）。
+5. **外部数据**：设置导入文件先过版本与白名单，再逐键过值级 zod schema；任一白名单键的值非法则整批拒绝、库零写入；白名单外字段丢弃。
 
 ## 五、渲染层安全
 

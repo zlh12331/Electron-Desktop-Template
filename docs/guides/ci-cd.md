@@ -41,14 +41,15 @@
 
 | job | 矩阵 | 内容 | 实测耗时 |
 |---|---|---|---|
-| quality | ubuntu ×1 | typecheck / lint / gitleaks / check:static / tokens / knip / depcruise / schema 漂移 / `test:coverage` / test:scripts / audit / CHANGELOG 润色（仅 Release PR） | 3m36s |
-| integration-tests | ubuntu ×1 | `test:integration` | 0m36s |
-| e2e-browser | ubuntu ×1 | 浏览器模式 E2E（唯一需 Chromium；含 a11y 无障碍扫描） | 4m45s |
+| quality | ubuntu ×1 | typecheck / lint / gitleaks / check:static / tokens / knip / depcruise / schema 漂移 / test:scripts / audit / CHANGELOG 润色（仅 Release PR） | 3m36s |
+| integration-tests | ubuntu ×1 | `test:integration`（13 用例） | 0m36s |
+| e2e-browser | ubuntu ×1 | 浏览器模式 E2E + a11y 无障碍扫描 | 4m45s |
+| visual | windows ×1 | `pnpm test:visual`（3 张 Windows 视觉基线） | 约 2m |
 | e2e-electron | windows / ubuntu / macos ×3 | dev 构建 + 真实 Electron E2E + 性能基准 | win 5m21s / mac 2m56s / linux 2m16s |
 
 **当前 wall-clock ≈ 5m21s**（由最慢 job 决定）。
 
-**关键缺口**：单测（`test:main` / `test:renderer` / `test:scripts`）**只在 ubuntu 跑**（在 quality job 内经 `test:coverage` 覆盖 main+renderer+shared；scripts 由 `test:scripts` 单独跑）。Windows/macOS 的原生单测无覆盖。
+**覆盖率口径**：unit 矩阵的 6 个平台各自跑单测；只有 ubuntu 实例跑 `test:coverage`（shared + main + renderer + 范围/关键模块/settings 硬门槛）。scripts 门禁自测留在 quality 单次执行。
 
 ### 2.2 CD（release.yml，Release PR 合并后触发）
 
@@ -139,7 +140,7 @@ path: Code-Agent-Desktop-macOS-x64.zip         # 指向 files 中第一个 zip
   ⇒ 结论：**Windows ARM 上跑 Playwright + Electron E2E 的技术前提是成立的**，主要风险从"Playwright 不支持"降级为"未经实测的组合行为"。
 - **`js-yaml` 不可直接 require**：当前是间接依赖（pnpm 严格布局下 `require('js-yaml')` 失败）。合并脚本需把它提为直接 devDependency。
 - **仓库为 public**：标准 GitHub-hosted runner 免费不限量（含 ARM64 runner）。这是"多平台并行不增加成本"的前提。经核实**minutes 与 artifact storage 都免费**（官方计费文档只对 private 仓库计 minutes/artifact storage；实证：本仓库现有 **123 GB / 465 个 artifact** 保留在库，若按 Free 计划 private 的 500 MB 配额早就爆了）。
-- **⚠️ 账户级并发上限是硬约束**（本文档早先版本遗漏）：官方 limits 文档给出「Standard hosted runner / Free 计划 → **总并发 20，其中 macOS 最多 5**」（`content/actions/reference/limits.md`）。该上限是**账户级**而非仓库级。目标形态单次 CI 有 **17 个作业实例**（quality 1 + unit 6 + integration 1 + e2e-browser 1 + e2e-electron 6 + summary 2），其中 **macOS 实例 4 个**（unit 的 `macos-latest` + `macos-26-intel`，e2e-electron 的同两个）。单 PR 跑得下（17 < 20、4 < 5），但**两个 PR 同时推 CI 就会排队**（macOS 侧 8 > 5 先到限）。见 §7 风险 R9。
+- **⚠️ 账户级并发上限是硬约束**（本文档早先版本遗漏）：官方 limits 文档给出「Standard hosted runner / Free 计划 → **总并发 20，其中 macOS 最多 5**」（`content/actions/reference/limits.md`）。该上限是**账户级**而非仓库级。目标形态单次 CI 有 **18 个作业实例**（quality 1 + unit 6 + integration 1 + e2e-browser 1 + visual 1 + e2e-electron 6 + summary 2），其中 **macOS 实例 4 个**（unit 的 `macos-latest` + `macos-26-intel`，e2e-electron 的同两个）。单 PR 跑得下（18 < 20、4 < 5），但**两个 PR 同时推 CI 就会排队**（macOS 侧 8 > 5 先到限）。见 §7 风险 R9。
 - **artifact 体积基线**：单次 CD 发版产物约 **3.4 GB**（10 个安装包 + blockmap + SBOM + 元数据），保留 30 天；CI 侧覆盖率产物 4.9 MB、Playwright 报告 0.2 MB，保留 7 天。拆分后 CD artifact 个数从 4 增到 7（6 build + 1 merge），CI 侧 e2e 报告从 3 增到 6——**总体积不变**（体积由产物体积决定，不因拆分而变）。虽不产生费用，但值得在实施后复核保留策略。
 
 ## 3. 目标架构
@@ -200,9 +201,10 @@ flowchart TB
 | job | 实例 | 步骤 |
 |---|---|---|
 | **quality** | 1 | ① `pnpm typecheck` ② `pnpm lint` ③ gitleaks 密钥扫描（依赖 `fetch-depth: 0`，浅克隆会假绿；仅 `pull_request` 事件跑，merge_group 队列树无对应 PR diff 区间故跳过）④ `pnpm check:static`（19 项静态审计）⑤ `pnpm tokens:check` ⑥ `pnpm knip` ⑦ `pnpm depcruise` ⑧ `pnpm check:schema-drift`（与本地 verify:local 共用同一脚本，2026-09-22 起）⑨ `pnpm test:scripts` ⑩ `pnpm audit` ⑪ **`pnpm check:changelog-polish`（仅 Release PR：`if: startsWith(github.head_ref, 'release-please--')`）** ⑫ **`pnpm check:release-pr-scope --branch <headRef>` + `pnpm check:release-anchor`（仅 Release PR，2026-10-06 护栏 C+B：内容边界白名单 + 锚点三态自洽，GITHUB_TOKEN 注入；其余 Release PR 重步骤 ①-⑩ 全跳，2026-10-05 瘦身）** |
-| **unit** | 6 | `pnpm test:main` + `pnpm test:renderer`；**ubuntu-latest 实例改跑 `pnpm test:coverage`**（覆盖率阈值唯一把关点，覆盖率产物也从这里上传）；其余 5 个平台跑不带阈值的同套用例。`test:scripts` 不在此 job（与平台无关，留在 quality 单次执行，避免 6 倍重复） |
-| **integration** | 1 | `pnpm test:integration`（`tests/integration/`，2 个 spec / 8 用例；用户决策不扩平台） |
-| **e2e-browser** | 1 | `playwright install --with-deps chromium` → `playwright test --config e2e/playwright.config.ts --retries=2`（完整浏览器套件，含 `a11y.spec.ts` 的 WCAG 2.1 AA 扫描） |
+| **unit** | 6 | `pnpm test:main` + `pnpm test:renderer`；**ubuntu-latest 实例改跑 `pnpm test:coverage`**（shared/main/renderer 覆盖率 + `check:coverage-scope` + `check:critical-coverage` + `coverage:settings --check`）；其余 5 个平台跑不带阈值的同套用例。`test:scripts` 不在此 job（与平台无关，留在 quality 单次执行，避免 6 倍重复） |
+| **integration** | 1 | `pnpm test:integration`（`tests/integration/`，2 个 spec / 13 用例；用户决策不扩平台） |
+| **e2e-browser** | 1 | `playwright install --with-deps chromium` → `playwright test --config e2e/playwright.config.ts --retries=2`（完整浏览器套件，含 `a11y.spec.ts` 的 WCAG 2.1 AA 扫描；visual spec 由独立 Windows job 跑） |
+| **visual** | 1 | Windows Chromium → `pnpm test:visual`（首页亮/暗 + 设置通用页；基线按 Windows 渲染） |
 | **e2e-electron** | 6 | 验证 postinstall 已安装 Electron 二进制 → Playwright 依赖（**仅 ffmpeg，不装 Chromium**；Linux 另装系统依赖）→ `pnpm build`（dev 产物）→ `pnpm check:bundle`（单 chunk ≤5MB / 总包 ≤16MB）→ `pnpm check:compiler`（断言 React Compiler 未静默失效）→ `pnpm check:devtools`（产物不含 DevTools 残留）→ `playwright test --config e2e/playwright.electron.config.ts --retries=2`（Linux 实例走 `xvfb-run -a`） |
 | **unit-summary** | 1 | 无检查步骤，只汇总 unit 矩阵结果（`if: always()`，见 §3.3） |
 | **e2e-electron-summary** | 1 | 无检查步骤，只汇总 e2e-electron 矩阵结果（`if: always()`，见 §3.3） |
@@ -295,7 +297,7 @@ flowchart LR
 ```mermaid
 flowchart LR
   DEV([push 分支]) --> PR[开 PR]
-  PR --> CI[["CI：5 类作业<br/>quality（12 项）/ unit ×6<br/>integration / e2e-browser / e2e-electron ×6"]]
+  PR --> CI[["CI：6 类作业<br/>quality（12 项）/ unit ×6<br/>integration / e2e-browser / visual / e2e-electron ×6"]]
   CI -->|全绿| MG[squash 合并 main]
   CI -->|有红| FIX[修复后重推] --> DEV
 
@@ -351,7 +353,7 @@ flowchart LR
 | **e2e-electron** | **6 平台** | dev 构建 + 真实 Electron E2E（**从 3 平台扩到 6**） |
 | **e2e-electron-summary** | ubuntu ×1 | **新增**：汇总 e2e-electron 矩阵结果（见 §3.3） |
 
-共 **7 个 job 定义**（quality / unit / unit-summary / integration / e2e-browser / e2e-electron / e2e-electron-summary），其中 `unit` 与 `e2e-electron` 是 6 平台矩阵（展开后共 12 个 runner 实例 + 5 个单实例 job，全部并行）。
+共 **8 个 job 定义**（quality / unit / unit-summary / integration / e2e-browser / visual / e2e-electron / e2e-electron-summary），其中 `unit` 与 `e2e-electron` 是 6 平台矩阵（展开后共 12 个 runner 实例 + 6 个单实例 job，全部并行）。
 
 拆分理由：单测与 E2E 是两类不同的验证（前者验逻辑、后者验交互），合并进一个矩阵会让"失败原因"混淆；分开后每个 job 的职责单一，且各自独立重跑。
 
@@ -359,7 +361,7 @@ flowchart LR
 
 **关于 `shared` 包**：`packages/shared` 的单测只在 ubuntu 实例跑（`test:coverage` 的第一个命令），其余 5 个平台不重复跑。该包是纯类型 / schema / 常量的跨进程契约层，无平台分支代码，符合"同一件事只跑一次"；但这意味着"6 平台各跑自己的单测"对 `shared` 不成立——**这是有意的，不是遗漏**。若要 `shared` 也全平台覆盖，需在 unit 各平台加一条 `pnpm --filter @code-agent/shared run test`。
 
-**新增 job 必须显式设 `timeout-minutes`**：现有 quality 与 integration-tests 为 10 分钟、e2e-browser 与 e2e-electron 为 20 分钟。新增的 `unit` 建议 20、两个 summary 建议 5——不设则走 GitHub 默认的 360 分钟，一个卡死的 job 会把 PR 阻塞数小时。
+**新增 job 必须显式设 `timeout-minutes`**：现有 quality 与 integration-tests 为 10 分钟、e2e-browser 与 e2e-electron 为 20 分钟、visual 为 15 分钟。新增的 `unit` 建议 20、两个 summary 建议 5——不设则走 GitHub 默认的 360 分钟，一个卡死的 job 会把 PR 阻塞数小时。
 
 ### 3.2 CD（发版触发，全并行）
 
@@ -425,6 +427,8 @@ unit-summary:
 ⚠️ **一处名称与实际不符（已知，本方案不改）**：quality job 的名字仍含 "Unit Test"，但实施后它的 `test:coverage` 步骤会移到 unit job——即该 job 实际不再跑单测。保留旧名是为了减少 ruleset 变更（改名需同步改 ruleset，而 ruleset 改名是"改漏即卡 pending"的高危操作）。如需名实相符，可在实施时一并改为 `Typecheck / Lint / Audit`（ruleset 第 1 项同步改名），风险可控但非必需。
 
 ⇒ ruleset 从 6 项变为 5 项，且**平台增减不再影响 ruleset**。
+
+`Visual Regression (Windows)` 是新增的非必需检查：它会在 PR 上运行并阻断 CI 结论，但不加入 ruleset（视觉基线受 runner 渲染影响，避免成为合并死锁点）。
 
 ### 3.4 更新元数据合并（新增能力）
 
