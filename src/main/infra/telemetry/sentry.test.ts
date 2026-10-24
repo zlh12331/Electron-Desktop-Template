@@ -1,9 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { TraceFlags, trace } from '@opentelemetry/api';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 interface ScopeMock {
   setTags: ReturnType<typeof vi.fn>;
   setExtra: ReturnType<typeof vi.fn>;
   setLevel: ReturnType<typeof vi.fn>;
+  setContext: ReturnType<typeof vi.fn>;
 }
 
 const mocks = vi.hoisted(() => {
@@ -11,6 +13,7 @@ const mocks = vi.hoisted(() => {
     setTags: vi.fn(),
     setExtra: vi.fn(),
     setLevel: vi.fn(),
+    setContext: vi.fn(),
   };
   return {
     scope,
@@ -42,16 +45,19 @@ vi.mock('node:module', () => ({
   }),
 }));
 
-import type { ElectronMainOptions } from '@sentry/electron/main';
+import type { ElectronMainOptions, ErrorEvent } from '@sentry/electron/main';
+import { flushTelemetryOnFatal } from '../../utils/telemetry-flush';
 import {
   captureMainError,
   captureMainMessage,
   captureRendererError,
   closeSentry,
   flushSentry,
+  getSentryActiveConfig,
   getSentryStatus,
   initSentry,
 } from './sentry';
+import { getTelemetryHealth, resetTelemetryHealth } from './telemetry-health';
 
 function lastInitOptions(): ElectronMainOptions {
   const call = mocks.init.mock.calls.at(-1);
@@ -62,11 +68,19 @@ function lastInitOptions(): ElectronMainOptions {
 }
 
 beforeEach(async () => {
-  vi.clearAllMocks();
-  delete process.env['SENTRY_DSN'];
-  delete process.env['SENTRY_ENVIRONMENT'];
-  delete process.env['SENTRY_RELEASE'];
   await closeSentry();
+  vi.clearAllMocks();
+  vi.stubEnv('SENTRY_DSN', '');
+  vi.stubEnv('SENTRY_ENVIRONMENT', '');
+  vi.stubEnv('SENTRY_RELEASE', '');
+  resetTelemetryHealth();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe('initSentry', () => {
@@ -111,6 +125,20 @@ describe('initSentry', () => {
     ]);
   });
 
+  it('内部配置复用初始化 buildDSN，不受后续环境变化影响，关闭时清除', async () => {
+    vi.stubGlobal('__SENTRY_DSN__', 'https://build-key@example.invalid/1');
+    initSentry('full');
+    const config = getSentryActiveConfig();
+    expect(config?.dsn).toBe('https://build-key@example.invalid/1');
+    expect(lastInitOptions().dsn).toBe(config?.dsn);
+    process.env['SENTRY_DSN'] = 'https://other-key@example.invalid/2';
+    expect(getSentryActiveConfig()?.dsn).toBe('https://build-key@example.invalid/1');
+    expect(getSentryStatus()).not.toHaveProperty('dsn');
+    await closeSentry();
+    expect(getSentryActiveConfig()).toBeNull();
+    expect(flushTelemetryOnFatal()).toBeNull();
+  });
+
   it('SENTRY_ENVIRONMENT / SENTRY_RELEASE 覆盖默认值', () => {
     process.env['SENTRY_DSN'] = 'https://key@sentry.example.com/1';
     process.env['SENTRY_ENVIRONMENT'] = 'staging';
@@ -151,7 +179,7 @@ describe('initSentry', () => {
       {},
     );
     expect(redacted).toMatchObject({
-      message: 'token=sk-[REDACTED]',
+      message: 'token=[REDACTED]',
       exception: { values: [{ value: 'Bearer [REDACTED]' }] },
       breadcrumbs: [{ message: 'secret sk-[REDACTED]', data: { token: '[REDACTED]' } }],
       extra: { apiKey: '[REDACTED]', user: 'alice' },
@@ -180,16 +208,55 @@ describe('capture', () => {
     });
     expect(mocks.scope.setTags).toHaveBeenCalledWith({
       channel: 'app:getInfo',
-      token: 'sk-[REDACTED]',
+      token: '[REDACTED]',
     });
     expect(mocks.scope.setExtra).toHaveBeenCalledWith('componentStack', 'at Component');
     expect(mocks.captureException).toHaveBeenCalledWith(error);
   });
 
+  it.each([TraceFlags.SAMPLED, TraceFlags.NONE])(
+    '原生 active context 进入非 tag context，采样标志 %s',
+    (flags) => {
+      const spanContext = {
+        traceId: '123456789abcdef0123456789abcdef0',
+        spanId: '123456789abcdef0',
+        traceFlags: flags,
+      };
+      vi.spyOn(trace, 'getActiveSpan').mockReturnValue(trace.wrapSpanContext(spanContext));
+      captureMainError(new Error('main'), { tags: { 'app.trace_id': 'request-uuid' } });
+      captureRendererError({ message: 'renderer' }, 'request-uuid');
+      expect(mocks.scope.setContext).toHaveBeenCalledTimes(2);
+      expect(mocks.scope.setContext).toHaveBeenCalledWith('opentelemetry', {
+        ['trace_id']: spanContext.traceId,
+        ['span_id']: spanContext.spanId,
+        sampled: flags === TraceFlags.SAMPLED,
+      });
+      expect(JSON.stringify(mocks.scope.setTags.mock.calls)).not.toContain(spanContext.traceId);
+      expect(JSON.stringify(mocks.scope.setTags.mock.calls)).toContain('request-uuid');
+    },
+  );
+
+  it('没有 active span 时不伪造原生关联；SDK 与坏 getter 都不会二次抛错', () => {
+    vi.spyOn(trace, 'getActiveSpan').mockReturnValue(undefined);
+    captureMainError(new Error('main'));
+    expect(mocks.scope.setContext).not.toHaveBeenCalled();
+    mocks.captureException.mockImplementationOnce(() => {
+      throw new Error('sdk');
+    });
+    expect(() => captureMainError(new Error('main'))).not.toThrow();
+    expect(() =>
+      captureRendererError({
+        get message(): never {
+          throw new Error('getter');
+        },
+      }),
+    ).not.toThrow();
+  });
+
   it('captureMainMessage：warning 级别 + 正文脱敏', () => {
     captureMainMessage('token=sk-aaaaaaaa', 'warning');
     expect(mocks.scope.setLevel).toHaveBeenCalledWith('warning');
-    expect(mocks.captureMessage).toHaveBeenCalledWith('token=sk-[REDACTED]');
+    expect(mocks.captureMessage).toHaveBeenCalledWith('token=[REDACTED]');
   });
 
   it('captureRendererError：重建 Error + renderer tags + componentStack', () => {
@@ -227,6 +294,126 @@ describe('capture', () => {
     expect(mocks.captureMessage).not.toHaveBeenCalled();
   });
 });
+
+describe('beforeSend 内存配额与脱敏边界', () => {
+  beforeEach(() => {
+    process.env['SENTRY_DSN'] = 'https://key@example.invalid/1';
+    initSentry('full');
+  });
+
+  it('自动与手动事件共用同指纹 5/min 配额，窗口恢复且计数可重置', () => {
+    vi.useFakeTimers();
+    const send = lastInitOptions().beforeSend;
+    const event: ErrorEvent = {
+      type: undefined,
+      exception: { values: [{ type: 'Error', value: 'same' }] },
+    };
+    for (let i = 0; i < 5; i += 1) {
+      expect(send?.(event, {})).not.toBeNull();
+    }
+    expect(send?.(event, { originalException: new Error('same') })).toBeNull();
+    expect(getTelemetryHealth().suppressedErrors).toBe(1);
+    awaitWindow();
+    expect(send?.(event, {})).not.toBeNull();
+    resetTelemetryHealth();
+    expect(getTelemetryHealth().suppressedErrors).toBe(0);
+  });
+
+  it('全局 60/min 防高基数洪泛，fatal/unhandled 不受闸也不消耗预算', () => {
+    const send = lastInitOptions().beforeSend;
+    for (let i = 0; i < 60; i += 1) {
+      expect(send?.({ type: undefined, message: `unique-${i}` }, {})).not.toBeNull();
+    }
+    for (let i = 0; i < 1_000; i += 1) {
+      expect(send?.({ type: undefined, message: `flood-${i}` }, {})).toBeNull();
+    }
+    expect(getTelemetryHealth().suppressedErrors).toBe(1_000);
+    expect(send?.({ type: undefined, level: 'fatal', message: 'fatal' }, {})).not.toBeNull();
+    expect(
+      send?.(
+        {
+          type: undefined,
+          exception: {
+            values: [{ value: 'unhandled', mechanism: { type: 'onerror', handled: false } }],
+          },
+        },
+        {},
+      ),
+    ).not.toBeNull();
+    expect(getTelemetryHealth().suppressedErrors).toBe(1_000);
+  });
+
+  it('保留合法原生 IDs 但 trace context 的其他字段仍脱敏且无原引用', () => {
+    const traceContext = {
+      ['trace_id']: '123456789abcdef0123456789abcdef0',
+      ['span_id']: '123456789abcdef0',
+      sampled: true,
+      password: 'abc',
+      nested: { credentials: ['abc'] },
+    };
+    const event: ErrorEvent = {
+      type: undefined,
+      ['event_id']: '123456789abcdef0123456789abcdef0',
+      contexts: { trace: traceContext, opentelemetry: traceContext },
+      tags: { 'app.trace_id': 'request-uuid' },
+      exception: {
+        values: [
+          {
+            type: 'password=abc',
+            value: 'token=abc',
+            stacktrace: {
+              frames: [{ filename: 'https://alice:abc@example.invalid/file?token=abc' }],
+            },
+          },
+        ],
+      },
+    };
+    const result = lastInitOptions().beforeSend?.(event, {}) as ErrorEvent;
+    expect(result.contexts?.['opentelemetry']).toEqual({
+      ['trace_id']: traceContext['trace_id'],
+      ['span_id']: traceContext['span_id'],
+      sampled: true,
+      password: '[REDACTED]',
+      nested: { credentials: '[REDACTED]' },
+    });
+    expect(result.contexts?.['trace']).not.toBe(traceContext);
+    expect(result.event_id).toBe(event.event_id);
+    expect(result.tags?.['app.trace_id']).toBe('request-uuid');
+    expect(JSON.stringify(result)).not.toContain('abc@example');
+    expect(JSON.stringify(result)).not.toContain('=abc');
+    expect(traceContext.password).toBe('abc');
+  });
+
+  it('坏 getter 与循环 extra 不抛错也不退回原始输入', () => {
+    const extra: Record<string, unknown> = { password: 'abc' };
+    extra['self'] = extra;
+    Object.defineProperty(extra, 'bad', {
+      enumerable: true,
+      get: () => {
+        throw new Error('getter');
+      },
+    });
+    const send = lastInitOptions().beforeSend;
+    const result = send?.({ type: undefined, extra }, {}) as ErrorEvent;
+    expect(result.extra).toEqual({
+      password: '[REDACTED]',
+      self: '[Circular]',
+      bad: '[Unserializable]',
+    });
+    const broken = {
+      type: undefined,
+      get exception(): never {
+        throw new Error('getter');
+      },
+    };
+    expect(() => send?.(broken, {})).not.toThrow();
+    expect(send?.(broken, {})).toBeNull();
+  });
+});
+
+function awaitWindow(): void {
+  vi.advanceTimersByTime(60_000);
+}
 
 describe('flush / close', () => {
   it('初始化后 flush 与 close 调用 SDK；关闭后状态复位', async () => {

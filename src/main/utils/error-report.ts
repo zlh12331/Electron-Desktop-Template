@@ -13,9 +13,15 @@ export interface ErrorReportContext {
   readonly componentStack?: string;
 }
 
+/** 远端错误上下文不公开本地字段和日志正文，避免后端实现误用。 */
+interface RemoteErrorContext {
+  readonly tags?: Readonly<Record<string, string>>;
+  readonly componentStack?: string;
+}
+
 /** 错误捕获 sink：Sentry 初始化成功后注册（反转 utils → infra 的依赖方向） */
 export interface ErrorCaptureSink {
-  captureError(error: unknown, context?: ErrorReportContext): void;
+  captureError(error: unknown, context?: RemoteErrorContext): void;
   captureMessage(message: string, level: 'error' | 'warning'): void;
 }
 
@@ -36,19 +42,32 @@ export function reportError(error: unknown, context?: ErrorReportContext): void 
     },
     context?.message ?? '错误上报',
     error,
+    {
+      context: {
+        ...(context?.tags ?? {}),
+        ...(context?.componentStack !== undefined
+          ? { componentStack: context.componentStack }
+          : {}),
+      },
+      message: '错误上报',
+    },
   );
-  // fields/message 只服务本地排障，后端只接收 tags 与组件栈
-  captureSink?.captureError(
-    error,
-    context === undefined
-      ? undefined
-      : {
-          ...(context.tags !== undefined ? { tags: context.tags } : {}),
-          ...(context.componentStack !== undefined
-            ? { componentStack: context.componentStack }
-            : {}),
-        },
-  );
+  // 两个远端出口都只接收 tags 与组件栈，本地详情不能经 LogSink 绕过边界。
+  try {
+    captureSink?.captureError(
+      error,
+      context === undefined
+        ? undefined
+        : {
+            ...(context.tags !== undefined ? { tags: context.tags } : {}),
+            ...(context.componentStack !== undefined
+              ? { componentStack: context.componentStack }
+              : {}),
+          },
+    );
+  } catch {
+    // SDK 失败不能制造二次异常。
+  }
 }
 
 /** 上报一条消息（无异常对象时用；warning 级用于「疑似问题但不致命」场景，如内存增长） */
@@ -58,5 +77,9 @@ export function reportMessage(message: string, level: 'error' | 'warning' = 'err
   } else {
     logger.error({ scope: 'error-report' }, message);
   }
-  captureSink?.captureMessage(message, level);
+  try {
+    captureSink?.captureMessage(message, level);
+  } catch {
+    // SDK 失败不能制造二次异常。
+  }
 }

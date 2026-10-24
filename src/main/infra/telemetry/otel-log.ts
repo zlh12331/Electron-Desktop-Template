@@ -6,7 +6,7 @@ import type { OtelLogMinLevel } from '@code-agent/shared/observability';
 import type { LogAttributes, Logger as OtelLogger } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { FixedWindowRateLimiter } from './rate-limit';
-import { redactText } from './redact';
+import { redactSensitive, redactText } from './redact';
 import { recordLogDrop } from './telemetry-health';
 
 /** 可导出的日志级别（与 electron-log 的 error/warn/info/debug 对齐） */
@@ -96,45 +96,46 @@ function isBridgeLevel(level: string): level is BridgeLogLevel {
 }
 
 function truncate(value: string, max: number): string {
-  return value.length > max ? `${value.slice(0, max)}…` : value;
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
 }
 
 function toAttributeValue(value: unknown): string | number | boolean | undefined {
-  if (typeof value === 'string') {
-    return truncate(redactText(value), MAX_ATTRIBUTE_LENGTH);
-  }
   if (typeof value === 'number' || typeof value === 'boolean') {
     return value;
   }
-  return undefined;
+  const text = typeof value === 'string' ? value : JSON.stringify(value);
+  return text === undefined ? undefined : truncate(text, MAX_ATTRIBUTE_LENGTH);
 }
 
-/** 从上下文提取有界属性；对象/数组只保留 JSON 字符串（截断 + 脱敏） */
-function buildAttributes(context: Readonly<Record<string, unknown>>): LogAttributes {
+/** 异常字段优先占用 24 属性预算，超额上下文允许丢弃。 */
+function buildAttributes(
+  context: Readonly<Record<string, unknown>>,
+  exception: ExceptionParts | null,
+): LogAttributes {
   const attributes: LogAttributes = {};
-  let count = 0;
-  for (const [key, value] of Object.entries(context)) {
+  if (exception !== null) {
+    attributes['exception.type'] = exception.type;
+    attributes['exception.message'] = exception.message;
+    if (exception.stack !== undefined) {
+      attributes['exception.stacktrace'] = exception.stack;
+    }
+  }
+  let count = Object.keys(attributes).length;
+  const safeContext = redactSensitive(context);
+  if (safeContext === null || typeof safeContext !== 'object') {
+    return attributes;
+  }
+  for (const [key, value] of Object.entries(safeContext)) {
     if (count >= MAX_ATTRIBUTES) {
       break;
     }
     if (key === 'error' || value === undefined || value === null) {
       continue;
     }
-    const attrKey = ATTRIBUTE_KEYS[key] ?? `log.${key}`;
-    const primitive = toAttributeValue(value);
-    if (primitive !== undefined) {
-      attributes[attrKey] = primitive;
+    const attribute = toAttributeValue(value);
+    if (attribute !== undefined) {
+      attributes[ATTRIBUTE_KEYS[key] ?? `log.${key}`] = attribute;
       count += 1;
-      continue;
-    }
-    try {
-      const json = JSON.stringify(value);
-      if (json !== undefined && json.length > 0) {
-        attributes[attrKey] = truncate(redactText(json), MAX_ATTRIBUTE_LENGTH);
-        count += 1;
-      }
-    } catch {
-      // 循环引用等不可序列化上下文：跳过该键
     }
   }
   return attributes;
@@ -152,24 +153,20 @@ function extractException(
   error: unknown,
 ): ExceptionParts | null {
   const candidate = error ?? context['error'];
-  if (candidate instanceof Error) {
-    return {
-      type: candidate.name,
-      message: redactText(candidate.message),
-      ...(candidate.stack !== undefined
-        ? { stack: truncate(redactText(candidate.stack), MAX_STACK_LENGTH) }
-        : {}),
-    };
-  }
   if (candidate !== null && typeof candidate === 'object') {
     const record = candidate as Record<string, unknown>;
-    const message = typeof record['message'] === 'string' ? record['message'] : '';
-    const name = typeof record['name'] === 'string' ? record['name'] : 'Error';
-    const stack = typeof record['stack'] === 'string' ? record['stack'] : undefined;
+    const message = record['message'];
+    const name = record['name'];
+    const stack = record['stack'];
     return {
-      type: name,
-      message: redactText(message),
-      ...(stack !== undefined ? { stack: truncate(redactText(stack), MAX_STACK_LENGTH) } : {}),
+      type: truncate(redactText(typeof name === 'string' ? name : 'Error'), MAX_ATTRIBUTE_LENGTH),
+      message: truncate(
+        redactText(typeof message === 'string' ? message : ''),
+        MAX_ATTRIBUTE_LENGTH,
+      ),
+      ...(typeof stack === 'string'
+        ? { stack: truncate(redactText(stack), MAX_STACK_LENGTH) }
+        : {}),
     };
   }
   return null;
@@ -214,18 +211,10 @@ export function emitOtelLog(
     return;
   }
 
-  const severity = SEVERITY[level];
-  const attributes = buildAttributes(context);
-  const exception = extractException(context, error);
-  if (exception !== null) {
-    attributes['exception.type'] = exception.type;
-    attributes['exception.message'] = truncate(exception.message, MAX_ATTRIBUTE_LENGTH);
-    if (exception.stack !== undefined) {
-      attributes['exception.stacktrace'] = exception.stack;
-    }
-  }
-
   try {
+    const severity = SEVERITY[level];
+    const exception = extractException(context, error);
+    const attributes = buildAttributes(context, exception);
     sink.logger.emit({
       severityNumber: severity.number,
       severityText: severity.text,

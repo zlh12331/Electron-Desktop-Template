@@ -1,22 +1,40 @@
-// telemetry-flush.ts：进程致命退出前的遥测冲刷注册表（避免 logger 静态依赖 Sentry SDK）
-// 边界：只保存一个回调；Sentry 初始化成功后注册，未启用时 flush 为 no-op
-type FlushImpl = (timeoutMs: number) => Promise<void>;
+// telemetry-flush.ts：命名冲刷注册表隔离各 SDK，避免遥测挂住致命退出。
+type FlushImpl = (timeoutMs: number) => Promise<void> | void;
+type FlushName = 'sentry' | 'otel';
 
-let flushImpl: FlushImpl | null = null;
+const flushers = new Map<FlushName, { readonly impl: FlushImpl }>();
 
-/** 注册/覆盖致命退出前的冲刷实现（Sentry 初始化成功后调用） */
-export function registerTelemetryFlush(impl: FlushImpl): void {
-  flushImpl = impl;
+/** 注册命名冲刷并返回注销函数；旧注册的清理不能移除替代实现。 */
+export function registerTelemetryFlush(name: FlushName, impl: FlushImpl): () => void {
+  const entry = { impl };
+  flushers.set(name, entry);
+  return () => {
+    if (flushers.get(name) === entry) {
+      flushers.delete(name);
+    }
+  };
 }
 
-/**
- * 致命退出前触发一次冲刷
- *
- * @returns 可用于等待的 Promise；未注册时为 null（调用方直接走快速退出）
- */
+async function runFlush(impl: FlushImpl, timeoutMs: number): Promise<void> {
+  try {
+    await impl(timeoutMs);
+  } catch {
+    // 单个 SDK 同步抛错或异步拒绝不能跳过其他信号。
+  }
+}
+
+/** 并行冲刷所有注册项且共享总时限；未注册返回 null 以保留退出快速路径。 */
 export function flushTelemetryOnFatal(timeoutMs = 1_500): Promise<void> | null {
-  if (flushImpl === null) {
+  if (flushers.size === 0) {
     return null;
   }
-  return flushImpl(timeoutMs).catch(() => {});
+  const budget = Number.isFinite(timeoutMs) ? Math.max(0, timeoutMs) : 1_500;
+  let timer: ReturnType<typeof setTimeout>;
+  const deadline = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, budget);
+  });
+  const pending = [...flushers.values()].map(({ impl }) => runFlush(impl, budget));
+  return Promise.race([Promise.all(pending).then(() => {}), deadline]).finally(() => {
+    clearTimeout(timer);
+  });
 }

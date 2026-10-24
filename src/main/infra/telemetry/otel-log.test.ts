@@ -91,7 +91,7 @@ describe('emitOtelLog', () => {
       attributes: Record<string, unknown>;
     };
     expect(record.attributes['exception.type']).toBe('Error');
-    expect(record.attributes['exception.message']).toBe('token=sk-[REDACTED]');
+    expect(record.attributes['exception.message']).toBe('token=[REDACTED]');
     expect(record.attributes['exception.stacktrace']).toContain('sk-[REDACTED]');
   });
 
@@ -107,14 +107,76 @@ describe('emitOtelLog', () => {
     expect(record.attributes['exception.stacktrace']).toBe('at x');
   });
 
-  it('不可序列化上下文被跳过，不让日志路径抛错', () => {
+  it('循环被有界替换，敏感键先脱敏再 JSON 序列化', () => {
     const sink = createSink();
     setOtelLogSink(sink.logger, { minLevel: 'info', sampleRatio: 1, maxPerMinute: 0 });
     const circular: Record<string, unknown> = {};
     circular['self'] = circular;
-    expect(() => emitOtelLog('info', { circular }, 'ok')).not.toThrow();
+    emitOtelLog(
+      'info',
+      { circular, password: 'abc', credentials: { nested: 'abc' }, data: { password: 'abc' } },
+      'ok',
+    );
     const record = sink.emit.mock.calls[0]?.[0] as { attributes: Record<string, unknown> };
-    expect(record.attributes['log.circular']).toBeUndefined();
+    expect(record.attributes['log.circular']).toBe('{"self":"[Circular]"}');
+    expect(record.attributes['log.password']).toBe('[REDACTED]');
+    expect(record.attributes['log.credentials']).toBe('[REDACTED]');
+    expect(record.attributes['log.data']).toBe('{"password":"[REDACTED]"}');
+  });
+
+  it('异常 name/message/stack 全部脱敏限长，并包含在总共 24 属性预算内', () => {
+    const sink = createSink();
+    setOtelLogSink(sink.logger, { minLevel: 'info', sampleRatio: 1, maxPerMinute: 0 });
+    const error = new Error(`password=abc ${'x'.repeat(20_000)}`);
+    error.name = `token=abc ${'n'.repeat(20_000)}`;
+    error.stack = `password=abc ${'s'.repeat(20_000)}`;
+    const fields = Object.fromEntries(
+      Array.from({ length: 30 }, (_, index) => [`field${index}`, index]),
+    );
+    emitOtelLog('error', fields, 'password=abc', error);
+    const record = sink.emit.mock.calls[0]?.[0] as {
+      attributes: Record<string, string>;
+      body: string;
+    };
+    expect(Object.keys(record.attributes)).toHaveLength(24);
+    expect(record.attributes['exception.type']?.length).toBeLessThanOrEqual(2_048);
+    expect(record.attributes['exception.message']?.length).toBeLessThanOrEqual(2_048);
+    expect(record.attributes['exception.stacktrace']?.length).toBeLessThanOrEqual(16_384);
+    expect(JSON.stringify(record)).not.toContain('=abc');
+    expect(record.attributes['log.field29']).toBeUndefined();
+  });
+
+  it('不可信 getter、代理和上下文 error 转换均位于保护范围', () => {
+    const sink = createSink();
+    setOtelLogSink(sink.logger, { minLevel: 'info', sampleRatio: 1, maxPerMinute: 0 });
+    for (const key of ['name', 'message', 'stack']) {
+      const error = Object.defineProperty({}, key, {
+        get: () => {
+          throw new Error('getter');
+        },
+      });
+      expect(() => emitOtelLog('error', {}, 'ok', error)).not.toThrow();
+    }
+    const context = {
+      get error(): never {
+        throw new Error('getter');
+      },
+    };
+    expect(() => emitOtelLog('error', context, 'ok')).not.toThrow();
+    expect(() =>
+      emitOtelLog(
+        'info',
+        {
+          get bad(): never {
+            throw new Error('getter');
+          },
+        },
+        'ok',
+      ),
+    ).not.toThrow();
+    const revoked = Proxy.revocable({}, {});
+    revoked.revoke();
+    expect(() => emitOtelLog('error', revoked.proxy, 'ok')).not.toThrow();
   });
 
   it('导出器抛错被吞掉（遥测不能反噬日志）', () => {

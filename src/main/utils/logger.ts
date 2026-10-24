@@ -36,11 +36,17 @@ export function initLogger(): void {
   log.initialize();
 }
 
+/** 显式区分本地排障详情与上行上下文，避免旁路隐式复制本地字段。 */
+export interface RemoteLog {
+  readonly context: LogContext;
+  readonly message: string;
+}
+
 /** 日志接口（结构化 context 前置 + message；error 可附原始错误） */
 export interface Logger {
   info(context: LogContext, message: string): void;
   warn(context: LogContext, message: string): void;
-  error(context: LogContext, message: string, error?: unknown): void;
+  error(context: LogContext, message: string, error?: unknown, remote?: RemoteLog): void;
   debug(context: LogContext, message: string): void;
 }
 
@@ -66,48 +72,106 @@ export function setLogSink(sink: LogSink | null): void {
   logSink = sink;
 }
 
-/** 全局唯一 logger 实例（自定义包装而非直接暴露 electron-log：收口格式与错误序列化） */
+function emitToSink(level: LogLevel, context: LogContext, message: string, error?: unknown): void {
+  try {
+    if (error === undefined) {
+      logSink?.(level, context, message);
+    } else {
+      logSink?.(level, context, message, error);
+    }
+  } catch {
+    // 旁路失败不能反向阻断本地错误处理。
+  }
+}
+
+function writeLocalLog(
+  level: LogLevel,
+  context: LogContext,
+  message: string,
+  error?: unknown,
+): void {
+  try {
+    const fields: Record<string, unknown> = {};
+    for (const key of Object.keys(context)) {
+      const descriptor = Object.getOwnPropertyDescriptor(context, key);
+      Object.defineProperty(fields, key, {
+        value:
+          descriptor !== undefined && 'value' in descriptor ? descriptor.value : '[Unserializable]',
+        enumerable: true,
+      });
+    }
+    log[level]({
+      ...fields,
+      message,
+      ...(error !== undefined ? { error: serializeError(error) } : {}),
+    });
+  } catch {
+    // 不可信对象或 transport 失败时仍尝试保存最小证据。
+    try {
+      log[level]({ message, error: '[Unserializable log entry]' });
+    } catch {
+      // 日志设施失效时不制造二次异常。
+    }
+  }
+}
+
+/** 全局唯一 logger 实例，本地先写且与远端 sink 故障隔离。 */
 export const logger: Logger = {
   info(context: LogContext, message: string): void {
-    log.info({ ...context, message });
-    logSink?.('info', context, message);
+    writeLocalLog('info', context, message);
+    emitToSink('info', context, message);
   },
-
   warn(context: LogContext, message: string): void {
-    log.warn({ ...context, message });
-    logSink?.('warn', context, message);
+    writeLocalLog('warn', context, message);
+    emitToSink('warn', context, message);
   },
-
-  error(context: LogContext, message: string, error?: unknown): void {
-    if (error !== undefined) {
-      log.error({ ...context, message, error: serializeError(error) });
-      logSink?.('error', context, message, error);
-    } else {
-      log.error({ ...context, message });
-      logSink?.('error', context, message);
-    }
+  error(context: LogContext, message: string, error?: unknown, remote?: RemoteLog): void {
+    writeLocalLog('error', context, message, error);
+    emitToSink('error', remote?.context ?? context, remote?.message ?? message, error);
   },
-
   debug(context: LogContext, message: string): void {
-    log.debug({ ...context, message });
-    logSink?.('debug', context, message);
+    writeLocalLog('debug', context, message);
+    emitToSink('debug', context, message);
   },
 };
 
-// Error 序列化（name/message/stack/cause 递归）：electron-log 默认只取 message，丢 cause 链
-function serializeError(error: unknown): Record<string, unknown> {
-  if (error instanceof Error) {
-    const result: Record<string, unknown> = {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    };
-    if (error.cause !== undefined) {
-      result['cause'] = serializeError(error.cause);
+function readErrorField(error: Error, key: 'name' | 'message' | 'stack' | 'cause'): unknown {
+  try {
+    return error[key];
+  } catch {
+    return '[Unserializable]';
+  }
+}
+
+function serializeError(
+  error: unknown,
+  seen = new WeakSet<object>(),
+  depth = 0,
+): Record<string, unknown> {
+  if (depth >= 8) {
+    return { value: '[Truncated]' };
+  }
+  try {
+    if (!(error instanceof Error)) {
+      return { value: String(error) };
+    }
+    if (seen.has(error)) {
+      return { value: '[Circular]' };
+    }
+    seen.add(error);
+    const result: Record<string, unknown> = {};
+    for (const key of ['name', 'message', 'stack'] as const) {
+      const value = readErrorField(error, key);
+      result[key] = typeof value === 'string' || value === undefined ? value : '[Unserializable]';
+    }
+    const cause = readErrorField(error, 'cause');
+    if (cause !== undefined) {
+      result['cause'] = serializeError(cause, seen, depth + 1);
     }
     return result;
+  } catch {
+    return { value: '[Unserializable]' };
   }
-  return { value: String(error) };
 }
 
 let fatalErrorHandled = false;
@@ -132,31 +196,34 @@ export async function flushPendingLogs(timeoutMs = 300): Promise<void> {
   }
 }
 
-/**
- * 全局异常兜底：uncaughtException 写日志 + 崩溃标记后退出（300ms 给日志落盘，3s 强杀兜底防挂死）；
- * unhandledRejection 只记录不退出（Promise 链局部失败不该杀进程）
- */
+/** 致命异常给本地 300ms、遥测 1.5s、退出 2s 兜底；Promise 局部失败只记录不退出。 */
 export function registerGlobalErrorHandlers(): void {
   process.on('uncaughtException', (error: Error) => {
     if (fatalErrorHandled) {
       return;
     }
     fatalErrorHandled = true;
+    let exited = false;
+    const exit = (): void => {
+      if (!exited) {
+        exited = true;
+        clearTimeout(forceExit);
+        app.exit(1);
+      }
+    };
+    // 在接触错误 getter、文件和 SDK 前安装最后一道退出兜底。
+    const forceExit = setTimeout(exit, 2_000);
+    forceExit.unref();
     logger.error({}, '全局未捕获异常 uncaughtException', error);
     writeCrashMarker(error);
-    // Sentry 的 onUncaughtException 集成已同步发起捕获，这里等它把事件发出去再退出；
-    // 未启用 Sentry 时 300ms 快速退出，启用时给 1.5s flush + 2s 硬上限（遥测不能挂死进程）
-    const flush = flushTelemetryOnFatal(1_500);
-    const exit = (): void => {
-      app.exit(1);
-    };
-    if (flush === null) {
-      setTimeout(exit, 300).unref();
-    } else {
-      void flush.then(exit, exit);
-      const forceExit = setTimeout(exit, 2_000);
-      forceExit.unref();
-    }
+    const localFlush = flushPendingLogs(300);
+    const telemetryFlush = flushTelemetryOnFatal(1_500);
+    const timeout = setTimeout(exit, telemetryFlush === null ? 300 : 1_500);
+    timeout.unref();
+    void Promise.allSettled([localFlush, telemetryFlush]).then(() => {
+      clearTimeout(timeout);
+      exit();
+    });
   });
 
   process.on('unhandledRejection', (reason: unknown) => {
@@ -189,7 +256,7 @@ function writeCrashMarker(error: Error): void {
     writeFileSync(markerPath, JSON.stringify(marker), 'utf8');
     logger.info({ markerPath }, '已写入崩溃标记');
   } catch (writeError) {
-    logger.error({ error: String(writeError) }, '崩溃标记写入失败');
+    logger.error({}, '崩溃标记写入失败', writeError);
   }
 }
 

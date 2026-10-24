@@ -1,31 +1,24 @@
-// redact.ts：诊断导出与遥测上报共用的脱敏规则（键名形态 + 值形态双层）
-// 边界：只做字符串/结构变换，不读取文件、不依赖 Electron——诊断包、Sentry beforeSend、
-// OTel 日志属性共用同一套规则，避免三处各写一份导致漏脱敏
-
-/** 键名形态兜底：键名命中即整体 [REDACTED]（不看值） */
+// redact.ts：上行与诊断共用脱敏，保守截断不可信结构以免错误处理再次失败。
 const SENSITIVE_KEY_PATTERN =
-  /(api[_-]?key|token|secret|password|passwd|credential|private[_-]?key|access[_-]?key)/i;
+  /(api[_-]?key|token|secret|password|passwd|credential|private[_-]?key|access[_-]?key|authorization|cookie)/i;
 
-// 值形态兜底：键名不含敏感词但值本身是密钥形态（日志正文里的 key 串、Bearer 头、PEM 头、32+ 位 hex）
 const VALUE_PATTERNS: readonly { readonly pattern: RegExp; readonly replacement: string }[] = [
-  { pattern: /\bsk-[A-Za-z0-9_-]{8,}/g, replacement: 'sk-[REDACTED]' },
-  { pattern: /(Bearer\s+)[A-Za-z0-9._~+/-]{8,}=*/gi, replacement: '$1[REDACTED]' },
-  { pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/g, replacement: '[REDACTED PRIVATE KEY]' },
   {
-    pattern: /\b[A-Fa-f0-9]{32,}\b/g,
-    replacement: '[REDACTED]',
+    pattern: /\b([a-z][a-z\d+.-]*:\/\/)[^\s/@]+@/gi,
+    replacement: '$1[REDACTED]@',
   },
+  {
+    pattern:
+      /(\b[a-z0-9_-]*(?:api[_-]?key|token|secret|password|passwd|credential|private[_-]?key|access[_-]?key)[a-z0-9_-]*\s*=\s*)(?:"[^"]*"|'[^']*'|[^\s&#,;]+)/gi,
+    replacement: '$1[REDACTED]',
+  },
+  { pattern: /\bsk-[A-Za-z0-9_-]{8,}/g, replacement: 'sk-[REDACTED]' },
+  { pattern: /(Bearer\s+)[A-Za-z0-9._~+/-]+=*/gi, replacement: '$1[REDACTED]' },
+  { pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/g, replacement: '[REDACTED PRIVATE KEY]' },
+  { pattern: /\b[A-Fa-f0-9]{32,}\b/g, replacement: '[REDACTED]' },
 ];
 
-/**
- * 对任意文本跑值形态脱敏
- *
- * 日志行没有键名上下文，只能按形态匹配；这是诊断包与遥测导出前的最后一道防线，
- * 不替代调用方不打印凭据的义务。
- *
- * @param text 原始文本
- * @returns 脱敏后的文本
- */
+/** 文本形态脱敏，不保证移除任意本地路径；原生 trace ID 应走专用结构。 */
 export function redactText(text: string): string {
   let out = text;
   for (const { pattern, replacement } of VALUE_PATTERNS) {
@@ -34,27 +27,81 @@ export function redactText(text: string): string {
   return out;
 }
 
-/**
- * 递归脱敏任意结构：对象/数组深入遍历，键名命中即整值 [REDACTED]，
- * 字符串叶子再过一遍值形态（双层：键名层 + 值形态层）
- *
- * @param value 任意可序列化结构
- * @param key 当前层级的键名（递归内部使用）
- * @returns 脱敏后的新结构（不修改入参）
- */
-export function redactSensitive(value: unknown, key = ''): unknown {
-  if (value !== null && typeof value === 'object') {
-    if (Array.isArray(value)) {
-      return value.map((item) => redactSensitive(item, key));
-    }
-    const result: Record<string, unknown> = {};
-    for (const [childKey, childValue] of Object.entries(value)) {
-      result[childKey] = redactSensitive(childValue, childKey);
-    }
-    return result;
-  }
+const MAX_DEPTH = 12;
+const MAX_NODES = 2_048;
+const MAX_ENTRIES = 128;
+
+interface RedactionState {
+  readonly seen: WeakSet<object>;
+  remaining: number;
+}
+
+function redactChild(value: object, key: string, depth: number, state: RedactionState): unknown {
+  // 不调用 getter，敏感容器连取值也不需要。
   if (SENSITIVE_KEY_PATTERN.test(key)) {
     return '[REDACTED]';
   }
-  return typeof value === 'string' ? redactText(value) : value;
+  try {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    return descriptor !== undefined && 'value' in descriptor
+      ? redactValue(descriptor.value, depth, state)
+      : '[Unserializable]';
+  } catch {
+    return '[Unserializable]';
+  }
+}
+
+function redactPrimitive(value: unknown): unknown {
+  if (typeof value === 'string') {
+    return redactText(value);
+  }
+  return typeof value === 'function' || typeof value === 'symbol' || typeof value === 'bigint'
+    ? '[Unsupported]'
+    : value;
+}
+
+function redactValue(value: unknown, depth: number, state: RedactionState): unknown {
+  if (state.remaining-- <= 0 || depth >= MAX_DEPTH) {
+    return '[Truncated]';
+  }
+  if (value === null || typeof value !== 'object') {
+    return redactPrimitive(value);
+  }
+  if (state.seen.has(value)) {
+    return '[Circular]';
+  }
+  state.seen.add(value);
+  try {
+    if (Array.isArray(value)) {
+      const length = Math.min(value.length, MAX_ENTRIES, state.remaining);
+      return Array.from({ length }, (_, index) =>
+        redactChild(value, String(index), depth + 1, state),
+      );
+    }
+    const result: Record<string, unknown> = {};
+    for (const childKey of Object.keys(value).slice(0, MAX_ENTRIES)) {
+      if (state.remaining <= 0) {
+        break;
+      }
+      Object.defineProperty(result, childKey, {
+        value: redactChild(value, childKey, depth + 1, state),
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+    }
+    return result;
+  } catch {
+    return '[Unserializable]';
+  } finally {
+    state.seen.delete(value);
+  }
+}
+
+/** 敏感键先整值替换，其余结构有界复制；不调用 getter、不保留原始对象引用。 */
+export function redactSensitive(value: unknown, key = ''): unknown {
+  if (SENSITIVE_KEY_PATTERN.test(key)) {
+    return '[REDACTED]';
+  }
+  return redactValue(value, 0, { seen: new WeakSet(), remaining: MAX_NODES });
 }

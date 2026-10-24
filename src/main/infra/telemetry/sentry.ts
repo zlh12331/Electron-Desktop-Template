@@ -6,13 +6,22 @@
 import { createRequire } from 'node:module';
 
 import { EXECUTABLE_NAME, type TelemetryLevel } from '@code-agent/shared/main';
-import { resolveSentryConfig } from '@code-agent/shared/observability';
+import { resolveSentryConfig, type SentryResolvedConfig } from '@code-agent/shared/observability';
+import {
+  isSpanContextValid,
+  isValidSpanId,
+  isValidTraceId,
+  TraceFlags,
+  trace,
+} from '@opentelemetry/api';
 import type { ErrorEvent } from '@sentry/electron/main';
 import { app } from 'electron';
 import { setErrorCaptureSink } from '../../utils/error-report';
 import { registerTelemetryFlush } from '../../utils/telemetry-flush';
 import { readBuildInfo } from '../app-info';
+import { ErrorEventRateLimiter } from './error-rate-limit';
 import { redactSensitive, redactText } from './redact';
+import { recordSuppressedError } from './telemetry-health';
 
 /** Sentry 运行时模块（只取实际用到的成员） */
 type SentryModule = typeof import('@sentry/electron/main');
@@ -86,73 +95,71 @@ function readBuildDsn(): string {
   return typeof __SENTRY_DSN__ === 'string' ? __SENTRY_DSN__.trim() : '';
 }
 
-/** 脱敏一组 tags（只处理字符串值，调用方已由 schema 限长） */
+let activeConfig: SentryResolvedConfig | null = null;
+let unregisterFlush: (() => void) | null = null;
+
 function redactTags(tags: Readonly<Record<string, string>>): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const [key, value] of Object.entries(tags)) {
-    result[key] = redactText(value);
-  }
-  return result;
+  return redactSensitive(tags) as Record<string, string>;
 }
 
-/**
- * 事件发送前脱敏：消息 / 异常值 / 面包屑 / tags / extra / contexts / request 全量过规则
- *
- * 原生崩溃的 minidump 附件不经过 beforeSend（二进制），由 Sentry 服务端数据清洗兜底；
- * 本地日志与诊断包导出时另有同一套规则（infra/telemetry/redact.ts）。
- */
-function redactEvent(event: ErrorEvent): ErrorEvent {
-  const next: ErrorEvent = { ...event };
-
-  if (next.message !== undefined) {
-    next.message = redactText(next.message);
-  }
-  if (next.logentry?.message !== undefined) {
-    next.logentry = { ...next.logentry, message: redactText(next.logentry.message) };
-  }
-  if (next.exception?.values !== undefined) {
-    next.exception = {
-      ...next.exception,
-      values: next.exception.values.map((exception) => {
-        const value = { ...exception };
-        if (value.value !== undefined) {
-          value.value = redactText(value.value);
-        }
-        return value;
-      }),
-    };
-  }
-  if (next.breadcrumbs !== undefined) {
-    next.breadcrumbs = next.breadcrumbs.map((breadcrumb) => {
-      const value = { ...breadcrumb };
-      if (value.message !== undefined) {
-        value.message = redactText(value.message);
-      }
-      if (value.data !== undefined) {
-        value.data = redactSensitive(value.data) as typeof value.data;
-      }
-      return value;
-    });
-  }
-  if (next.tags !== undefined) {
-    next.tags = redactSensitive(next.tags) as typeof next.tags;
-  }
-  if (next.extra !== undefined) {
-    next.extra = redactSensitive(next.extra) as typeof next.extra;
-  }
-  if (next.contexts !== undefined) {
-    // trace context 的 trace_id 是 32 位 hex，会被值形态规则误伤；保留它才能维持 Sentry 链路关联
-    const traceContext = next.contexts['trace'];
-    next.contexts = redactSensitive(next.contexts) as typeof next.contexts;
-    if (traceContext !== undefined) {
-      next.contexts['trace'] = traceContext;
+function preserveTraceIds(source: Record<string, unknown>, target: Record<string, unknown>): void {
+  for (const key of ['trace_id', 'span_id', 'parent_span_id']) {
+    const value = source[key];
+    if (
+      typeof value === 'string' &&
+      (key === 'trace_id' ? isValidTraceId(value) : isValidSpanId(value))
+    ) {
+      target[key] = value;
     }
   }
-  if (next.request !== undefined) {
-    next.request = redactSensitive(next.request) as typeof next.request;
-  }
+}
 
+// 只豁免合法链路 ID，不能把整个 trace context 原样带回上行。
+function redactEvent(event: ErrorEvent): ErrorEvent {
+  const next = redactSensitive(event) as ErrorEvent;
+  if (typeof event.event_id === 'string' && isValidTraceId(event.event_id)) {
+    next.event_id = event.event_id;
+  }
+  for (const key of ['trace', 'opentelemetry']) {
+    const source = event.contexts?.[key];
+    const target = next.contexts?.[key];
+    if (
+      source !== null &&
+      typeof source === 'object' &&
+      target !== null &&
+      typeof target === 'object'
+    ) {
+      preserveTraceIds(source, target);
+    }
+  }
   return next;
+}
+
+// minidump 是二进制附件，不经过此文本脱敏和配额闸。
+function beforeSend(event: ErrorEvent, limiter: ErrorEventRateLimiter): ErrorEvent | null {
+  try {
+    if (!limiter.tryAcquire(event)) {
+      recordSuppressedError();
+      return null;
+    }
+    return redactEvent(event);
+  } catch {
+    // 不可信 getter 或 SDK 结构异常不能二次抛错，也不能退回未脱敏事件。
+    return null;
+  }
+}
+
+function attachOtelContext(scope: {
+  setContext(name: string, context: Record<string, unknown>): void;
+}): void {
+  const spanContext = trace.getActiveSpan()?.spanContext();
+  if (spanContext !== undefined && isSpanContextValid(spanContext)) {
+    scope.setContext('opentelemetry', {
+      ['trace_id']: spanContext.traceId,
+      ['span_id']: spanContext.spanId,
+      sampled: (spanContext.traceFlags & TraceFlags.SAMPLED) !== 0,
+    });
+  }
 }
 
 /**
@@ -177,6 +184,7 @@ export function initSentry(level: TelemetryLevel): SentryStatus {
     executableName: EXECUTABLE_NAME,
     buildDsn: readBuildDsn(),
   });
+  activeConfig = resolved;
   if (!resolved.enabled) {
     state.reason = resolved.reason;
     return getSentryStatus();
@@ -193,6 +201,7 @@ export function initSentry(level: TelemetryLevel): SentryStatus {
 
   try {
     const sdk = loadSentryModule();
+    const limiter = new ErrorEventRateLimiter();
     sdk.init({
       dsn: resolved.dsn,
       environment: resolved.environment,
@@ -213,16 +222,12 @@ export function initSentry(level: TelemetryLevel): SentryStatus {
         /ResizeObserver loop limit exceeded/,
         /The operation was aborted/,
       ],
-      beforeSend: (event) => redactEvent(event),
+      beforeSend: (event) => beforeSend(event, limiter),
       beforeBreadcrumb: (breadcrumb) => {
-        const next = { ...breadcrumb };
-        if (next.message !== undefined) {
-          next.message = redactText(next.message);
-        }
-        if (next.data !== undefined) {
-          next.data = redactSensitive(next.data) as typeof next.data;
-        }
-        return next;
+        // console 可含本地专用 fields，不能借 SDK 面包屑绕过上行字段隔离。
+        if (breadcrumb.category === 'console') return null;
+        const next = redactSensitive(breadcrumb);
+        return next !== null && typeof next === 'object' ? next : null;
       },
     });
     state.enabled = true;
@@ -230,8 +235,8 @@ export function initSentry(level: TelemetryLevel): SentryStatus {
     state.reason = null;
     state.release = resolved.release;
     state.environment = resolved.environment;
-    // logger/error-report 只依赖轻量注册表，不静态引入 Sentry SDK
-    registerTelemetryFlush(flushSentry);
+    // logger/error-report 只依赖轻量注册表，不静态引入 Sentry SDK。
+    unregisterFlush = registerTelemetryFlush('sentry', flushSentry);
     setErrorCaptureSink({
       captureError: captureMainError,
       captureMessage: captureMainMessage,
@@ -242,6 +247,11 @@ export function initSentry(level: TelemetryLevel): SentryStatus {
     state.reason = 'init-failed';
   }
   return getSentryStatus();
+}
+
+/** 主进程内部读取启动配置（含构建期 DSN），不得经 IPC 返回渲染层。 */
+export function getSentryActiveConfig(): SentryResolvedConfig | null {
+  return activeConfig === null ? null : { ...activeConfig };
 }
 
 /** 当前 Sentry 状态快照（诊断包与启动日志用） */
@@ -262,6 +272,7 @@ export function captureMainError(error: unknown, context?: SentryErrorContext): 
   }
   try {
     loadSentryModule().withScope((scope) => {
+      attachOtelContext(scope);
       if (context?.tags !== undefined) {
         scope.setTags(redactTags(context.tags));
       }
@@ -311,6 +322,7 @@ export function captureRendererError(payload: RendererErrorPayload, traceId?: st
     }
     const sdk = loadSentryModule();
     sdk.withScope((scope) => {
+      attachOtelContext(scope);
       scope.setTags({
         ...redactTags(payload.tags ?? {}),
         'error.source': 'renderer',
@@ -343,6 +355,9 @@ export async function flushSentry(timeoutMs = 2_000): Promise<void> {
 
 /** 关闭 Sentry 客户端（退出善后链最后一步；关闭后状态回到未初始化） */
 export async function closeSentry(timeoutMs = 2_000): Promise<void> {
+  unregisterFlush?.();
+  unregisterFlush = null;
+  activeConfig = null;
   if (!state.initialized) {
     return;
   }

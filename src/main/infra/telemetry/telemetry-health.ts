@@ -23,6 +23,8 @@ export interface TelemetryHealthSnapshot {
   readonly sampledLogs: number;
   /** 因每分钟上限被丢弃的非 error 日志条数 */
   readonly rateLimitedLogs: number;
+  /** beforeSend 配额闸抑制的错误事件数（不含 native minidump）。 */
+  readonly suppressedErrors: number;
   /** 最近一次日志丢弃时间 */
   readonly lastDropAt: number | null;
 }
@@ -38,6 +40,7 @@ interface MutableSignalHealth {
 interface MutableHealth extends Record<TelemetrySignal, MutableSignalHealth> {
   sampledLogs: number;
   rateLimitedLogs: number;
+  suppressedErrors: number;
   lastDropAt: number | null;
 }
 
@@ -58,6 +61,7 @@ function createHealth(): MutableHealth {
     logs: createSignalHealth(),
     sampledLogs: 0,
     rateLimitedLogs: 0,
+    suppressedErrors: 0,
     lastDropAt: null,
   };
 }
@@ -66,11 +70,22 @@ const state: MutableHealth = createHealth();
 
 const MAX_ERROR_LENGTH = 500;
 
+function safeErrorMessage(error: unknown): string {
+  try {
+    const message = error instanceof Error ? error.message : error;
+    return typeof message === 'string'
+      ? redactText(message).slice(0, MAX_ERROR_LENGTH)
+      : 'export failed';
+  } catch {
+    return 'export failed';
+  }
+}
+
 /** 记录一次导出结果（成功/失败；失败保留脱敏后的短错误信息） */
 export function recordExportResult(
   signal: TelemetrySignal,
   success: boolean,
-  error?: Error | undefined,
+  error?: unknown,
 ): void {
   const health = state[signal];
   health.attempts += 1;
@@ -81,8 +96,12 @@ export function recordExportResult(
   }
   health.failures += 1;
   health.lastFailureAt = now;
-  health.lastError =
-    error === undefined ? 'export failed' : redactText(error.message).slice(0, MAX_ERROR_LENGTH);
+  health.lastError = safeErrorMessage(error);
+}
+
+/** 记录 beforeSend 限流；不使用 logger 以免递归制造遥测。 */
+export function recordSuppressedError(): void {
+  state.suppressedErrors += 1;
 }
 
 /** 记录一条日志被采样/限流丢弃 */
@@ -107,6 +126,7 @@ export function getTelemetryHealth(): TelemetryHealthSnapshot {
     logs: copySignal(state.logs),
     sampledLogs: state.sampledLogs,
     rateLimitedLogs: state.rateLimitedLogs,
+    suppressedErrors: state.suppressedErrors,
     lastDropAt: state.lastDropAt,
   };
 }
@@ -118,5 +138,6 @@ export function resetTelemetryHealth(): void {
   state.logs = createSignalHealth();
   state.sampledLogs = 0;
   state.rateLimitedLogs = 0;
+  state.suppressedErrors = 0;
   state.lastDropAt = null;
 }

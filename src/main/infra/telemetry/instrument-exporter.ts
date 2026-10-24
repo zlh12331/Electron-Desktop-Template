@@ -24,13 +24,24 @@ export function instrumentExporter<T extends ExportCapable>(
 ): T {
   const original = exporter.export.bind(exporter);
   exporter.export = ((items: unknown, callback: (result: ExportResultLike) => void): void => {
+    let recorded = false;
     try {
       original(items, (result) => {
-        recordExportResult(signal, result.code === 0, result.error);
+        if (!recorded) {
+          recorded = true;
+          try {
+            recordExportResult(signal, result.code === 0, result.error);
+          } catch {
+            // SDK 结果 getter 失败也不能阻断原始回调。
+            recordExportResult(signal, false);
+          }
+        }
         callback(result);
       });
     } catch (error) {
-      recordExportResult(signal, false, error instanceof Error ? error : new Error(String(error)));
+      if (!recorded) {
+        recordExportResult(signal, false, error);
+      }
       throw error;
     }
   }) as T['export'];

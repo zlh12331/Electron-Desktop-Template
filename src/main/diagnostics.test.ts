@@ -100,10 +100,7 @@ describe('redactSensitive', () => {
     };
     const result = redactSensitive(input) as Record<string, unknown>;
     expect(result['model']).toBe('deepseek-flash');
-    expect((result['credentials'] as Record<string, unknown>)['apiKey']).toBe('[REDACTED]');
-    expect((result['credentials'] as Record<string, unknown>)['baseUrl']).toBe(
-      'https://api.example.com',
-    );
+    expect(result['credentials']).toBe('[REDACTED]');
     expect((input.credentials as { apiKey: string }).apiKey).toBe('sk-secret');
   });
 
@@ -152,11 +149,8 @@ describe('exportDiagnosticsPackage', () => {
     const settings = JSON.parse(zip.readAsText('settings.json')) as Record<string, unknown>;
     expect(settings['theme']).toBe('dark');
     expect(settings['model']).toBe('deepseek-flash');
-    expect((settings['credentials'] as { apiKey: string }).apiKey).toBe('[REDACTED]');
-    expect((settings['credentials'] as { baseUrl: string }).baseUrl).toBe(
-      'https://api.example.com',
-    );
-    expect(settings['tokens']).toEqual(['[REDACTED]', '[REDACTED]']);
+    expect(settings['credentials']).toBe('[REDACTED]');
+    expect(settings['tokens']).toBe('[REDACTED]');
   });
 
   it('打包：日志目录缺失时降级为空日志段，不抛错', async () => {
