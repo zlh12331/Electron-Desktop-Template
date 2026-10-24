@@ -2,7 +2,7 @@
 // NSIS 生命周期的纯路径/参数层；运行时安装、启动、卸载在 nsis.ts。
 
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { win32 } from 'node:path';
 
 /**
  * 校验 NSIS 相关路径不含空白
@@ -37,7 +37,8 @@ export function nsisInstallArgs(installDir: string): string[] {
  * @param productName 产品名
  */
 export function installedExePath(installDir: string, productName: string): string {
-  return join(installDir, `${productName}.exe`);
+  // NSIS 只跑 Windows；显式 win32.join，避免测试/门禁在 Linux runner 上得到混合分隔符
+  return win32.join(installDir, `${productName}.exe`);
 }
 
 /**
@@ -47,7 +48,7 @@ export function installedExePath(installDir: string, productName: string): strin
  * @param productName 产品名
  */
 export function uninstallerPath(installDir: string, productName: string): string {
-  return join(installDir, `Uninstall ${productName}.exe`);
+  return win32.join(installDir, `Uninstall ${productName}.exe`);
 }
 
 /**

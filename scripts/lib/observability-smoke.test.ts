@@ -1,3 +1,6 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { vi } from 'vitest';
 import { unwrap } from '../../src/renderer/lib/ipc';
 import {
@@ -370,15 +373,15 @@ describe('local smoke isolation', () => {
   });
 
   it('ignores DevTools, blank pages and remote renderer URLs', () => {
-    const rendererIndex = 'F:/TraeProjects/1/out/renderer/index.html';
-    expect(
-      isSmokeMainPage('file:///F:/TraeProjects/1/out/renderer/index.html#/', rendererIndex),
-    ).toBe(true);
+    // 用当前平台的临时路径构造 file URL；硬编码 F:/ 只会在 Windows runner 上通过
+    const rendererIndex = join(tmpdir(), 'smoke-renderer', 'index.html');
+    const otherRenderer = join(tmpdir(), 'other-renderer', 'index.html');
+    expect(isSmokeMainPage(`${pathToFileURL(rendererIndex).href}#/`, rendererIndex)).toBe(true);
     for (const url of [
       'devtools://devtools/bundled/inspector.html',
       'about:blank',
       'https://invalid.example/renderer/index.html',
-      'file:///F:/other/renderer/index.html',
+      pathToFileURL(otherRenderer).href,
     ]) {
       expect(isSmokeMainPage(url, rendererIndex)).toBe(false);
     }
