@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { type InferHandlers, type IPC_DEFINITIONS, SETTING_KEYS } from '@code-agent/shared/main';
 import { app, dialog } from 'electron';
 
-import { setMainLanguage, t } from '../infra/i18n';
+import { DEFAULT_MAIN_LANGUAGE, setMainLanguage, t } from '../infra/i18n';
 import { applyProxyChange } from '../infra/network/proxy-applier';
 import { applySettingsImport, buildSettingsExportFile } from '../infra/storage/settings-io';
 import { deleteSettings, readAllSettings, writeSetting } from '../infra/storage/settings-pref';
@@ -81,6 +81,9 @@ export const settingsHandlers: InferHandlers<
       if (key === 'theme') {
         syncTitleBarOverlayFromTheme(value);
       }
+      if (key === 'language') {
+        setMainLanguage(value);
+      }
       if (key === 'proxy') {
         await applyProxyChange(value);
       }
@@ -93,6 +96,7 @@ export const settingsHandlers: InferHandlers<
     // 按白名单键清空（app_settings 表内其他键如 draft 不动），并重放副作用到默认态
     deleteSettings(SETTING_KEYS);
     syncTitleBarOverlayFromTheme(undefined);
+    setMainLanguage(DEFAULT_MAIN_LANGUAGE);
     await applyProxyChange(undefined);
     logger.info({}, '设置已全部恢复默认（app_settings 设置键已清空）');
     return { settings: {} };

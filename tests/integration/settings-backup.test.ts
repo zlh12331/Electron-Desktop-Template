@@ -1,17 +1,19 @@
 // settings-backup.test.ts：模板底座集成链路——settings 写穿透往返 + 备份创建/列举
 // 真实协作：真实 SQLite（临时 userData）、真实 settings-pref/backup-store；
 // 仅 Electron SDK 由 setup.ts 替身（与其余集成用例同一边界）。
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { SETTINGS_EXPORT_VERSION } from '@code-agent/shared/main';
 import Database from 'better-sqlite3';
 import { describe, expect, it } from 'vitest';
 
+import { getMainLanguage } from '../../src/main/infra/i18n';
 import { closeDb, getDbPath, initDb, resetDb } from '../../src/main/infra/storage/db';
-import { readSetting } from '../../src/main/infra/storage/settings-pref';
+import { readAllSettings, readSetting } from '../../src/main/infra/storage/settings-pref';
 import { backupHandlers } from '../../src/main/ipc/backup.handler';
 import { settingsHandlers } from '../../src/main/ipc/settings.handler';
-import { withTempUserData } from './helpers/with-db';
+import { setOpenDialogResult, withTempUserData } from './helpers/with-db';
 
 /** handler 的第二参（traceId/sender）——本链路不推送事件，空对象即可 */
 const EMPTY_CTX = {} as never;
@@ -35,6 +37,37 @@ describe('settings 域写入 → 读取往返（真实 SQLite）', () => {
 
       const { settings } = await settingsHandlers.getAll({}, EMPTY_CTX);
       expect(settings).toEqual({});
+    });
+  });
+});
+
+describe('设置导入/重置的主进程语言同步', () => {
+  it('导入 language 后主进程 i18n 跟随，重置回默认语言', async () => {
+    await withTempUserData(async () => {
+      const dir = mkdtempSync(join(tmpdir(), 'settings-import-'));
+      const file = join(dir, 'settings.json');
+      writeFileSync(
+        file,
+        JSON.stringify({
+          version: SETTINGS_EXPORT_VERSION,
+          exportedAt: Date.now(),
+          settings: { language: 'en', theme: 'light' },
+        }),
+        'utf8',
+      );
+      setOpenDialogResult({ canceled: false, filePaths: [file] });
+      try {
+        const outcome = await settingsHandlers.importSettings(undefined, EMPTY_CTX);
+        expect(outcome.imported).toBe(2);
+        expect(getMainLanguage()).toBe('en');
+
+        await settingsHandlers.resetAll({}, EMPTY_CTX);
+        expect(getMainLanguage()).toBe('zh-CN');
+        expect(readAllSettings()).toEqual({});
+      } finally {
+        setOpenDialogResult({ canceled: true });
+        rmSync(dir, { recursive: true, force: true });
+      }
     });
   });
 });
