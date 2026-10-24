@@ -47,9 +47,9 @@
 
 ## 三、错误上报、Sentry 与 OTel
 
-- **error-report**（`src/main/utils/error-report.ts` / `src/renderer/lib/error-report.ts`）：异常单一出口，先落本地日志（渲染层经 electron-log 转发主进程，随诊断包导出并做导出期脱敏），再交可选后端。
+- **error-report**（`src/main/utils/error-report.ts` / `src/renderer/lib/error-report.ts`）：异常单一出口，先落本地日志（渲染层经 electron-log 转发主进程，随诊断包导出并做导出期脱敏），再交可选后端。主进程 `reportError` 支持 `message`（本地日志正文）与 `fields`（仅本地的排障字段）；`tags` 才进入 Sentry，避免路径等细节外发。
 - **Sentry**（`@sentry/electron/main`）：主进程错误聚合、原生崩溃与 release health；DSN 未配置时完整 no-op。渲染层错误经 `telemetry:captureError` IPC 转发（渲染层不引入 Sentry SDK），报障深链仍指向 GitHub Issue。
-- **OTel**（@opentelemetry/*）：trace（IPC/启动/更新检查）+ metrics（RED、漏斗、资源、Web Vitals）+ logs（主进程结构化日志）；未配置 OTLP 端点时打包版不外发，dev 仅 Console trace。
+- **OTel**（@opentelemetry/*）：trace（IPC/启动/更新检查与下载）+ metrics（RED、漏斗、资源、Web Vitals）+ logs（主进程结构化日志）；未配置 OTLP 端点时打包版不外发，dev 仅 Console trace。
 - 三者的级别语义、脱敏边界与指标清单见 [23 可观测性规范](23-otel-spec.md)。
 
 ## 四、渲染层错误 UI 约定

@@ -146,8 +146,8 @@ pnpm build              # 需要 out/main + out/renderer
 pnpm observability:smoke
 ```
 
-该脚本启动真实 Electron，指向本机临时 OTLP 接收器，断言 traces/metrics/logs 各至少到达 1 次；
-失败会打印各信号计数并以非零退出。
+该脚本启动真实 Electron，指向本机临时 OTLP 接收器，断言 traces/metrics/logs 各至少到达 1 次，
+并检查 `db.init` / `window.create` span 与 `app.db.recovery` 指标出现在原始载荷中；失败会打印各信号计数并以非零退出。
 
 ## 四、Sentry（可选）
 
@@ -198,12 +198,13 @@ id/指标名/阈值并确认本表覆盖全部 id。改阈值时同步 JSON、�
 | `startup-p95` | 启动耗时 | `app.startup.duration{phase="window"}` p95 | ≤3s（1h） | p95 >5s 15m → warning |
 | `update-check-failure` | 更新检查失败率 | `app.update.events{phase="error"}` / 总数 | ≤2%（24h） | 失败率 >5% 1h → warning |
 | `update-download-p95` | 下载耗时 | `app.update.download.duration` p95 | ≤10s（24h，按包体调整） | >30s 1h → warning |
+| `db-backup-success` | 数据库备份成功率 | `app.db.backup{outcome="success"}` / 总数 | ≥99%（24h） | 错误率 >5% 1h → warning |
 | `event-loop-p99` | 事件循环 p99 | `nodejs.eventloop.delay` p99 | ≤200ms | >1s 5m → warning；>2s 5m → critical |
 | `web-vitals-lcp` | LCP | `web_vitals.lcp` p75 | ≤2.5s（24h） | >4s 30m → warning |
 | `web-vitals-inp` | INP | `web_vitals.inp` p75 | ≤200ms（24h） | >500ms 30m → warning |
 | `web-vitals-cls` | CLS | `web_vitals.cls` p75 | ≤0.1（24h） | >0.25 30m → warning |
 
-`nodejs.memory.growth` 是观察指标（单次增长告警），不纳入 SLO 表。
+`nodejs.memory.growth`、`app.db.recovery`、`app.db.backup.duration`、`app.renderer.crashes` 是观察指标，不纳入 SLO 表。
 
 SigNoz 配置路径（以当前 UI 为准）：
 
@@ -265,11 +266,12 @@ SigNoz 配置路径（以当前 UI 为准）：
 ### 8.1 配置治理补验（2026-10-24）
 
 - `pnpm check:observability-config` 通过：21 个变量在注册表、代码、`.env.example`、本手册与 CI 一致。
-- `pnpm check:observability-slo` 通过：10 条 SLO 定义合法且本手册覆盖全部 id。
+- `pnpm check:observability-slo` 通过：11 条 SLO 定义合法且本手册覆盖全部 id。
 - `pnpm observability:doctor --offline` 通过；`SENTRY_AUTH_TOKEN` 半配置时
   `pnpm observability:doctor --release --offline` 按预期 fail。
 - `pnpm observability:smoke`（真实 Electron + 本地 OTLP 接收器）通过：traces/metrics/logs
-  各至少 1 次到达；同时验证 `telemetry:getStatus` 与 `telemetry:testConnection` IPC 正常。
+  各至少 1 次到达，启动 span 与 DB 恢复指标已在载荷中；同时验证 `telemetry:getStatus` 与
+  `telemetry:testConnection` IPC 正常。
 - 设置页状态卡/连接测试由组件测试覆盖（`telemetry-status-card.test.tsx`）。
 
 ### 8.2 验证后清理

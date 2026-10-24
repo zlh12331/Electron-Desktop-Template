@@ -12,7 +12,7 @@
 |---|---|---|---|
 | 本地日志 | electron-log | 逐条事件、错误详情、崩溃前最后证据 | 始终写平台日志目录：Windows/Linux `userData/logs/main.log`，macOS `~/Library/Logs/<appName>/main.log` |
 | 错误聚合 / 崩溃 | Sentry（`@sentry/electron/main`） | 异常分组、release health、原生 minidump、告警 | 未配置 DSN 完整 no-op |
-| Trace | OpenTelemetry（OTLP/HTTP） | IPC、启动、更新检查的调用链 | 未配置端点且打包版 → no-op；dev 无端点 → Console trace |
+| Trace | OpenTelemetry（OTLP/HTTP） | IPC、启动、更新检查/下载的调用链 | 未配置端点且打包版 → no-op；dev 无端点 → Console trace |
 | Metrics | OpenTelemetry（OTLP/HTTP） | IPC RED、启动耗时、更新漏斗、内存/事件循环、Web Vitals | 仅 `full` 且配置端点 |
 | Logs（结构化） | OpenTelemetry（OTLP/HTTP） | 主进程 warn/error/info 日志进后端，支持按 traceId/属性检索 | `full` 默认 info；`error-only` 只导出 error |
 | 诊断包 | adm-zip | 离线排障：manifest + 脱敏设置 + 脱敏日志 + 运行时/可观测性快照 | 用户手动导出 |
@@ -100,12 +100,13 @@
 
 ### 4.2 Trace 约定
 
-命名：`<domain>.<operation>`，IPC 固定为 `ipc {channel}`；更新检查为 `update.check`。
+命名：`<domain>.<operation>`，IPC 固定为 `ipc {channel}`；启动期为 `db.init` / `window.create`；更新为 `update.check` / `update.download`。
 
 属性只放低基数、非敏感字段：
 
 - IPC span：`rpc.system=electron-ipc`、`rpc.method=<channel>`、`app.trace_id=<preload 生成的 UUID>`。
-- 更新检查：`trigger=launch|manual`、`app.version`。
+- 更新检查：`trigger=launch|manual`、`app.version`；更新下载：`app.version`。
+- 启动 span 不带属性；启动期日志在 span 活跃期间自动继承 trace/span 上下文。
 - 禁止入参 payload、prompt 全文、命令全文、凭据/Token；高频流式事件不建 span。
 
 `withSpan(name, attributes, fn, isError?)` 在未初始化时由 OTel API 提供 no-op tracer；`isError` 用于把「已转成错误响应」的 IPC 校验失败也标成 ERROR 状态。
@@ -122,6 +123,10 @@
 | `app.update.download.duration` | Histogram(ms) | `outcome` | `update-service.ts` |
 | `nodejs.eventloop.delay` | Histogram(ms) | — | `index.ts`（5s p99） |
 | `nodejs.memory.growth` | Histogram(MB) | `window`（秒） | 内存监控告警时 |
+| `app.db.recovery` | Counter | `outcome=healthy/restored/rebuilt` | `db.ts`（每次启动记 healthy，作恢复率分母） |
+| `app.db.backup` | Counter | `outcome=success/error` | `db.ts`（启动/手动备份） |
+| `app.db.backup.duration` | Histogram(ms) | `outcome` | `db.ts` |
+| `app.renderer.crashes` | Counter | `reason`（固定值域，未知归 unknown） | `window.ts` |
 | `process.memory.usage` | ObservableGauge(By) | `state=rss/heap_used/...` | 采集时读取 |
 | `electron.process.memory` / `.cpu` | ObservableGauge | `process.type`, `process.name` | `app.getAppMetrics()` |
 | `web_vitals.{lcp,fcp,inp,ttfb,cls}` | Histogram | `rating`, `navigation.type` | 渲染层 `web-vitals` |
@@ -153,7 +158,7 @@
 - 优先级：运行时 env > 构建期 `__SENTRY_DSN__` > 代码默认值；遥测级别由 `telemetry-pref.json` 提供。
 - `pnpm check:observability-config`：校验注册表 ↔ 代码 ↔ `.env.example` ↔ 运行手册 ↔ CI 无未知/缺失变量。
 - `pnpm observability:doctor`：打印脱敏生效配置、校验格式、可选 OTLP 真实探测；`--release --offline` 用于发布前半配置断言。
-- `pnpm observability:smoke`：启动真实 Electron + 本地 OTLP 接收器，断言 traces/metrics/logs 均能到达。
+- `pnpm observability:smoke`：启动真实 Electron + 本地 OTLP 接收器，断言 traces/metrics/logs 均能到达，并检查 `db.init` / `window.create` span 与 `app.db.recovery` 指标出现在原始载荷中。
 - SLO/告警定义在 `observability/slo.json`，`pnpm check:observability-slo` 校验指标名与运行手册覆盖。
 - 设置页「遥测」区块展示 Sentry/OTel 状态、导出健康与「测试连接」；OTLP 发空载荷探测，Sentry 只校验 DSN 结构。
 
@@ -168,7 +173,23 @@
 
 排障顺序：本地日志（traceId）→ 诊断包 → Sentry issue（有 DSN）→ SigNoz trace/metrics/logs（有端点）。
 
-## 六、已知边界
+## 六、应用覆盖矩阵
+
+所有渲染层 → 主进程的 invoke 都经 `wrap.ts`，自动获得 span、请求计数/耗时、开始/成功/失败日志与异常上报，下表各业务域不再重复列这一层。
+
+| 域 | Trace | Metrics | Logs | 错误聚合（Sentry） |
+|---|---|---|---|---|
+| IPC | `ipc {channel}` | `ipc.server.requests` / `.duration` | 带 traceId/channel/duration | `wrap` 统一 `reportError` |
+| 启动 | `db.init` / `window.create` | `app.startup.duration` | 生命周期事件 | 早期未捕获异常 / 崩溃标记 |
+| 更新 | `update.check` / `update.download` | events / check / download | 检查、下载、安装事件 | 下载失败；检查失败只记指标+日志（网络噪声） |
+| 数据库 | 启动/IPC 父 span | recovery / backup / backup.duration | 自愈、迁移、备份、恢复 | 损坏、打开/迁移失败、备份失败 |
+| 凭据 | IPC 父 span | — | 加密不可用、损坏抢救 | 损坏抢救（含 salvaged/lost） |
+| 代理 / 自启 / 托盘 | IPC 父 span | — | 配置应用、写自启、托盘动作 | 分区代理设置失败；其余经 IPC 抛错时由 wrap 上报 |
+| 窗口 | 启动 `window.create` | `app.renderer.crashes` | 崩溃自愈、关窗行为 | 渲染进程崩溃 |
+| 渲染层 | 错误带 route/traceId（经 IPC） | `web_vitals.*` | 仅错误转发（无通用日志） | 三层错误边界 + 全局兜底 |
+| 诊断包 | IPC 父 span | — | 导出完成/失败 | 抛错由 wrap 上报 |
+
+## 七、已知边界
 
 1. 渲染层没有通用 OTel trace/log（只有错误转发与 Web Vitals）；这是为了不把 SDK/DSN 带进渲染层与 CSP。
 2. 不包含产品分析（PostHog/OpenFeature/A-B 实验）与业务事件漏斗；需要时另立域并单独评审隐私。
@@ -176,7 +197,7 @@
 4. 原生崩溃符号化依赖可选 debug files 上传；未上传时仍能收到 minidump 与模块/偏移信息。
 5. 本地日志写入时不做值级脱敏（保留排障细节），只在诊断包导出、Sentry beforeSend、OTel 导出三处脱敏；不要把密钥写进日志。
 
-## 七、检查清单
+## 八、检查清单
 
 - [ ] 新 span/metric 遵守命名与低基数属性；指标名走 `packages/shared/src/observability/metrics.ts`
 - [ ] 新错误路径走 `error-report`，不要直接 `Sentry.capture*`
