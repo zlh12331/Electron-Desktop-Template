@@ -14,7 +14,7 @@ Electron main ── Sentry(HTTPS) ───────────────
       ├── OTLP/HTTP :4318 ──► OTel Collector ──► SigNoz ClickHouse
       │     traces / metrics / logs
       │
-      └── electron-log ──► userData/logs/main.log（本地兜底，导出诊断包时脱敏）
+      └── electron-log ──► 平台日志目录/main.log（Win/Linux userData/logs，macOS ~/Library/Logs/<app>；导出诊断包时脱敏）
 
 Electron renderer ── telemetry:captureError / reportWebVitals ──► main（不直连后端）
 ```

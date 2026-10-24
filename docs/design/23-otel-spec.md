@@ -10,7 +10,7 @@
 
 | 信号 | 实现 | 职责 | 默认行为 |
 |---|---|---|---|
-| 本地日志 | electron-log | 逐条事件、错误详情、崩溃前最后证据 | 始终写 `userData/logs/main.log` |
+| 本地日志 | electron-log | 逐条事件、错误详情、崩溃前最后证据 | 始终写平台日志目录：Windows/Linux `userData/logs/main.log`，macOS `~/Library/Logs/<appName>/main.log` |
 | 错误聚合 / 崩溃 | Sentry（`@sentry/electron/main`） | 异常分组、release health、原生 minidump、告警 | 未配置 DSN 完整 no-op |
 | Trace | OpenTelemetry（OTLP/HTTP） | IPC、启动、更新检查的调用链 | 未配置端点且打包版 → no-op；dev 无端点 → Console trace |
 | Metrics | OpenTelemetry（OTLP/HTTP） | IPC RED、启动耗时、更新漏斗、内存/事件循环、Web Vitals | 仅 `full` 且配置端点 |
@@ -163,7 +163,7 @@
 
 - `manifest.json`：应用/运行时版本、平台、导出时间；
 - `settings.json`：设置快照（`redactSensitive`）；
-- `logs/*.log`：日志尾部（单文件 8MB，`redactText`）；
+- `logs/*.log`：从 `app.getPath('logs')` 收集（Windows/Linux 为 `userData/logs`，macOS 为 `~/Library/Logs/<appName>`），单文件只取尾部 8MB 并过 `redactText`；
 - `runtime.json`：自启、窗口状态、`observability` 快照（级别、OTel 各信号启用态、Sentry release/environment/reason、管道健康/丢弃计数；**不含 DSN/端点/请求头**）。
 
 排障顺序：本地日志（traceId）→ 诊断包 → Sentry issue（有 DSN）→ SigNoz trace/metrics/logs（有端点）。
