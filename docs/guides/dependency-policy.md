@@ -8,7 +8,7 @@
 
 | 组件                     | 口径                                                       | 真源                             |
 | ------------------------ | ---------------------------------------------------------- | -------------------------------- |
-| Node.js                  | **26 LTS**（当前 `.nvmrc` 26.8.1；`engines.node >=26`）    | `package.json` / `.nvmrc` / CI   |
+| Node.js                  | **26 LTS**（当前 `.nvmrc` 26.12.1；`engines.node >=26`）   | `package.json` / `.nvmrc` / CI   |
 | pnpm                     | 12.x（`packageManager` 固定 12.15.0；`engines.pnpm >=12`） | `package.json`                   |
 | Electron                 | 44.x（当前 44.9.3；major 人工评审）                        | `package.json` / `renovate.json` |
 | TypeScript               | 根工程 7.x；`tools/*` 工具子包固定 6.x                     | `package.json` / `tools/*`       |
