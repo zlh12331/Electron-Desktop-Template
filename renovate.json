@@ -40,6 +40,13 @@
       "enabled": false
     },
     {
+      "description": "tools 工具子包固定在 TypeScript 6.x：TypeDoc 0.28 的 peer 仅到 6.x，dependency-cruiser 同样未兼容 TS 7（根工程已是 TS 7）",
+      "matchFileNames": ["tools/typedoc/package.json", "tools/depcruise/package.json"],
+      "matchPackageNames": ["typescript"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
       "description": "react-query 与 devtools 对等口径：双包必须同 PR 同版本升级（devtools peer 绑定 react-query 主版本，错峰单独升级会破坏 peer 约束）",
       "matchPackageNames": ["@tanstack/react-query", "@tanstack/react-query-devtools"],
       "groupName": "tanstack react-query pair",
