@@ -1,7 +1,7 @@
 # 21 · 前端状态管理规范（四层架构）
 
 > 基于模板当前实现：React Compiler + Zustand 5 + TanStack Query 5 + IPC 事件流。
-> 最后同步：2026-10-22（模板版：示例改为当前 store / 查询）
+> 最后同步：2026-10-24（标注 invalidation 扩展点暂无生产发送方）
 
 ---
 
@@ -37,6 +37,9 @@
 ## 四、缓存失效
 
 主进程写路径声明受影响域 → `invalidation:event:domains` → `use-invalidation-bridge` 按域前缀失效 L3 缓存。域词表 `INVALIDATION_DOMAINS` 是主进程与渲染层的共同真源，禁止散写字面量。详见 [data-ownership.md](data-ownership.md)。
+
+> 模板内暂无生产发送方：接入业务写路径时调用 `broadcastInvalidation(domains)`；
+> 保留该骨架是为了让“写路径声明失效域”的模式不靠临时设计。
 
 ## 五、检查清单
 

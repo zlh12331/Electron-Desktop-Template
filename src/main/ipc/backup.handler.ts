@@ -6,7 +6,7 @@ import { createManualBackup, getDbPath } from '../infra/storage/db';
 import { logger } from '../utils/logger';
 import type { IpcHandlerContext } from './wrap';
 
-/** 备份域 handler（无业务依赖：模板版没有「运行中回合」前置校验） */
+/** 备份域 handler（无业务依赖：模板版没有运行中任务的前置校验） */
 export const backupHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContext>['backup'] = {
   list: async () => {
     return { backups: listBackups(getDbPath()) };

@@ -146,7 +146,7 @@ export function createWindow(): BrowserWindow {
 
   win.on('close', (event) => {
     // 关窗协商：已确认退出 / 善后中 / E2E 豁免 → 放行；macOS 关窗语义是只关窗口（应用留存）
-    // 非 macOS 按 closeAction 分流：minimize → 隐藏到托盘；quit → 运行中回合弹确认
+    // 非 macOS 按 closeAction 分流：minimize → 隐藏到托盘；quit → 继续关闭并由 before-quit 善后
     if (isQuitting() || isCloseConfirmed() || process.env['APP_SKIP_CLOSE_GUARD'] === '1') {
       return;
     }

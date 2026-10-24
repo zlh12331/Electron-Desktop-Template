@@ -1,4 +1,4 @@
-// deep-link.ts：code-agent:// 协议解析与分发——注册系统协议客户端、解析会话深链、向渲染层广播
+// deep-link.ts：code-agent:// 协议解析与分发——注册系统协议客户端、解析深链（/session/<id> 为示例实体路径）、向渲染层广播
 // 边界：不做窗口管理；scheme 常量须与 electron-builder.yml 的 protocol 配置保持一致
 import type { DeepLinkPayload } from '@code-agent/shared/main';
 
@@ -37,7 +37,7 @@ export function extractProtocolUrl(argv: readonly string[]): string | null {
 }
 
 /**
- * 向所有存活窗口广播深链事件（托盘「打开会话」复用同一通道）
+ * 向所有存活窗口广播深链事件（接入业务后可复用同一通道做实体导航）
  */
 export function broadcastDeepLink(payload: DeepLinkPayload): void {
   const channel = IPC_CHANNELS['APP_EVENT_DEEP_LINK'];

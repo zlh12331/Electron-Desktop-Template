@@ -88,6 +88,10 @@ channels.ts（IPC_CHANNELS 常量由 deriveChannels(meta) 生成，as const 字�
 `app / window / backup / settings / proxy / secrets / system / logs / telemetry / devtools / dialog / invalidation / update`。
 共 41 个 request 通道 + 5 个 event 通道（2026-10-24 实测）；方法数以 meta.ts 为唯一真源。
 
+> **扩展点说明（模板内暂无生产消费方）**：`invalidation:event:domains` 尚无生产发送方；
+> `logs:read` 与 `dialog:pickDirectory` 尚无 UI 消费方。三者保留为业务接入骨架，
+> 契约与测试已就绪，接入方按约定接线即可，不视为“开箱即用”的现成界面能力。
+
 ## 3. Preload 桥（`src/preload/`）
 
 - `index.ts`：`createIpcApi(IPC_META)` 自动生成 `window.api`，`contextBridge.exposeInMainWorld('api', api)`。

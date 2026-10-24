@@ -145,7 +145,7 @@ function updateTrayPresentation(): void {
   tray.setToolTip(name);
 }
 
-// 每次右键实时重建菜单：回合状态/更新进度/最近会话都是易变状态，缓存模板会展示过期数据
+// 每次右键实时重建菜单：更新进度/自启/关窗行为都是易变状态，缓存模板会展示过期数据
 async function popUpMenu(): Promise<void> {
   const d = deps;
   const t = tray;

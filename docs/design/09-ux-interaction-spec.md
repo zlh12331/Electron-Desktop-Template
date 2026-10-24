@@ -92,7 +92,7 @@ flowchart LR
 - 通道命名：`域:动作`（请求）、`域:stream:事件`（流式）、`域:event:名称`（状态事件）；全表见 [19-ipc-spec.md](19-ipc-spec.md)
 - 错误约定：返回 `{ data } | { error: { code, message } }`，渲染层统一 `unwrap()`（`lib/ipc.ts`）按 code 查 i18n
 
-## 二、UI 设计体系（TraeWork）
+## 二、UI 设计体系（Template）
 
 唯一真源：`src/renderer/styles/tokens.css`（CSS 变量）+ `styles/index.css`（`@import` 各域 + `@theme`）。原则：**所有颜色/尺寸走 CSS 变量（令牌），禁止硬编码**。
 

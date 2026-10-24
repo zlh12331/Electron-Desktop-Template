@@ -42,7 +42,7 @@ export const IPC_META = {
     // 开机自启：读写 OS 登录项而非 SQLite 设置——托盘菜单与设置页必须同源
     getLoginItemSettings: request('app:getLoginItemSettings'),
     setLoginItemSettings: request('app:setLoginItemSettings'),
-    // 退出应用：交给 app.quit 走完整善后链（关窗协商 → dispose 把残留 running 回合标 interrupted）
+    // 退出应用：交给 app.quit 走完整善后链（dispose 服务 → flush 遥测/日志）
     quit: request('app:quit'),
     // 深链接事件：code-agent:// 协议唤起时主进程广播，渲染层据此导航
     subscribeDeepLink: event('app:event:deepLink'),

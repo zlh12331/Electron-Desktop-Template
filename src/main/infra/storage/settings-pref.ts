@@ -39,7 +39,7 @@ export function readSetting(key: string): unknown {
   }
 }
 
-// 单值 256KB 上限：设置表不承载大对象（会话正文有专门的表），超限直接拒写
+// 单值 256KB 上限：设置表只承载配置，不承载大对象；超限直接拒写
 const MAX_SETTING_VALUE_CHARS = 256 * 1024;
 
 /** 写单个设置（upsert） */

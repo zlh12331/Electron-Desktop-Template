@@ -1,7 +1,7 @@
 # 17 · 安全规范（Electron 生产级基线）
 
 > 对齐 Electron 官方安全清单与 OWASP 桌面应用实践，按模板当前实现（sandbox / CSP / safeStorage / zod / fuses）制定。
-> 最后同步：2026-10-23（补充初始化时的 CSP 哈希同步）
+> 最后同步：2026-10-24（补充代理凭据例外与 Action pin 策略）
 
 ---
 > 🔒 工程化强制：`check:csp-hash`（CSP 内联哈希）+ `check:secrets-git`（pre-push / CI）+ `check:secrets`（全仓自查）+ `check:devtools`（产物不含 devtools）
@@ -30,13 +30,14 @@
    - pre-push 与 CI：`pnpm check:secrets-git`（只扫待推送区间；未安装即失败）
    - 手动排查：`pnpm check:secrets`（`gitleaks dir .`，含未提交内容与本地缓存）
    - ⚠️ **不要删除 `useDefault`**：gitleaks 一旦找到配置文件就替代默认规则集，缺这一行等于规则数归零、三道闸门全部静默空转（2026-09-22 实测修复）。
-4. **`.env`**：仅主进程 `process.loadEnvFile()` 在 whenReady 前加载；文件不入仓。
-5. **测试密钥**：用显式 fake 值（`fake-token` 风格）；日志禁止输出密钥（只记掩码 / 存在性）。
+4. **代理凭据的显式例外**：为保持 `setProxy` 的同步语义，代理 URL 内嵌的用户名/密码随 `app_settings` 明文入库（历史设计 D5）。设置导出会原样写出该 URL，导出前 UI 会二次确认提示；诊断包按 URL 凭据脱敏。高敏感场景应改用系统代理，或后续把代理凭据迁入 keychain。
+5. **`.env`**：仅主进程 `process.loadEnvFile()` 在 whenReady 前加载；文件不入仓。
+6. **测试密钥**：用显式 fake 值（`fake-token` 风格）；日志禁止输出密钥（只记掩码 / 存在性）。
 
 ## 四、输入验证与文件访问
 
 1. **IPC**：所有入参过 zod（定义表单一真源，`register.ts` 统一 wrap），响应契约同样校验。
-2. **文件路径**：用户经系统对话框选中的路径写入 `infra/file/user-grants.ts`（realpath 规范化 + LRU 200 条）；业务读取用户文件前查询 `isUserGrantedRead`，不自行拼接路径。
+2. **文件路径**：`dialog:pickFiles` 选中的**文件**写入 `infra/file/user-grants.ts`（realpath 规范化 + LRU 200 条）；`dialog:pickDirectory` 只返回目录路径、不登记授权（目录粒度会放大到其下全部文件）。业务读取用户文件前查询 `isUserGrantedRead`，不自行拼接路径。
 3. **SQL**：Drizzle 绑定参数，禁止字符串拼接（18-data-layer-spec）。
 4. **外部数据**：设置导入文件先过版本与白名单，再逐键过值级 zod schema；任一白名单键的值非法则整批拒绝、库零写入；白名单外字段丢弃。
 
@@ -57,6 +58,7 @@
 - 版本更新主轨 = Renovate（`renovate.json`：周末批次、非 major 合并、electron major 人工评审、`minimumReleaseAge`）。
 - Dependabot 只保留**安全更新**（`open-pull-requests-limit: 0`），避免与 Renovate 双轨重复 PR。
 - pnpm 安装侧发布年龄闸（`minimumReleaseAge: 1440`）拦截「发布不足 24h」的版本，防依赖投毒。
+- GitHub Actions 第三方 action 统一 pin 到 commit SHA（注释保留版本号），由 Renovate 的 `helpers:pinGitHubActionDigests` 维护 digest；发布工作流权限最高，不允许 tag 浮动。
 
 ## 八、检查清单
 

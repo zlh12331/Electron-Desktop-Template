@@ -20,7 +20,7 @@
 
 ### 1.2 项目语义令牌保证
 
-- 全部颜色走 TraeWork 语义令牌（`--background` / `--foreground` / `--muted` / `--muted-foreground` / `--accent` 等），双主题各自保证对比：**新增/修改令牌时必须校验双主题对比度**，禁止引入低于门槛的派生色（检查清单见 §五）
+- 全部颜色走 Template 语义令牌（`--background` / `--foreground` / `--muted` / `--muted-foreground` / `--accent` 等），双主题各自保证对比：**新增/修改令牌时必须校验双主题对比度**，禁止引入低于门槛的派生色（检查清单见 §五）
 - 文本色禁止单独使用 `text-muted-foreground` 承载关键信息（如错误提示需配合 `text-[var(--error)]` 或图标）
 - 已知语义映射：徽章文字走「可读前景 + 可读底」组合。中性徽章用 `bg-muted text-muted-foreground`；错误徽章用 `bg-destructive text-destructive-foreground`。**不要用 `bg-error-text/10 text-error-text` 一类同色半透明底**——实测双主题均低于 4.5:1（暗色 4.42 / 亮色 4.42）
 
@@ -61,7 +61,7 @@
 
 - 复杂交互组件必须基于 Radix 原语（Dialog / DropdownMenu / Tabs / Tooltip / AlertDialog / Select / Switch）——键盘导航与 ARIA 内置（10-component-design-spec 原则 ①）
 - 自研交互组件必须显式 `role` + 状态属性（如 `role="switch"` + `aria-checked`）
-- 模板入口约定：设置导航 `role="tablist"`、命令面板使用 cmdk 的 listbox 语义、每条导航/命令有可读名称
+- 模板入口约定：设置导航 `role="tablist"` + roving tabindex + `aria-controls`/`tabpanel`；命令面板打开时背景 `inert`、Tab 在面板内循环、关闭后焦点回到触发器；cmdk 负责 listbox 语义，每条导航/命令有可读名称
 
 ## 五、新功能/组件 a11y 检查清单
 

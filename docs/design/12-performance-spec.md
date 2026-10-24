@@ -18,10 +18,10 @@
 
 | 指标 | 门槛 | 当前实测 | 说明 |
 |---|---|---|---|
-| 单个 chunk | ≤ 5120 KB | 1110 KB（SettingsDialog） | 路由级 lazy 已把页面拆出主包 |
-| 渲染层总包（JS 合计） | ≤ 16384 KB | 3343 KB | 20 个 chunk |
-| 首载同步体积 | ≤ 3072 KB | 2122 KB | `index.html` 的 script/modulepreload 合计，即 Electron 首帧必须下载的 JS |
-| 主进程 bundle | 告警线 5120 KB | 561 KB | 只告警不卡关 |
+| 单个 chunk | ≤ 5120 KB | 1138 KB（SettingsDialog） | 路由级 lazy 已把页面拆出主包 |
+| 渲染层总包（JS 合计） | ≤ 16384 KB | 3348 KB | 20 个 chunk |
+| 首载同步体积 | ≤ 3072 KB | 2123 KB | `index.html` 的 script/modulepreload 合计，即 Electron 首帧必须下载的 JS |
+| 主进程 bundle | 告警线 5120 KB | 563 KB | 只告警不卡关 |
 
 门槛写在 `scripts/check-bundle.ts` 顶部的三个常量里，改门槛需同步改本节。
 
@@ -85,6 +85,7 @@
 | 层 | 命令 | 卡关位置 |
 |---|---|---|
 | 构建产物体积 | `pnpm check:bundle` | `verify:local:full` |
+| 生产启动到可交互 | `pnpm test:smoke`（`smoke.prod.spec.ts`，<10s） | CD smoke |
 | React Compiler 生效 | `pnpm check:compiler` | 同上 |
 | React DevTools 可注入 | `pnpm check:devtools` | 同上 |
 | 死代码 / 死依赖 | `pnpm knip` | CI quality |
@@ -105,7 +106,7 @@ pnpm preview          # 启动构建产物，配合 DevTools Performance 面板�
 
 ### 4.3 接入业务后的建议
 
-模板本身没有性能基准套件。接入业务时按需补：
+模板的自动预算只有 bundle 体积与生产启动 <10s；**没有 FCP/LCP/INP 硬门槛，也没有 visual regression 基线**（共享 CI runner 抖动会让这类门槛长期假红）。接入业务时按需补真实用户指标预算：
 
 - **主进程**：SQLite 查询（万级行 + `EXPLAIN` 验证索引命中）、外部进程吞吐
 - **渲染层**：长列表 DOM 规模、滚动长任务、首载 JS 体积趋势

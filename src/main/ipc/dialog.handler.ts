@@ -1,4 +1,5 @@
-// dialog.handler.ts：dialog 域 IPC——目录/文件选择对话框；选中的路径即视为用户授权（入读白名单）
+// dialog.handler.ts：dialog 域 IPC——目录/文件选择对话框；
+// 仅 pickFiles 选中的文件登记读授权（目录选择不授予，避免放大到目录下全部文件）
 import type { InferHandlers, IPC_DEFINITIONS } from '@code-agent/shared/main';
 import { dialog } from 'electron';
 

@@ -1,22 +1,22 @@
 ---
 design_tokens:
-  name: TraeWork Design Tokens
+  name: Template Design Tokens
   version: 1.2.0
-  source: tokens/aurora.json（Style Dictionary，生成 src/renderer/styles/tokens.css；文件名为历史名，内容为 TraeWork）
+  source: tokens/aurora.json（Style Dictionary，生成 src/renderer/styles/tokens.css；文件名为历史名，内容为 Template 设计令牌）
   themes: [light, dark]
   mechanism: css-variables
-  last_synced: 2026-10-09
+  last_synced: 2026-10-24
 ---
 
-# DESIGN.md — TraeWork 设计令牌契约
+# DESIGN.md — Template 设计令牌契约
 
 > 机器可读的设计系统契约（供 design-md-review / design-debt-review 类工具接入）。
 > **单一真源：`tokens/aurora.json`**（Style Dictionary 构建，`pnpm tokens:build` 生成 `src/renderer/styles/tokens.css`；改令牌只改 aurora.json，禁止手改生成物）。
-> **设计系统名：TraeWork**（历史名 Aurora / 「文学风」不得当作现行设计体系；身份规则见下方 §0 身份宪法）。
+> **设计系统名：Template**（历史名 Aurora / 「文学风」不得当作现行设计体系；身份规则见下方 §0 身份宪法）。
 
 > 🔒 工程化强制：pnpm check:tokens（扫描裸色/dark:/space-*/w+h 双写/hex/裸 z-*/文字层/字体栈 CJK 回退，CI 卡关）
 
-## 0. 身份宪法（TraeWork quiet）
+## 0. 身份宪法（Template quiet）
 
 | 条 | 规则 |
 |---|---|
@@ -43,7 +43,7 @@ design_tokens:
 | 主按钮 | `--primary`（暗 `#5D62FF`） | `bg-primary text-primary-foreground` | 按钮实底与品牌强调职责分离 |
 | 遮罩 | `--overlay-bg` / `--overlay-blur` | `--overlay-blur: 8px` | 模态遮罩 |
 | 滚动条 | `--scrollbar-thumb(-hover)` | 双主题 | 滚动条令牌 |
-| 阴影 | `--shadow-modal` / `--shadow-dropdown` / `--shadow-pop` / `--shadow-card(-hover)` | 中性阴影 | TraeWork 无 glow，柔和阴影体系 |
+| 阴影 | `--shadow-modal` / `--shadow-dropdown` / `--shadow-pop` / `--shadow-card(-hover)` | 中性阴影 | Template 无 glow，柔和阴影体系 |
 | 动效 | `--ease-soft/paper/out` + `--duration-fast/state/reveal`（120/200/300ms）+ tw-animate-css | `var(--duration-fast)` | 缓动曲线 + 时长三档与动画关键帧（时长此前散写 7 种已收敛） |
 
 ### 1.1 字体策略（2026-10-09 同步）
@@ -67,7 +67,7 @@ design_tokens:
 
 ## 2. 双主题机制
 
-- 两套定义：`:root`（TraeWork Light）+ `.dark`（TraeWork Dark），通过 `documentElement.classList` 切换（ThemeProvider）
+- 两套定义：`:root`（Template Light）+ `.dark`（Template Dark），通过 `documentElement.classList` 切换（ThemeProvider）
 - **派生色规则**：每个语义色族 = 主色 + 可选 `-dim`（深）/`-soft`（半透明底）/`-glow`（光晕），双主题各自定义
 - **禁止**：组件内 `dark:` 手动覆盖（10-component-design-spec 铁律 ②）；裸 Tailwind 色板值（铁律 ①）
 

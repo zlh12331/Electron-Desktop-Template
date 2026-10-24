@@ -24,8 +24,13 @@ const ROOT = join(import.meta.dirname, '..');
 /** IPC 规范文件（计数与域清单的唯一被检对象） */
 const IPC_SPEC_FILE = 'docs/design/19-ipc-spec.md';
 
-/** 需要校验静态门禁数量的文档 */
-const GATE_COUNT_FILES = ['README.md', 'AGENTS.md'] as const;
+/** 需要校验静态门禁数量的文档（根文档 + CI/本地验证指南；新增计数声明处必须登记） */
+const GATE_COUNT_FILES = [
+  'README.md',
+  'AGENTS.md',
+  'CONTRIBUTING.md',
+  'docs/guides/ci-cd.md',
+] as const;
 
 /** 根级 Markdown（只收集当前文档，不扫 CHANGELOG/历史记录） */
 const ROOT_MARKDOWN = [

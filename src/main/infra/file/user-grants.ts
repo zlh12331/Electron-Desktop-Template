@@ -1,6 +1,6 @@
-// user-grants.ts：用户手动授权读路径登记表——用户经系统对话框亲自选中的文件/目录视为已授权
-// 模板版用途：dialog:pickFiles / pickDirectory 选中的路径写入本表，后续任何模块读这些路径
-// 无需再次确认。业务层（文件读取 / Agent 工具）可查询 isUserGrantedRead。
+// user-grants.ts：用户手动授权读路径登记表——用户经系统对话框亲自选中的**文件**视为已授权
+// 模板版用途：仅 dialog:pickFiles 选中的文件写入本表；pickDirectory 只返回目录路径，
+// 不登记授权（目录粒度会放大到其下全部文件，授权面过大）。业务层可查询 isUserGrantedRead。
 import { realpathSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 

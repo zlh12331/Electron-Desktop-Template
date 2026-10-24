@@ -43,7 +43,7 @@ pnpm verify:local:full  # 追加产物层（构建/体积/编译/两套 E2E/打�
 pnpm check:secrets-git    # 密钥扫描（gitleaks git，扫 <远端 main>..HEAD）
 pnpm typecheck            # tsc --build + tsc -p scripts/tsconfig.json（注意：不是 --noEmit，本项目用 project references）
 pnpm lint                 # biome check .（含格式化与 import 排序）
-pnpm check:static         # 静态审计 16 项（tokens/i18n/注释/tsdoc/文件大小/函数体/复杂度/覆盖率下限/文档/文档脚本表/测试边界/CSP/CSS 变量/动画/UI 一致性/品牌）
+pnpm check:static         # 静态审计 19 项（tokens/i18n/注释/tsdoc/文件大小/函数体/复杂度/覆盖率下限/可观测性配置/可观测性 SLO/文档/文档脚本表/文档契约/测试边界/CSP/CSS 变量/动画/UI 一致性/品牌）
 pnpm tokens:check         # 令牌生成物一致性（tokens/aurora.json ↔ tokens.css）
 pnpm knip                 # 死代码 / 死依赖检测
 pnpm depcruise            # 依赖方向与循环依赖
