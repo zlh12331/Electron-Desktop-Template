@@ -211,7 +211,7 @@ app
 
         lagMonitor = new EventLoopLagMonitor({
           onSample: (sample) => recordEventLoopDelay(sample.lagMs),
-          onLag: (sample) => reportEventLoopLag(sample, () => false),
+          onLag: (sample) => reportEventLoopLag(sample),
         });
         lagMonitor.start();
 
