@@ -157,7 +157,7 @@
     "cmdk": "^1.1.1",
     "cross-env": "^10.1.0",
     "drizzle-kit": "^0.31.11",
-    "electron": "^44.7.0",
+    "electron": "44.9.1",
     "electron-builder": "^26.15.3",
     "electron-devtools-installer": "^4.0.0",
     "electron-vite": "6.0.0",
@@ -218,6 +218,6 @@
     "rehype-sanitize": "^6.0.0",
     "undici": "^8.11.2",
     "web-vitals": "^6.2.3",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   }
 }
