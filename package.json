@@ -110,7 +110,8 @@
     "brand:sync": "node scripts/generate-brand.mjs",
     "check:brand": "tsx scripts/check-brand.ts",
     "check:coverage-scope": "tsx scripts/check-coverage-scope.ts",
-    "check:critical-coverage": "tsx scripts/check-critical-coverage.ts"
+    "check:critical-coverage": "tsx scripts/check-critical-coverage.ts",
+    "test:visual": "cross-env E2E_MODE=true playwright test --config e2e/playwright.visual.config.ts"
   },
   "lint-staged": {
     "{src,scripts,packages,tools,e2e,tests}/**/*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc,css}": [

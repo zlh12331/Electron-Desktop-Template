@@ -13,8 +13,8 @@ export default defineConfig({
   testDir: '.',
   testMatch: '**/*.spec.ts',
   // 排除必须由专属配置运行的用例：electron* 走 _electron fixture（playwright.electron.config.ts）；
-  // smoke.prod 需打包产物，由 playwright.smoke.config.ts 单独运行
-  testIgnore: ['**/electron*.spec.ts', '**/smoke.prod.spec.ts'],
+  // smoke.prod 需打包产物（playwright.smoke.config.ts）；visual 只在 Windows 跑（playwright.visual.config.ts）
+  testIgnore: ['**/electron*.spec.ts', '**/smoke.prod.spec.ts', '**/visual.spec.ts'],
   timeout: 30_000,
   expect: {
     timeout: 5_000,
