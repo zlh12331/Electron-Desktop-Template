@@ -53,7 +53,7 @@ describe('ShortcutsSection', () => {
     ).toBe(true);
     expect(screen.getByText(t('settings.shortcuts.fixedTitle'))).toBeDefined();
     expect(screen.getByText('Ctrl + B')).toBeDefined();
-    expect(screen.getByText('Shift + Enter')).toBeDefined();
+    expect(screen.getByText('Ctrl + 0')).toBeDefined();
     for (const item of [
       t('palette.commandPaletteShortcut'),
       t('common.toggleThemeShortcut'),

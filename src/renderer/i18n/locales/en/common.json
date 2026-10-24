@@ -180,6 +180,7 @@
     "backupRestoreConfirm": "This replaces current data with the backup from {{time}} and restarts the app. Later data will be lost. Restore?",
     "settingsDataHint": "Settings (theme / language / shortcuts / window behavior / proxy / zoom) can be exported for backup or migration. Credentials live in the OS keychain, are machine-bound, and are excluded from the export.",
     "exportSettings": "Export settings",
+    "exportProxyCredentialsWarning": "The current proxy URL embeds a username/password. The exported JSON will contain it in plain text; save it only to a trusted location. Switch to the system proxy or remove the credentials if you do not want them written to disk.",
     "importSettings": "Import settings",
     "importSettingsConfirm": "Importing overwrites current settings that share a key with the file. Continue?",
     "importSettingsDone": "Settings import finished: {{imported}} applied, {{skipped}} skipped",
@@ -293,8 +294,6 @@
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
       "zoomReset": "Reset zoom",
-      "sendMessage": "Send message",
-      "newline": "New line",
       "closeDialog": "Close dialog"
     }
   },

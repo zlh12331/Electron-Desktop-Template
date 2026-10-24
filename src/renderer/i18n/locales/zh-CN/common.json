@@ -180,6 +180,7 @@
     "backupRestoreConfirm": "将用 {{time}} 的备份替换当前数据，应用随后自动重启。之后的数据将丢失，确定恢复？",
     "settingsDataHint": "设置项（主题 / 语言 / 快捷键 / 窗口行为 / 网络代理 / 缩放等）可导出备份或迁移到其他设备；凭据存于系统钥匙串、与本机绑定，不在导出文件内",
     "exportSettings": "导出设置",
+    "exportProxyCredentialsWarning": "当前网络代理地址内嵌了用户名/密码。导出的 JSON 会以明文包含该地址，请只保存到可信位置；如不希望明文落盘，请先改为系统代理或移除代理凭据。",
     "importSettings": "导入设置",
     "importSettingsConfirm": "导入将用文件中的同名设置覆盖当前值。是否继续？",
     "importSettingsDone": "设置导入完成：应用 {{imported}} 项，跳过 {{skipped}} 项",
@@ -293,8 +294,6 @@
       "zoomIn": "界面放大",
       "zoomOut": "界面缩小",
       "zoomReset": "界面缩放重置",
-      "sendMessage": "发送消息",
-      "newline": "换行",
       "closeDialog": "关闭对话框"
     }
   },

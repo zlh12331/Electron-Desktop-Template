@@ -37,8 +37,6 @@ export const FIXED_SHORTCUTS: readonly ShortcutItem[] = [
   { descriptionKey: 'shortcutHelp.item.zoomIn', keys: 'Ctrl + =' },
   { descriptionKey: 'shortcutHelp.item.zoomOut', keys: 'Ctrl + -' },
   { descriptionKey: 'shortcutHelp.item.zoomReset', keys: 'Ctrl + 0' },
-  { descriptionKey: 'shortcutHelp.item.sendMessage', keys: 'Enter' },
-  { descriptionKey: 'shortcutHelp.item.newline', keys: 'Shift + Enter' },
   { descriptionKey: 'shortcutHelp.item.closeDialog', keys: 'Esc' },
 ];
 
