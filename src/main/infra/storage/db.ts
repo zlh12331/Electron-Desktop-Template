@@ -27,48 +27,54 @@ const DB_FILENAME = `${EXECUTABLE_NAME}.db`;
 // SQLite pragma 值：2 = INCREMENTAL（自动空间回收不开全库 VACUUM）
 const AUTO_VACUUM_INCREMENTAL = 2;
 
-// 备份串行化：better-sqlite3 的 backup() 是异步 API，并发备份会互相踩——
-// 已有 pending 时链在其后执行，全程只保留一条备份链尾
-function runBackup(sqlite: Database.Database, dbPath: string): Promise<void> {
-  const run = (): Promise<void> => {
-    const startedAt = performance.now();
-    return createBackupFile(sqlite, dbPath)
-      .then(() => {
-        recordDbBackup('success', performance.now() - startedAt);
-      })
-      .catch((error: unknown) => {
-        cleanupBackupTmpFiles(dbPath);
-        recordDbBackup('error', performance.now() - startedAt);
-        reportError(error, {
-          message: '数据库备份失败',
-          fields: { dbPath },
-          tags: { scope: 'db', stage: 'backup' },
-        });
-      });
-  };
-  const task = pendingBackup !== null ? pendingBackup.then(run, run) : run();
-  pendingBackup = task;
-  return task;
+// 备份串行化：better-sqlite3 的 backup() 是异步 API，启动备份与手动备份并发会互相踩。
+// 所有备份统一排队到同一条链尾；链尾吞掉失败，避免一次备份失败阻断后续备份。
+let backupTail: Promise<void> = Promise.resolve();
+
+function enqueueBackup<T>(task: () => Promise<T>): Promise<T> {
+  const run = backupTail.then(task, task);
+  backupTail = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
 }
 
-/** 手动备份（设置面触发）：先排干挂起备份再执行，防并发 */
-export async function createManualBackup(): Promise<{ readonly name: string }> {
-  if (pendingBackup !== null) {
-    await pendingBackup;
-  }
-  if (sqliteInstance === null) {
-    throw new Error('数据库未初始化，无法备份');
-  }
-  const dbPath = getDbPath();
-  const startedAt = performance.now();
-  try {
-    const name = await createBackupFile(sqliteInstance, dbPath);
-    recordDbBackup('success', performance.now() - startedAt);
-    return { name };
-  } catch (error) {
-    recordDbBackup('error', performance.now() - startedAt);
-    throw error;
-  }
+function runBackup(sqlite: Database.Database, dbPath: string): Promise<void> {
+  return enqueueBackup(async () => {
+    const startedAt = performance.now();
+    try {
+      await createBackupFile(sqlite, dbPath);
+      recordDbBackup('success', performance.now() - startedAt);
+    } catch (error: unknown) {
+      cleanupBackupTmpFiles(dbPath);
+      recordDbBackup('error', performance.now() - startedAt);
+      reportError(error, {
+        message: '数据库备份失败',
+        fields: { dbPath },
+        tags: { scope: 'db', stage: 'backup' },
+      });
+    }
+  });
+}
+
+/** 手动备份（设置面触发）：与启动备份共用串行链，防并发写坏/互相覆盖 */
+export function createManualBackup(): Promise<{ readonly name: string }> {
+  return enqueueBackup(async () => {
+    if (sqliteInstance === null) {
+      throw new Error('数据库未初始化，无法备份');
+    }
+    const dbPath = getDbPath();
+    const startedAt = performance.now();
+    try {
+      const name = await createBackupFile(sqliteInstance, dbPath);
+      recordDbBackup('success', performance.now() - startedAt);
+      return { name };
+    } catch (error) {
+      recordDbBackup('error', performance.now() - startedAt);
+      throw error;
+    }
+  });
 }
 
 // 重建分支跳过启动备份：空库若进备份轮转，会把仅有的健康备份挤掉——保留它们等下次真实数据
@@ -206,8 +212,6 @@ export type DrizzleDB = BetterSQLite3Database<typeof schema>;
 let dbInstance: DrizzleDB | null = null;
 
 let sqliteInstance: Database.Database | null = null;
-
-let pendingBackup: Promise<void> | null = null;
 
 /**
  * 旧基线库重挂：模板把迁移链重建为单条基线后，既有库（含旧迁移记录且已建 app_settings）
@@ -384,15 +388,9 @@ function ensureIncrementalAutoVacuum(sqlite: Database.Database): void {
   );
 }
 
-/** 等待挂起的启动备份完成（退出链 closeDb 前调用，防备份写一半进程就没了） */
+/** 等待备份链排空（退出链 closeDb 前调用，防备份写一半进程就没了） */
 async function drainPendingBackups(): Promise<void> {
-  const tail = pendingBackup;
-  if (tail !== null) {
-    await tail;
-    if (pendingBackup === tail) {
-      pendingBackup = null;
-    }
-  }
+  await backupTail;
 }
 
 /** 优雅关闭：排干备份 → 关连接（dispose 链最后一步，DB 必须最后关） */
