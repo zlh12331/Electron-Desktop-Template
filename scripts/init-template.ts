@@ -126,7 +126,13 @@ export function buildInitInput(raw: {
 
   const executableName = raw.executableName ?? deriveExecutableName(productName);
   if (!/^[a-z0-9][a-z0-9-]*$/.test(executableName)) {
-    throw new Error(`可执行名推导失败：${executableName}（需小写字母数字与连字符）`);
+    // 中文等非 ASCII 产品名推导结果为空：必须引导用户显式给可执行名，而不是只报格式错误
+    if (raw.executableName === undefined) {
+      throw new Error(
+        `产品名「${productName}」无法推导可执行名（需小写字母数字与连字符）。请显式传 --executable，例如 --executable my-app`,
+      );
+    }
+    throw new Error(`--executable 格式非法：${executableName}（需小写字母数字与连字符）`);
   }
   const artifactBaseName = raw.artifactBaseName ?? deriveArtifactBaseName(executableName);
 

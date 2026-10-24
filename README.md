@@ -35,7 +35,14 @@ pnpm init:template --name "My App" --app-id com.me.myapp --protocol myapp \
 pnpm check:brand                                    # 校验全部位点对齐
 ```
 
-命令幂等：重复执行同一组参数不会产生额外改动。之后：
+命令幂等：重复执行同一组参数不会产生额外改动。产品名含中文等非 ASCII 字符时，可执行名无法自动推导，需显式指定：
+
+```bash
+pnpm init:template --name "演示应用" --executable demo-app \
+  --app-id com.demo.app --protocol demoapp --owner demo --repo demo
+```
+
+之后：
 
 1. 替换 `src/renderer/routes/home.tsx` 为你的首屏
 2. 按需接入业务：新增 IPC 域、数据表、设置分区、页面，方法见 AGENTS.md「扩展点速查」

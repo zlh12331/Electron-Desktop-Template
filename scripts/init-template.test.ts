@@ -88,6 +88,27 @@ describe('buildInitInput 校验', () => {
   it('空产品名抛错', () => {
     expect(() => buildInitInput({ ...base, productName: '   ' })).toThrow(/--name/);
   });
+
+  it('非 ASCII 产品名：缺省推导给出 --executable 指引', () => {
+    expect(() => buildInitInput({ ...base, productName: '演示应用' })).toThrow(/--executable/);
+  });
+
+  it('非 ASCII 产品名：显式 executable 可正常初始化', () => {
+    const input = buildInitInput({
+      ...base,
+      productName: '演示应用',
+      executableName: 'demo-app',
+    });
+    expect(input.executableName).toBe('demo-app');
+    expect(input.artifactBaseName).toBe('Demo-App');
+    expect(input.storagePrefix).toBe('demo-app');
+  });
+
+  it('显式 executable 非法时报告参数名而非产品名', () => {
+    expect(() => buildInitInput({ ...base, executableName: 'Bad_Name' })).toThrow(
+      /--executable 格式非法/,
+    );
+  });
 });
 
 describe('assertKnownCliArgs：未知参数必须显式失败', () => {
