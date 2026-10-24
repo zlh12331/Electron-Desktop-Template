@@ -107,6 +107,7 @@ tools/           → 独立 TS 子包（depcruise / typedoc）
 - **网页承载必须用 `WebContentsView`**（独立 session 分区），不能回渲染层 iframe（CSP/XFO 三层拦截）。
 - **dev 环境**：userData 重定向到 `.electron-user-data/`；开启 CDP 9222；`.env` 由 `process.loadEnvFile()` 加载。
 - **全新安装**：根 `postinstall` 先安装并校验 Electron 二进制，再重编 `better-sqlite3`；失败会显式退出。`pnpm dev` 报 `Electron uninstall` 说明安装钩子未执行。
+- **依赖策略**：只支持 Node 26 LTS；安全补丁、major 评审、beta 禁令与 override 生命周期见 [dependency-policy.md](docs/guides/dependency-policy.md)。
 
 ## 数据库
 

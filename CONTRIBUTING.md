@@ -158,6 +158,7 @@ BREAKING CHANGE: 旧字段 `modelConfig` 不再被读取，需迁移到 `models`
   E2E 在 `e2e/`。
 - Vitest globals 已开启（`describe`/`it`/`expect` 无需 import）。
 - **覆盖率下限是棘轮门禁**（`scripts/coverage-floors.json`），改动后覆盖率不能下降；`pnpm test:coverage` 还会跑范围门禁、关键模块阈值与 settings 子集硬卡。
+- **依赖升级规则**见 [docs/guides/dependency-policy.md](docs/guides/dependency-policy.md)（Node 26 LTS、major 人工评审、override 生命周期）。
 
 ```bash
 pnpm test:main          # 单层

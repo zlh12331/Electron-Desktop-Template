@@ -10,6 +10,7 @@
 | [oss-automation.md](oss-automation.md) | GitHub 开源项目自动化运维模型：单人维护、本机 agent、审批门控与分层能力（L0–L5） | L0 + L1 已实施；L2 就绪；L3–L5 暂缓 |
 | [observability-runbook.md](observability-runbook.md) | 配置参考、doctor/烟测、本地 SigNoz（Foundry）+ Sentry + Collector 持久中继、SLO/告警与排障 | 本地验证流程；生产后端由使用者自建 |
 | [updating-from-template.md](updating-from-template.md) | 从上游模板同步修复与门禁：remote、差异审查、品牌/业务冲突边界、同步后验证 | 派生项目按需执行；品牌真源与业务文件不直接覆盖 |
+| [dependency-policy.md](dependency-policy.md) | Node 26 LTS 支持矩阵、更新节奏、安全补丁、major 评审、beta 禁令与 override 生命周期 | 依赖升级与 override 变更前必读 |
 
 相关根目录文档：
 
