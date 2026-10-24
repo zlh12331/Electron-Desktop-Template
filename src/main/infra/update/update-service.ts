@@ -16,6 +16,7 @@ import {
   setCloseConfirmed,
 } from '../../quit-state';
 import { emitEvent } from '../../utils/emit-event';
+import { reportError } from '../../utils/error-report';
 import { logger } from '../../utils/logger';
 import { withSpan } from '../telemetry/otel';
 import {
@@ -366,16 +367,29 @@ export class UpdateService implements IUpdateService {
         this.emit({ phase: 'cancelled', ...(version !== null ? { version } : {}) });
         return;
       }
-      await this.updater.downloadUpdate(token);
+      await withSpan('update.download', { 'app.version': app.getVersion() }, async () => {
+        try {
+          await this.updater.downloadUpdate(token);
+        } catch (error) {
+          // 用户取消不算失败：交给 update-cancelled 事件收尾，span 保持 OK
+          if (!token.cancelled) {
+            throw error;
+          }
+        }
+      });
     })()
       .catch((error: unknown) => {
         if (token.cancelled) {
           return;
         }
         const message = error instanceof Error ? error.message : String(error);
-        logger.error({ scope: 'auto-updater' }, '更新下载失败', error);
+        const errorKind = classifyUpdateError(error);
+        reportError(error, {
+          message: '更新下载失败',
+          tags: { scope: 'auto-updater', stage: 'download', errorKind },
+        });
         this.cancelToken = null;
-        this.emit({ phase: 'error', errorKind: classifyUpdateError(error), message });
+        this.emit({ phase: 'error', errorKind, message });
       })
       .finally(() => {
         if (this.cancelToken === token) {

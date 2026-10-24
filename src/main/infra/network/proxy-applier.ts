@@ -1,6 +1,7 @@
 // proxy-applier.ts：代理变更的统一应用口——
 // Node fetch 配置 → Chromium 三分区 → env 侧通道，一条链全改完
 import { session } from 'electron';
+import { reportError } from '../../utils/error-report';
 import { logger } from '../../utils/logger';
 import { setProxyFetchConfig } from './proxied-fetch';
 import {
@@ -39,7 +40,11 @@ async function applyChromiumSessions(cfg: ReturnType<typeof parseProxyConfig>): 
     try {
       await ses.setProxy(proxyConfig);
     } catch (err) {
-      logger.warn({ session: name, error: String(err) }, '分区代理设置失败（继续其余分区）');
+      reportError(err, {
+        message: '分区代理设置失败（继续其余分区）',
+        fields: { session: name },
+        tags: { scope: 'proxy', stage: 'apply', session: name },
+      });
     }
   }
 }

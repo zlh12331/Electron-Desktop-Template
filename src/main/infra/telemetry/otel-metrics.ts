@@ -19,6 +19,22 @@ export type UpdateMetricPhase =
   | 'cancelled'
   | 'error';
 
+/** 数据库损坏自愈结局（healthy=原库健康 / restored=从备份恢复 / rebuilt=归档后重建空库） */
+export type DbRecoveryOutcome = 'healthy' | 'restored' | 'rebuilt';
+
+/** 数据库备份结局 */
+export type DbBackupOutcome = 'success' | 'error';
+
+// Electron 的 render-process-gone.reason 已有固定值域；未知值归入 unknown，防属性高基数
+const RENDERER_CRASH_REASONS = new Set([
+  'abnormal-exit',
+  'killed',
+  'crashed',
+  'oom',
+  'launch-failed',
+  'integrity-failure',
+]);
+
 interface MetricInstruments {
   readonly ipcRequests: Counter<Attributes>;
   readonly ipcDuration: Histogram<Attributes>;
@@ -28,6 +44,10 @@ interface MetricInstruments {
   readonly updateDownloadDuration: Histogram<Attributes>;
   readonly eventLoopDelay: Histogram<Attributes>;
   readonly memoryGrowth: Histogram<Attributes>;
+  readonly dbRecovery: Counter<Attributes>;
+  readonly dbBackup: Counter<Attributes>;
+  readonly dbBackupDuration: Histogram<Attributes>;
+  readonly rendererCrashes: Counter<Attributes>;
   readonly webVitals: Record<WebVitalName, Histogram<Attributes>>;
 }
 
@@ -146,6 +166,19 @@ export function initOtelMetrics(meter: Meter): void {
       description: 'Detected RSS growth over a monotonic sampling window',
       unit: 'MB',
     }),
+    dbRecovery: meter.createCounter(OBSERVABILITY_METRICS.dbRecovery, {
+      description: 'Database corruption recovery outcomes',
+    }),
+    dbBackup: meter.createCounter(OBSERVABILITY_METRICS.dbBackup, {
+      description: 'Database backup outcomes',
+    }),
+    dbBackupDuration: meter.createHistogram(OBSERVABILITY_METRICS.dbBackupDuration, {
+      description: 'Database backup duration by outcome',
+      unit: 'ms',
+    }),
+    rendererCrashes: meter.createCounter(OBSERVABILITY_METRICS.rendererCrashes, {
+      description: 'Renderer process crashes by reason',
+    }),
     webVitals: createWebVitalInstruments(meter),
   };
   registerProcessGauges(meter);
@@ -199,6 +232,28 @@ export function recordEventLoopDelay(lagMs: number): void {
 /** 记录内存增长告警（连续递增窗口的涨幅与时长，归因用） */
 export function recordMemoryGrowth(growthMb: number, durationSec: number): void {
   instruments?.memoryGrowth.record(growthMb, { window: String(Math.round(durationSec)) });
+}
+
+/** 记录一次数据库损坏自愈结局（每次启动都会记 healthy，作为恢复率分母） */
+export function recordDbRecovery(outcome: DbRecoveryOutcome): void {
+  instruments?.dbRecovery.add(1, { outcome });
+}
+
+/** 记录一次数据库备份结果与耗时（成功/失败都记） */
+export function recordDbBackup(outcome: DbBackupOutcome, durationMs: number): void {
+  if (instruments === null) {
+    return;
+  }
+  const attributes: Attributes = { outcome };
+  instruments.dbBackup.add(1, attributes);
+  instruments.dbBackupDuration.record(durationMs, attributes);
+}
+
+/** 记录一次渲染进程崩溃（reason 白名单化，防属性高基数） */
+export function recordRendererCrash(reason: string): void {
+  instruments?.rendererCrashes.add(1, {
+    reason: RENDERER_CRASH_REASONS.has(reason) ? reason : 'unknown',
+  });
 }
 
 /**

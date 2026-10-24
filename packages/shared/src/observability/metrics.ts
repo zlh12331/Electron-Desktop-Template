@@ -11,6 +11,10 @@ export const OBSERVABILITY_METRICS = {
   processMemoryUsage: 'process.memory.usage',
   electronProcessMemory: 'electron.process.memory',
   electronProcessCpu: 'electron.process.cpu',
+  dbRecovery: 'app.db.recovery',
+  dbBackup: 'app.db.backup',
+  dbBackupDuration: 'app.db.backup.duration',
+  rendererCrashes: 'app.renderer.crashes',
 } as const;
 
 /** 渲染层 Web Vitals 指标名（CLS 无量纲，其余为毫秒） */

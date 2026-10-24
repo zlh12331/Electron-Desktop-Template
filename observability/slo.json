@@ -82,6 +82,19 @@
       "alert": { "for": "1h", "condition": "> 30", "severity": "warning" }
     },
     {
+      "id": "db-backup-success",
+      "title": "Database backup success rate",
+      "source": "otel",
+      "metric": "app.db.backup",
+      "aggregation": "error-rate",
+      "target": 0.99,
+      "unit": "ratio",
+      "window": "24h",
+      "severity": "warning",
+      "description": "数据库备份成功率 ≥99%",
+      "alert": { "for": "1h", "condition": "> 0.05", "severity": "warning" }
+    },
+    {
       "id": "event-loop-p99",
       "title": "Event loop p99 delay",
       "source": "otel",

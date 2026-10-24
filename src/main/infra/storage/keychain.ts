@@ -4,6 +4,7 @@
 import { promises as fs } from 'node:fs';
 import { AppError, ErrorCode } from '@code-agent/shared/main';
 import { safeStorage } from 'electron';
+import { reportError } from '../../utils/error-report';
 import { restrictFilePermissions } from '../../utils/file-permissions';
 import { logger } from '../../utils/logger';
 import { getKeychainPath } from './app-data';
@@ -104,16 +105,18 @@ async function readStore(): Promise<KeychainStore> {
   } catch {
     const { store: salvaged, candidates } = salvageEntries(content);
     const salvagedCount = Object.keys(salvaged).length;
-    logger.error(
-      {
+    const lostCount = Math.max(candidates - salvagedCount, 0);
+    reportError(new Error(`keychain.dat 已损坏（salvaged=${salvagedCount}, lost=${lostCount}）`), {
+      message: 'keychain.dat 已损坏——按条目抢救（salvaged/lost），原件保留为 .corrupt',
+      fields: {
         filePath,
         corrupted: true,
         recoverable: salvagedCount > 0,
         salvaged: salvagedCount,
-        lost: Math.max(candidates - salvagedCount, 0),
+        lost: lostCount,
       },
-      'keychain.dat 已损坏——按条目抢救（salvaged/lost），原件保留为 .corrupt',
-    );
+      tags: { scope: 'keychain', stage: 'salvage' },
+    });
     try {
       await fs.rename(filePath, `${filePath}.corrupt`);
     } catch {}

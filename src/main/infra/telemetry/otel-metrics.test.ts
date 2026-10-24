@@ -22,9 +22,12 @@ vi.mock('electron', () => ({
 import {
   initOtelMetrics,
   isOtelMetricsEnabled,
+  recordDbBackup,
+  recordDbRecovery,
   recordEventLoopDelay,
   recordIpcRequest,
   recordMemoryGrowth,
+  recordRendererCrash,
   recordStartupPhase,
   recordUpdateCheck,
   recordUpdateDownload,
@@ -66,6 +69,9 @@ describe('otel-metrics', () => {
       recordUpdateDownload('downloaded', 10);
       recordEventLoopDelay(5);
       recordMemoryGrowth(10, 60);
+      recordDbRecovery('healthy');
+      recordDbBackup('success', 10);
+      recordRendererCrash('crashed');
     }).not.toThrow();
   });
 
@@ -109,7 +115,36 @@ describe('otel-metrics', () => {
     );
   });
 
-  it('Web Vitals：按指标名分流 histogram，rating/navigation 进属性', async () => {
+  it('DB 恢复/备份与渲染进程崩溃：counter/histogram 属性低基数', async () => {
+    recordDbRecovery('rebuilt');
+    recordDbBackup('success', 120);
+    recordDbBackup('error', 80);
+    recordRendererCrash('crashed');
+    recordRendererCrash('not-a-real-reason');
+    await provider.forceFlush();
+
+    const names = metricNames();
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'app.db.recovery',
+        'app.db.backup',
+        'app.db.backup.duration',
+        'app.renderer.crashes',
+      ]),
+    );
+
+    const metrics = exporter
+      .getMetrics()
+      .flatMap((r) => r.scopeMetrics)
+      .flatMap((s) => s.metrics);
+    const recovery = metrics.find((m) => m.descriptor.name === 'app.db.recovery');
+    expect(recovery?.dataPoints[0]?.attributes).toMatchObject({ outcome: 'rebuilt' });
+    const crashes = metrics.find((m) => m.descriptor.name === 'app.renderer.crashes');
+    const crashReasons = crashes?.dataPoints.map((point) => point.attributes['reason']);
+    expect(crashReasons).toEqual(expect.arrayContaining(['crashed', 'unknown']));
+  });
+
+  it('Web Vitals：按指标名分流指标，rating/navigation 进属性', async () => {
     expect(recordWebVital('LCP', 2500, { rating: 'good', navigationType: 'navigate' })).toBe(true);
     expect(recordWebVital('CLS', 0.05)).toBe(true);
     await provider.forceFlush();

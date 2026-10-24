@@ -36,4 +36,26 @@ describe('error-report', () => {
     expect(sink.captureMessage).toHaveBeenCalledWith('disk full', 'error');
     expect(sink.captureMessage).toHaveBeenCalledWith('memory growth', 'warning');
   });
+
+  it('自定义 message/fields：本地日志保留排障细节，后端只收 tags/componentStack', () => {
+    const sink = { captureError: vi.fn(), captureMessage: vi.fn() };
+    setErrorCaptureSink(sink);
+    const error = new Error('disk io failed');
+    reportError(error, {
+      message: '数据库备份失败',
+      fields: { dbPath: '/tmp/app.db' },
+      tags: { scope: 'db', stage: 'backup' },
+      componentStack: '\n at Component',
+    });
+
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      { dbPath: '/tmp/app.db', scope: 'db', stage: 'backup', componentStack: '\n at Component' },
+      '数据库备份失败',
+      error,
+    );
+    expect(sink.captureError).toHaveBeenCalledWith(error, {
+      tags: { scope: 'db', stage: 'backup' },
+      componentStack: '\n at Component',
+    });
+  });
 });

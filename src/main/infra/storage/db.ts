@@ -9,8 +9,10 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { app } from 'electron';
+import { reportError } from '../../utils/error-report';
 import { restrictFilePermissions } from '../../utils/file-permissions';
 import { logger } from '../../utils/logger';
+import { recordDbBackup, recordDbRecovery } from '../telemetry/otel-metrics';
 import {
   applyPendingRestore,
   backupDirPath,
@@ -28,16 +30,22 @@ const AUTO_VACUUM_INCREMENTAL = 2;
 // 备份串行化：better-sqlite3 的 backup() 是异步 API，并发备份会互相踩——
 // 已有 pending 时链在其后执行，全程只保留一条备份链尾
 function runBackup(sqlite: Database.Database, dbPath: string): Promise<void> {
-  const run = (): Promise<void> =>
-    createBackupFile(sqlite, dbPath)
-      .then(() => undefined)
+  const run = (): Promise<void> => {
+    const startedAt = performance.now();
+    return createBackupFile(sqlite, dbPath)
+      .then(() => {
+        recordDbBackup('success', performance.now() - startedAt);
+      })
       .catch((error: unknown) => {
         cleanupBackupTmpFiles(dbPath);
-        logger.error(
-          { error: error instanceof Error ? error.message : String(error) },
-          '数据库备份失败',
-        );
+        recordDbBackup('error', performance.now() - startedAt);
+        reportError(error, {
+          message: '数据库备份失败',
+          fields: { dbPath },
+          tags: { scope: 'db', stage: 'backup' },
+        });
       });
+  };
   const task = pendingBackup !== null ? pendingBackup.then(run, run) : run();
   pendingBackup = task;
   return task;
@@ -52,8 +60,15 @@ export async function createManualBackup(): Promise<{ readonly name: string }> {
     throw new Error('数据库未初始化，无法备份');
   }
   const dbPath = getDbPath();
-  const name = await createBackupFile(sqliteInstance, dbPath);
-  return { name };
+  const startedAt = performance.now();
+  try {
+    const name = await createBackupFile(sqliteInstance, dbPath);
+    recordDbBackup('success', performance.now() - startedAt);
+    return { name };
+  } catch (error) {
+    recordDbBackup('error', performance.now() - startedAt);
+    throw error;
+  }
 }
 
 // 重建分支跳过启动备份：空库若进备份轮转，会把仅有的健康备份挤掉——保留它们等下次真实数据
@@ -124,19 +139,24 @@ function restoreCorruptDatabase(sqlite: Database.Database | null, dbPath: string
     const healthy = !(typeof integrity === 'string' && integrity !== 'ok');
     if (healthy) {
       logger.info({}, 'SQLite 完整性校验通过');
+      recordDbRecovery('healthy');
       return { sqlite, status: 'healthy' };
     }
-    logger.error({ result: integrity }, 'SQLite 完整性校验失败，进入损坏自愈流程');
+    reportError(new Error(`SQLite 完整性校验失败：${String(integrity)}`), {
+      message: 'SQLite 完整性校验失败，进入损坏自愈流程',
+      fields: { dbPath, result: integrity },
+      tags: { scope: 'db', stage: 'integrity' },
+    });
     try {
       sqlite.close();
     } catch {}
-  } else {
-    logger.error({ dbPath }, '数据库打开阶段失败，进入损坏自愈流程');
   }
 
+  // sqlite=null 表示打开阶段已失败：openWithDefaultPragmas 已上报具体错误，这里直接进入备份恢复/重建
   if (tryRestoreFromBackup(dbPath)) {
     const reopened = new Database(dbPath);
     applyDefaultPragmas(reopened, dbPath);
+    recordDbRecovery('restored');
     return { sqlite: reopened, status: 'restored' };
   }
 
@@ -145,10 +165,11 @@ function restoreCorruptDatabase(sqlite: Database.Database | null, dbPath: string
     renameSync(dbPath, corruptPath);
     logger.error({ corruptPath }, '数据库损坏且无可用备份，已归档损坏文件');
   } catch (error) {
-    logger.error(
-      { error: error instanceof Error ? error.message : String(error) },
-      '损坏数据库归档失败，直接重建',
-    );
+    reportError(error, {
+      message: '损坏数据库归档失败，直接重建',
+      fields: { dbPath, corruptPath },
+      tags: { scope: 'db', stage: 'archive' },
+    });
   }
   for (const suffix of ['-wal', '-shm']) {
     try {
@@ -159,6 +180,7 @@ function restoreCorruptDatabase(sqlite: Database.Database | null, dbPath: string
   restrictFilePermissions(dbPath);
   applyDefaultPragmas(fresh, dbPath);
   logger.warn({}, '已重建空数据库（前提数据已归档，后续迁移建表）');
+  recordDbRecovery('rebuilt');
   return { sqlite: fresh, status: 'rebuilt' };
 }
 
@@ -271,10 +293,11 @@ function openWithDefaultPragmas(dbPath: string): Database.Database | null {
     applyDefaultPragmas(sqlite, dbPath);
     return sqlite;
   } catch (openError: unknown) {
-    logger.error(
-      { dbPath, error: openError instanceof Error ? openError.message : String(openError) },
-      '数据库打开/pragma 失败，转入损坏自愈流程',
-    );
+    reportError(openError, {
+      message: '数据库打开/pragma 失败，转入损坏自愈流程',
+      fields: { dbPath },
+      tags: { scope: 'db', stage: 'open' },
+    });
     try {
       sqlite?.close();
     } catch {}
@@ -300,10 +323,11 @@ export function initDb(): DrizzleDB {
   try {
     applyPendingRestore(dbPath);
   } catch (error) {
-    logger.error(
-      { error: error instanceof Error ? error.message : String(error) },
-      '备份恢复应用失败（暂存保留，下次启动重试；继续按现有库启动）',
-    );
+    reportError(error, {
+      message: '备份恢复应用失败（暂存保留，下次启动重试；继续按现有库启动）',
+      fields: { dbPath },
+      tags: { scope: 'db', stage: 'restore' },
+    });
   }
 
   const recovery = restoreCorruptDatabase(openWithDefaultPragmas(dbPath), dbPath);
@@ -318,10 +342,11 @@ export function initDb(): DrizzleDB {
     migrate(db, { migrationsFolder: migrationsDir });
     logger.info({ migrationsDir }, 'SQLite 迁移已应用');
   } catch (error) {
-    logger.error(
-      { error: error instanceof Error ? error.message : String(error), migrationsDir },
-      'SQLite 迁移执行失败（迁移目录缺失或损坏）',
-    );
+    reportError(error, {
+      message: 'SQLite 迁移执行失败（迁移目录缺失或损坏）',
+      fields: { migrationsDir, dbPath },
+      tags: { scope: 'db', stage: 'migration' },
+    });
     try {
       sqlite.close();
     } catch {}

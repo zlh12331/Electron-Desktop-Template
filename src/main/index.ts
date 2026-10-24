@@ -17,7 +17,7 @@ import { readTelemetryLevelSync } from './infra/storage/telemetry-pref';
 import { EventLoopLagMonitor } from './infra/telemetry/event-loop-lag';
 import { reportEventLoopLag } from './infra/telemetry/lag-alert';
 import { startMemoryMonitor } from './infra/telemetry/memory-monitor';
-import { initTelemetry, shutdownTelemetry } from './infra/telemetry/otel';
+import { initTelemetry, shutdownTelemetry, withSpan } from './infra/telemetry/otel';
 import {
   recordEventLoopDelay,
   recordMemoryGrowth,
@@ -42,7 +42,7 @@ import { isQuitting, setCloseConfirmed, setQuitting } from './quit-state';
 import { applyCspToSession } from './security/csp';
 import { disposeServices, recoverFromCrash, serviceContainer } from './service-container';
 import { createTray } from './tray';
-import { reportMessage } from './utils/error-report';
+import { reportError, reportMessage } from './utils/error-report';
 import { flushPendingLogs, initLogger, logger, registerGlobalErrorHandlers } from './utils/logger';
 import { createWindow, readCloseAction } from './window';
 import { bringMainWindowToFront } from './window-show';
@@ -116,7 +116,7 @@ app.on('open-url', (event, url) => {
 
 app
   .whenReady()
-  .then(() => {
+  .then(async () => {
     if (!gotTheLock) {
       // 未获锁实例在上方已发起 quit，这里兜底防止极端时序下重复初始化
       return;
@@ -135,7 +135,10 @@ app
     } else {
       logger.warn({}, '遥测已关闭（telemetry-pref.json: off），跳过 OpenTelemetry 初始化');
     }
-    initDb();
+    // 启动关键路径落 span：DB 初始化/迁移与窗口创建失败时可在 trace 中定位，日志同时继承 trace 上下文
+    await withSpan('db.init', {}, async () => {
+      initDb();
+    });
     initMainI18n(readSetting('language'));
     void applyProxyChange(readSetting('proxy'));
     registerGlobalErrorHandlers();
@@ -206,7 +209,9 @@ app
     // Windows/Linux 无 open-url 事件：冷启动深链从 argv 补提（macOS 走 open-url 暂存）
     coldLaunchDeepLink ??= extractProtocolUrl(process.argv);
 
-    createWindow();
+    await withSpan('window.create', {}, async () => {
+      createWindow();
+    });
     recordStartupPhase('window', performance.now() - startupStartedAt);
 
     createTray({
@@ -251,6 +256,9 @@ app
     });
   })
   .catch((err: unknown) => {
+    try {
+      reportError(err, { message: '应用启动失败', tags: { scope: 'startup' } });
+    } catch {}
     // biome-ignore lint/suspicious/noConsole: logger 在 whenReady 内才初始化，此处仅 console 兜底
     console.error('[FATAL] 应用启动失败：', err);
     try {

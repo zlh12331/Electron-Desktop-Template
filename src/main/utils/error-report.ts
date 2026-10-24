@@ -3,9 +3,13 @@
 // 渲染层对应物在 src/renderer/lib/error-report.ts（经 telemetry:captureError IPC 转发）
 import { logger } from './logger';
 
-/** 上报附加上下文：tags 进结构化字段；componentStack 供渲染层 React 组件栈（转发场景） */
+/** 上报附加上下文：tags 进结构化字段与后端标签；fields 只进本地日志；componentStack 供渲染层组件栈 */
 export interface ErrorReportContext {
   readonly tags?: Readonly<Record<string, string>>;
+  /** 仅本地日志的附加结构化字段（路径等排障细节，不进后端 tags） */
+  readonly fields?: Readonly<Record<string, unknown>>;
+  /** 本地日志正文（缺省「错误上报」；Sentry 仍保留原始错误） */
+  readonly message?: string;
   readonly componentStack?: string;
 }
 
@@ -22,17 +26,29 @@ export function setErrorCaptureSink(sink: ErrorCaptureSink | null): void {
   captureSink = sink;
 }
 
-/** 上报异常（统一 message 前缀「错误上报」，便于日志检索聚合；Sentry 侧保留原始错误） */
+/** 上报异常（本地日志统一出口；message 可给排障正文，Sentry 侧保留原始错误） */
 export function reportError(error: unknown, context?: ErrorReportContext): void {
   logger.error(
     {
+      ...(context?.fields ?? {}),
       ...(context?.tags ?? {}),
       ...(context?.componentStack !== undefined ? { componentStack: context.componentStack } : {}),
     },
-    '错误上报',
+    context?.message ?? '错误上报',
     error,
   );
-  captureSink?.captureError(error, context);
+  // fields/message 只服务本地排障，后端只接收 tags 与组件栈
+  captureSink?.captureError(
+    error,
+    context === undefined
+      ? undefined
+      : {
+          ...(context.tags !== undefined ? { tags: context.tags } : {}),
+          ...(context.componentStack !== undefined
+            ? { componentStack: context.componentStack }
+            : {}),
+        },
+  );
 }
 
 /** 上报一条消息（无异常对象时用；warning 级用于「疑似问题但不致命」场景，如内存增长） */

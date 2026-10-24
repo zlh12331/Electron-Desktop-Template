@@ -6,9 +6,10 @@ import { installExtension, REACT_DEVELOPER_TOOLS } from 'electron-devtools-insta
 import { resolveStartHidden } from './infra/autostart/autostart';
 import { readSetting } from './infra/storage/settings-pref';
 import { loadWindowState, trackWindowState, type WindowState } from './infra/storage/window-state';
+import { recordRendererCrash } from './infra/telemetry/otel-metrics';
 import { isCloseConfirmed, isQuitting } from './quit-state';
 import { notifyMinimizedToTray } from './tray';
-import { reportMessage } from './utils/error-report';
+import { reportError, reportMessage } from './utils/error-report';
 import { logger } from './utils/logger';
 import { markMaximizeOnNextShow } from './window-show';
 import { TITLE_BAR_SYMBOL } from './window-theme';
@@ -148,11 +149,15 @@ export function createWindow(): BrowserWindow {
     if (details.reason === 'clean-exit') {
       return;
     }
-    logger.error(
-      { reason: details.reason, exitCode: details.exitCode },
-      '渲染进程异常退出，尝试自动恢复',
+    recordRendererCrash(details.reason);
+    reportError(
+      new Error(`渲染进程异常退出：reason=${details.reason} exitCode=${details.exitCode}`),
+      {
+        message: '渲染进程异常退出，尝试自动恢复',
+        fields: { exitCode: details.exitCode },
+        tags: { scope: 'window', stage: 'renderer-crash', reason: details.reason },
+      },
     );
-    void reportMessage(`渲染进程崩溃：reason=${details.reason} exitCode=${details.exitCode}`);
     const now = Date.now();
     if (now - crashWindowStart > 60_000) {
       crashWindowStart = now;
