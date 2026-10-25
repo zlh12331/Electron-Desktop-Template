@@ -18,8 +18,9 @@ let warnedEncryptionUnavailable = false;
 const RESERVED_SECRET_PREFIX = '__';
 
 /** safeStorage 加密能力状态（basic_text 在 Linux 上只是硬编码密钥混淆，不可用于凭据） */
-export type EncryptionBackendStatus = 'ok' | 'unavailable' | 'insecure-backend';
+type EncryptionBackendStatus = 'ok' | 'unavailable' | 'insecure-backend';
 
+/** 当前加密能力快照：available 为最终判定，backend 仅供诊断/UI */
 export interface EncryptionStatus {
   readonly available: boolean;
   /** Linux 选中的后端；非 Linux 或探测失败为 null */
