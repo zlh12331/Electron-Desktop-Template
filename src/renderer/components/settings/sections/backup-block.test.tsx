@@ -111,10 +111,10 @@ describe('BackupBlock（37-B）', () => {
     expect(window.api.backup.restore).not.toHaveBeenCalled();
   });
 
-  it('V3 异常：恢复被拒（SESSION_IN_USE）→ 错误 toast（单发）', async () => {
+  it('V3 异常：恢复被拒（BACKUP_INVALID）→ 错误 toast（单发）', async () => {
     vi.mocked(window.api.backup.list).mockResolvedValue({ data: { backups: [HEALTHY_ENTRY] } });
     vi.mocked(window.api.backup.restore).mockRejectedValue(
-      new Error('[SESSION_IN_USE] 有回合正在运行'),
+      new Error('[BACKUP_INVALID] 备份损坏，无法恢复'),
     );
     renderBlock();
     await screen.findByText(t('settings.backupHealthy'));

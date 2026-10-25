@@ -42,7 +42,7 @@ describe('useDeepLink', () => {
     const router = renderAtHome();
     await waitFor(() => expect(listener).not.toBeNull());
     act(() => {
-      listener?.({ sessionId: 'abc', url: 'electron-template://session/abc' });
+      listener?.({ targetId: 'abc', url: 'electron-template://open/abc' });
     });
 
     expect(router.state.location.pathname).toBe('/about');
@@ -51,14 +51,14 @@ describe('useDeepLink', () => {
   it('冷启动暂存值在挂载后消费一次', async () => {
     window.api.app.subscribeDeepLink = () => () => {};
     window.api.app.takePendingDeepLink = vi.fn(async () => ({
-      data: { payload: { sessionId: 'cold', url: 'electron-template://session/cold' } },
+      data: { payload: { targetId: 'cold', url: 'electron-template://open/cold' } },
     }));
 
     const router = renderAtHome();
     await waitFor(() => expect(router.state.location.pathname).toBe('/about'));
   });
 
-  it('仅唤起（sessionId=null）不导航', async () => {
+  it('仅唤起（targetId=null）不导航', async () => {
     let listener: ((payload: DeepLinkPayload) => void) | null = null;
     window.api.app.subscribeDeepLink = (callback) => {
       listener = callback;
@@ -68,7 +68,7 @@ describe('useDeepLink', () => {
     const router = renderAtHome();
     await waitFor(() => expect(listener).not.toBeNull());
     act(() => {
-      listener?.({ sessionId: null, url: 'electron-template://open' });
+      listener?.({ targetId: null, url: 'electron-template://open' });
     });
 
     expect(router.state.location.pathname).toBe('/');

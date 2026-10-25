@@ -117,7 +117,7 @@ flowchart LR
 - 栅格：`.app` 两行（52px + 1fr）；列宽来自 CSS 变量
 - 宽度动态：拖拽后 JS 写变量覆盖（钳位见 `layout-utils.ts` 的 `SIDEBAR_WIDTH_MIN/MAX`、`RIGHT_PANEL_WIDTH_MIN/MAX`）
 - 折叠：class 切换 → 变量置 0 → 列塌缩；断点 `<1200px` 折右面板、`<900px` 折侧栏（`useLayoutBreakpoint`，手动操作过不覆盖）
-- 关键坑：`.thread-bg` 必须占固定列——折叠元素 `display:none` 不占轨道，否则双折叠时 main 宽度塌成 0
+- 关键坑：`.main-surface` 必须占固定列——折叠元素 `display:none` 不占轨道，否则双折叠时 main 宽度塌成 0
 
 ### 3.2 欢迎页 `/`（`routes/home.tsx`）
 

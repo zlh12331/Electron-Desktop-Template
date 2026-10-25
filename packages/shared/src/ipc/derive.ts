@@ -58,7 +58,7 @@ type ChannelKey<D, K extends keyof D, M extends keyof D[K]> = D[K][M] extends {
  * 从元数据表生成 IPC_CHANNELS 常量对象
  *
  * key 命名：{DOMAIN}_{METHOD}（SCREAMING_SNAKE_CASE）
- * 例如：app.getStatus → APP_GET_STATUS；session.listRecentDirs → SESSION_LIST_RECENT_DIRS
+ * 例如：app.getStatus → APP_GET_STATUS；entity.listRecent → ENTITY_LIST_RECENT
  *
  * @param defs IPC 元数据表（IPC_META，纯字符串零依赖）
  * @returns 与现有 IPC_CHANNELS 结构完全兼容的常量对象

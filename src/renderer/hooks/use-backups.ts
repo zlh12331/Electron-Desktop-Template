@@ -53,7 +53,7 @@ export function useCreateBackup() {
 /**
  * 从恢复点恢复 mutation（应用将重启，重启后暂存生效）
  *
- * 成功路径不弹「已恢复」（进程立刻消失）；失败（SESSION_IN_USE / BACKUP_INVALID）
+ * 成功路径不弹「已恢复」（进程立刻消失）；失败（BACKUP_INVALID）
  * 由本 hook toast。调用方在调用前需 confirm（danger：重启 + 未导出改动丢失）。
  */
 export function useRestoreBackup() {

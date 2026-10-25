@@ -39,30 +39,30 @@ function fakeWindow(destroyed = false): FakeWindow {
 }
 
 describe('parseDeepLink', () => {
-  it('路径段 /session/:id 优先', () => {
-    expect(parseDeepLink('electron-template://session/abc-123').sessionId).toBe('abc-123');
+  it('路径段 /open/:id 优先', () => {
+    expect(parseDeepLink('electron-template://open/abc-123').targetId).toBe('abc-123');
   });
 
-  it('回退查询参数 session，并解码百分号编码', () => {
-    expect(parseDeepLink('electron-template://open?session=abc%2D123').sessionId).toBe('abc-123');
+  it('回退查询参数 target，并解码百分号编码', () => {
+    expect(parseDeepLink('electron-template://open?target=abc%2D123').targetId).toBe('abc-123');
   });
 
-  it('空 session、非法字符、超长 id 一律按仅唤起处理', () => {
-    expect(parseDeepLink('electron-template://open?session=').sessionId).toBeNull();
-    expect(parseDeepLink('electron-template://session/%2e%2e%2fetc').sessionId).toBeNull();
-    expect(parseDeepLink(`electron-template://session/${'a'.repeat(129)}`).sessionId).toBeNull();
+  it('空 target、非法字符、超长 id 一律按仅唤起处理', () => {
+    expect(parseDeepLink('electron-template://open?target=').targetId).toBeNull();
+    expect(parseDeepLink('electron-template://open/%2e%2e%2fetc').targetId).toBeNull();
+    expect(parseDeepLink(`electron-template://open/${'a'.repeat(129)}`).targetId).toBeNull();
   });
 
-  it('非法 URL 保留原文但不解析出 session', () => {
-    expect(parseDeepLink('not a url')).toEqual({ sessionId: null, url: 'not a url' });
+  it('非法 URL 保留原文但不解析出 target', () => {
+    expect(parseDeepLink('not a url')).toEqual({ targetId: null, url: 'not a url' });
   });
 });
 
 describe('extractProtocolUrl', () => {
   it('返回首个协议 URL，忽略其他参数', () => {
     expect(
-      extractProtocolUrl(['electron.exe', '--flag', 'electron-template://session/a', '--x']),
-    ).toBe('electron-template://session/a');
+      extractProtocolUrl(['electron.exe', '--flag', 'electron-template://open/a', '--x']),
+    ).toBe('electron-template://open/a');
   });
 
   it('无协议 URL 返回 null', () => {
@@ -76,16 +76,16 @@ describe('pending deep link', () => {
   });
 
   it('最多消费一次，取走后清空', () => {
-    const payload = parseDeepLink('electron-template://session/a');
+    const payload = parseDeepLink('electron-template://open/a');
     setPendingDeepLink(payload);
     expect(takePendingDeepLink()).toEqual(payload);
     expect(takePendingDeepLink()).toBeNull();
   });
 
   it('重复暂存以最后一次为准', () => {
-    setPendingDeepLink(parseDeepLink('electron-template://session/first'));
-    setPendingDeepLink(parseDeepLink('electron-template://session/second'));
-    expect(takePendingDeepLink()?.sessionId).toBe('second');
+    setPendingDeepLink(parseDeepLink('electron-template://open/first'));
+    setPendingDeepLink(parseDeepLink('electron-template://open/second'));
+    expect(takePendingDeepLink()?.targetId).toBe('second');
   });
 });
 
@@ -99,7 +99,7 @@ describe('broadcastDeepLink', () => {
     const destroyed = fakeWindow(true);
     mocks.getAllWindows.mockReturnValue([live, destroyed]);
 
-    const payload = parseDeepLink('electron-template://session/a');
+    const payload = parseDeepLink('electron-template://open/a');
     broadcastDeepLink(payload);
 
     expect(live.webContents.send).toHaveBeenCalledWith(

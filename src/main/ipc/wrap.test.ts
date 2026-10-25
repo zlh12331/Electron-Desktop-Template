@@ -306,22 +306,22 @@ describe('wrap', () => {
     const mockWin = { id: 1 };
     mockFromWebContents.mockReturnValue(mockWin);
 
-    const resSchema = z.object({ sessionId: z.string().min(1) });
-    const handler = vi.fn().mockResolvedValue({ sessionId: 'session-1' });
+    const resSchema = z.object({ entityId: z.string().min(1) });
+    const handler = vi.fn().mockResolvedValue({ entityId: 'entity-1' });
 
     wrap('test:channel', null, handler, resSchema);
 
     const registeredHandler = getRegisteredHandler();
     const result = await registeredHandler(allowedEvent, undefined, undefined);
 
-    expect(result).toEqual({ data: { sessionId: 'session-1' } });
+    expect(result).toEqual({ data: { entityId: 'entity-1' } });
   });
 
   it('响应契约校验：结构不符返回 INVALID_RESPONSE（防手写 Res 接口漂移）', async () => {
     const mockWin = { id: 1 };
     mockFromWebContents.mockReturnValue(mockWin);
 
-    const resSchema = z.object({ sessionId: z.string().min(1) });
+    const resSchema = z.object({ entityId: z.string().min(1) });
     const handler = vi.fn().mockResolvedValue({ ok: true });
 
     wrap('test:channel', null, handler, resSchema);

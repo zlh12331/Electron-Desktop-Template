@@ -18,7 +18,7 @@
 - `bridges.ts`：**全部桥接 hook 的唯一挂载点**（新增桥接改这里，不改 AppShell）。
 - `layout-utils.ts`：从 CSS 令牌解析 clamp 宽度（侧栏/右栏拖拽）。
 
-**扩展点**：右栏当前为空（模板不预设工作区面板）。需要时在 `layout/` 下新建面板组件，把它挂进 `AppShell` 的 `<aside className="chat-right-panel">`。
+**扩展点**：右栏当前为空（模板不预设工作区面板）。需要时在 `layout/` 下新建面板组件，把它挂进 `AppShell` 的 `<aside className="right-panel">`。
 
 ## 3. 路由页面（`routes/`）
 

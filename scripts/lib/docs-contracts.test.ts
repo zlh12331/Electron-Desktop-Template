@@ -108,7 +108,7 @@ describe('checkErrorCodeRefs', () => {
 describe('checkLegacyProtocolRefs', () => {
   it('当前协议与普通 URL 不误报，旧协议按行号报错', () => {
     const text = [
-      'electron-template://session/a',
+      'electron-template://open/a',
       'https://example.com',
       '旧文档示例 code-agent://session/a',
     ].join('\n');

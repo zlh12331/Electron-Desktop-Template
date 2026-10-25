@@ -130,7 +130,7 @@ export function AppShell({ children }: AppShellProps): ReactElement {
         />
         <div
           className={cn(
-            'view-chat',
+            'app-layout',
             sidebarCollapsed && 'sb-collapsed',
             rightPanelCollapsed && 'crp-collapsed',
           )}
@@ -153,7 +153,7 @@ export function AppShell({ children }: AppShellProps): ReactElement {
             />
           )}
 
-          <main id="main-content" className="thread-bg paper-texture">
+          <main id="main-content" className="main-surface paper-texture">
             <SectionErrorBoundary name="main-content">{children}</SectionErrorBoundary>
           </main>
 
@@ -171,7 +171,7 @@ export function AppShell({ children }: AppShellProps): ReactElement {
             />
           )}
 
-          <aside className="chat-right-panel" aria-label={t('common.rightPanel')} />
+          <aside className="right-panel" aria-label={t('common.rightPanel')} />
         </div>
 
         <DialogHost />

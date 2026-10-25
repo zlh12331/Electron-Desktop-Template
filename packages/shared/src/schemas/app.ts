@@ -83,20 +83,20 @@ export interface AppInfoRes {
 /**
  * app:event:deepLink 事件 payload（自定义协议唤起）
  *
- * 由主进程 deep-link.ts 解析协议 URL 后广播；sessionId 取不到时为 null，
+ * 由主进程 deep-link.ts 解析协议 URL 后广播；targetId 取不到时为 null，
  * 表示「仅唤起/聚焦窗口」而非错误——两种情形渲染层都要消费，故不能是可选字段。
  */
 export const DeepLinkPayloadSchema = z.object({
-  /** 目标会话 id（路径含 `/session/<id>` 或查询串 `session=<id>` 时非空；否则 null = 仅唤起） */
-  sessionId: z.string().nullable(),
+  /** 目标实体 id（路径含 `/open/<id>` 或查询串 `target=<id>` 时非空；否则 null = 仅唤起） */
+  targetId: z.string().nullable(),
   /** 原始协议 URL（保留完整参数供扩展：查询串、附加动作等） */
   url: z.string(),
 });
 
 /** app:event:deepLink 事件 payload：深度链接解析结果 */
 export interface DeepLinkPayload {
-  /** 目标会话 id（路径含 `/session/<id>` 或查询串 `session=<id>` 时非空；null = 仅唤起/聚焦） */
-  readonly sessionId: string | null;
+  /** 目标实体 id（路径含 `/open/<id>` 或查询串 `target=<id>` 时非空；null = 仅唤起/聚焦） */
+  readonly targetId: string | null;
   /** 原始协议 URL 全量（保留扩展性） */
   readonly url: string;
 }

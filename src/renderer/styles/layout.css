@@ -6,7 +6,7 @@
   min-width: 0;
 }
 
-.view-chat {
+.app-layout {
   background: var(--background);
   display: grid;
   grid-template-columns:
@@ -38,7 +38,7 @@
   grid-column: 4;
 }
 
-.view-chat.sb-collapsed {
+.app-layout.sb-collapsed {
   grid-template-columns:
     0
     var(--resizer-w)
@@ -47,12 +47,12 @@
     var(--right-panel-w);
 }
 
-.view-chat.sb-collapsed .sidebar,
-.view-chat.sb-collapsed .resizer-left {
+.app-layout.sb-collapsed .sidebar,
+.app-layout.sb-collapsed .resizer-left {
   display: none;
 }
 
-.view-chat.crp-collapsed {
+.app-layout.crp-collapsed {
   grid-template-columns:
     var(--sidebar-w)
     var(--resizer-w)
@@ -61,11 +61,11 @@
     0;
 }
 
-.view-chat.crp-collapsed .resizer-right {
+.app-layout.crp-collapsed .resizer-right {
   display: none;
 }
 
-.view-chat.sb-collapsed.crp-collapsed {
+.app-layout.sb-collapsed.crp-collapsed {
   grid-template-columns:
     0
     var(--resizer-w)
@@ -155,7 +155,7 @@
   color: var(--accent-text);
 }
 
-.thread-bg {
+.main-surface {
   min-width: 0;
   min-height: 0;
   grid-column: 3;
@@ -208,7 +208,7 @@ body.resizing {
   user-select: none;
 }
 
-.chat-right-panel {
+.right-panel {
   background: var(--sidebar);
   display: flex;
   flex-direction: column;
@@ -219,6 +219,6 @@ body.resizing {
   grid-column: 5;
 }
 
-.view-chat.crp-collapsed .chat-right-panel {
+.app-layout.crp-collapsed .right-panel {
   overflow: visible;
 }

@@ -63,7 +63,7 @@ export const IPC_META = {
     list: request('backup:list'),
     // 立即备份：与启动备份走同一路径、进同一轮转环（同样会被轮转淘汰）
     create: request('backup:create'),
-    // 从恢复点恢复：暂存 + 重启生效，有运行中回合先拒绝（SESSION_IN_USE）
+    // 从恢复点恢复：暂存 + 重启生效；模板版无运行中任务前置校验
     restore: request('backup:restore'),
   },
 

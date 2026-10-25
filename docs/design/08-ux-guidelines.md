@@ -31,7 +31,7 @@
 实现：[AppShell.tsx](../../src/renderer/components/layout/AppShell.tsx) + [layout.css](../../src/renderer/styles/layout.css)。
 
 - **侧栏**（`Sidebar.tsx`）：模板只保留「关于 / 设置」两个入口，由 `NAV_ITEMS` 数据驱动——接入业务时替换数组，不改结构。
-- **右面板**：模板默认折叠且内容为空（`<aside className="chat-right-panel" />`）。需要工作区时在 `components/layout/` 新建面板并挂进 AppShell。
+- **右面板**：模板默认折叠且内容为空（`<aside className="right-panel" />`）。需要工作区时在 `components/layout/` 新建面板并挂进 AppShell。
 - **折叠与断点**：列宽来自 CSS 变量，拖拽由 `use-resizable-panels` 覆盖；窗口 <1200px 自动折右面板、<900px 自动折侧栏，用户手动操作后断点不再覆盖（`manual` 位）。
 - **浮层层级**：`--z-base(1) < --z-surface(2) < --z-raised(10) < --z-popover(50) < --z-modal(100) < --z-boundary(999)`；新浮层复用档位，禁止裸 `z-*` 数字。Toast（sonner）使用库默认层级，不参与应用内竞争。
 - **对话框**：设置是全屏 Sheet（非路由），命令面板 / 快捷键帮助是覆盖层；三者状态收敛在 `ui-store`，由 `AppShell` 统一挂载。危险操作走命令式 `confirm()`（`confirm-dialog-store`），禁止内联 AlertDialog。

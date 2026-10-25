@@ -22,7 +22,7 @@ const ANALYZE_BUNDLE = process.env['ANALYZE_BUNDLE'] === '1';
  *
  * electron-updater 未打包时从 app.getAppPath()/dev-app-update.yml 读取调试配置，
  * 而 dev 下（electron out/main/index.js）getAppPath() = out/main——仓库根的该
- * 文件不落位时，CODE_AGENT_DEV_UPDATE=1 的检查链路以 ENOENT 失败
+ * 文件不落位时，APP_DEV_UPDATE=1 的检查链路以 ENOENT 失败
  * （electron-update-dev.spec.ts 实测暴露）。打包版读取的是 electron-builder
  * 生成的 app-update.yml，本文件即使随产物进包也不会被读取（forceDevUpdateConfig
  * 仅在 devUpdateEnabled 时为 true），无条件复制无副作用。

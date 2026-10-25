@@ -360,7 +360,7 @@ function deliverDeepLink(payload: DeepLinkPayload): void {
   const win = BrowserWindow.getAllWindows()[0];
   if (win === undefined || win.webContents.isLoading()) {
     setPendingDeepLink(payload);
-    logger.info({ hasSession: payload.sessionId !== null }, '深链已暂存，等待渲染层就绪');
+    logger.info({ hasTarget: payload.targetId !== null }, '深链已暂存，等待渲染层就绪');
     return;
   }
   broadcastDeepLink(payload);

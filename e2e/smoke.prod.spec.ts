@@ -77,7 +77,7 @@ async function launchPackagedApp(): Promise<{ app: ElectronApplication; page: Pa
     // 生产构建不经 ELECTRON_RENDERER_URL，主进程 loadFile 加载打包内的 renderer（src/main/window.ts）
     env: {
       ...process.env,
-      // 压成 production：runner 继承的 NODE_ENV=test 会让 appEnv 判成 test（src/main/config/index.ts）
+      // 压成 production：避免 runner 继承的 NODE_ENV=test 影响被测应用的环境判定
       NODE_ENV: 'production',
     },
   });
@@ -122,8 +122,8 @@ test.describe('生产构建冒烟测试', () => {
     });
 
     expect(apiKeys).not.toBeNull();
-    // 这里只抽样关键域（完整清单真源：packages/shared/src/ipc/meta.ts）；断言 models 而非 codebase——
-    // codebase 查询走工具（src/main/infra/ai/tools/codebase.tool.ts），不占独立 IPC 域
+    // 这里只抽样关键域（完整清单真源：packages/shared/src/ipc/meta.ts）；
+    // preload 能注入这些域即说明 window.api 由契约表生成。
     for (const domain of [
       'app',
       'window',

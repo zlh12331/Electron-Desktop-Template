@@ -36,11 +36,11 @@ describe('emitEvent', () => {
     mockIsPackaged.value = false;
     const def = {
       channel: 'agent:stream:end',
-      payloadSchema: z.object({ sessionId: z.string(), reason: z.enum(['completed']) }),
+      payloadSchema: z.object({ entityId: z.string(), reason: z.enum(['completed']) }),
     };
-    emitEvent(createWebContents(), def, { sessionId: 's-1', reason: 'completed' });
+    emitEvent(createWebContents(), def, { entityId: 's-1', reason: 'completed' });
     expect(mockSend).toHaveBeenCalledWith('agent:stream:end', {
-      sessionId: 's-1',
+      entityId: 's-1',
       reason: 'completed',
     });
   });
@@ -50,7 +50,7 @@ describe('emitEvent', () => {
     const { logger } = await import('./logger');
     const def = {
       channel: 'agent:stream:end',
-      payloadSchema: z.object({ sessionId: z.string(), reason: z.enum(['completed']) }),
+      payloadSchema: z.object({ entityId: z.string(), reason: z.enum(['completed']) }),
     };
     emitEvent(createWebContents(), def, { reason: 'completed' });
     expect(mockSend).toHaveBeenCalledTimes(1);
@@ -76,7 +76,7 @@ describe('emitEvent', () => {
     const { logger } = await import('./logger');
     const def = {
       channel: 'agent:stream:part',
-      payloadSchema: z.object({ sessionId: z.string(), part: z.unknown() }),
+      payloadSchema: z.object({ entityId: z.string(), part: z.unknown() }),
     };
     const wc = createWebContents();
     emitEvent(wc, def, { part: {} });
@@ -91,7 +91,7 @@ describe('emitEvent', () => {
     const { logger } = await import('./logger');
     const def = {
       channel: 'chat:stream:part',
-      payloadSchema: z.object({ sessionId: z.string() }),
+      payloadSchema: z.object({ entityId: z.string() }),
     };
     const wc = createWebContents();
     for (let i = 0; i < 50; i++) {
@@ -106,7 +106,7 @@ describe('emitEvent', () => {
     const { logger } = await import('./logger');
     const def = {
       channel: 'agent:stream:part',
-      payloadSchema: z.object({ sessionId: z.string() }),
+      payloadSchema: z.object({ entityId: z.string() }),
     };
     const wc = createWebContents();
     emitEvent(wc, def, { part: { type: 'text-delta' } });
@@ -120,7 +120,7 @@ describe('emitEvent', () => {
     const { logger } = await import('./logger');
     const def = {
       channel: 'agent:tool:call',
-      payloadSchema: z.object({ sessionId: z.string() }),
+      payloadSchema: z.object({ entityId: z.string() }),
     };
     const wc = createWebContents();
     emitEvent(wc, def, {});

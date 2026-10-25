@@ -15,7 +15,7 @@ const __dirname = dirname(__filename);
 const MAIN_ENTRY = join(__dirname, '..', 'out', 'main', 'index.js');
 const E2E_USER_DATA = join(__dirname, '..', '.e2e-user-data-deeplink');
 const DEBUG_PORT = '9226';
-const DEEP_LINK = 'electron-template://session/e2e-deep-link';
+const DEEP_LINK = 'electron-template://open/e2e-deep-link';
 
 async function waitForMainWindow(app: ElectronApplication): Promise<Page> {
   const deadline = Date.now() + 20_000;
