@@ -1,5 +1,5 @@
 {
-  "$comment": "历史文件名 aurora.json · 内容为 TraeWork Design Tokens（1.3=A 不改文件名）",
+  "$comment": "历史文件名 aurora.json · 内容为 Template Design Tokens（1.3=A 不改文件名）",
   "sidebar-w": {
     "value": "clamp(200px, 17vw, 280px)",
     "comment": "布局尺寸 — clamp() 实现响应式宽度约束"
@@ -74,26 +74,26 @@
   },
   "radius": {
     "value": "8px",
-    "comment": "圆角 — TraeWork 默认容器圆角 --radius-8"
+    "comment": "圆角 — Template 默认容器圆角 --radius-8"
   },
   "bg": {
     "value": "#FFFFFF",
-    "comment": "页面基底色 — TraeWork --bg-base-default",
+    "comment": "页面基底色 — Template --bg-base-default",
     "dark": "#0A0A0A"
   },
   "bg-elev": {
     "value": "#F5F5F5",
-    "comment": "L1 侧栏 / 顶栏 / 卡片层 — TraeWork --bg-base-secondary",
+    "comment": "L1 侧栏 / 顶栏 / 卡片层 — Template --bg-base-secondary",
     "dark": "#171717"
   },
   "bg-elev-2": {
     "value": "#E5E5E5",
-    "comment": "L2 悬浮输入区 / 卡片区 / 悬停态 — TraeWork --bg-base-tertiary",
+    "comment": "L2 悬浮输入区 / 卡片区 / 悬停态 — Template --bg-base-tertiary",
     "dark": "#262626"
   },
   "bg-elev-3": {
     "value": "#D4D4D4",
-    "comment": "L3 激活态 / 强调容器 — TraeWork --brand-grey-300",
+    "comment": "L3 激活态 / 强调容器 — Template --brand-grey-300",
     "dark": "#404040"
   },
   "background": {
@@ -120,12 +120,12 @@
   },
   "border": {
     "value": "rgba(115, 115, 115, 0.12)",
-    "comment": "描边：两级 — TraeWork --border-neutral-l1",
+    "comment": "描边：两级 — Template --border-neutral-l1",
     "dark": "rgba(255, 255, 255, 0.12)"
   },
   "border-strong": {
     "value": "rgba(115, 115, 115, 0.18)",
-    "comment": "TraeWork --border-neutral-l2",
+    "comment": "Template --border-neutral-l2",
     "dark": "rgba(255, 255, 255, 0.18)"
   },
   "input": {
@@ -133,37 +133,37 @@
   },
   "text": {
     "value": "#171717",
-    "comment": "文字主色 — TraeWork --text-default",
+    "comment": "文字主色 — Template --text-default",
     "dark": "#F5F5F5"
   },
   "text-secondary": {
     "value": "#404040",
-    "comment": "TraeWork --text-secondary",
+    "comment": "Template --text-secondary",
     "dark": "#D4D4D4"
   },
   "text-tertiary": {
     "value": "#595959",
-    "comment": "TraeWork --text-tertiary（亮色由 #737373 收紧至 #595959：原值对 --bg-elev/#F5F5F5 仅 4.35:1、对 --bg-elev-2/#E5E5E5 仅 3.76:1，均低于 AA；新值对各亮色底 ≥4.5，含 hover 底 --bg-elev-3/#D4D4D4 的 4.73）",
+    "comment": "Template --text-tertiary（亮色由 #737373 收紧至 #595959：原值对 --bg-elev/#F5F5F5 仅 4.35:1、对 --bg-elev-2/#E5E5E5 仅 3.76:1，均低于 AA；新值对各亮色底 ≥4.5，含 hover 底 --bg-elev-3/#D4D4D4 的 4.73）",
     "dark": "#A1A1A1"
   },
   "text-faint": {
     "value": "#A1A1A1",
-    "comment": "TraeWork --text-disabled（dark 由 #737373 提亮至 #8A8A8A：原值对 #0A0A0A 仅 4.18:1 低于 AA 且常与 9-10px 小字组合，新值 5.64；仍暗于 --text-secondary/#A1A1A1 的层级关系保持）",
+    "comment": "Template --text-disabled（dark 由 #737373 提亮至 #8A8A8A：原值对 #0A0A0A 仅 4.18:1 低于 AA 且常与 9-10px 小字组合，新值 5.64；仍暗于 --text-secondary/#A1A1A1 的层级关系保持）",
     "dark": "#8A8A8A"
   },
   "muted-foreground": {
     "value": "#595959",
-    "comment": "shadcn muted-foreground — TraeWork --text-tertiary（亮色收紧理由同 text-tertiary：原 #737373 在浮起底色上低于 AA 4.5；暗色 #A1A1A1 实测已达标不动）",
+    "comment": "shadcn muted-foreground — Template --text-tertiary（亮色收紧理由同 text-tertiary：原 #737373 在浮起底色上低于 AA 4.5；暗色 #A1A1A1 实测已达标不动）",
     "dark": "#A1A1A1"
   },
   "on-accent": {
     "value": "#FFFFFF",
-    "comment": "品牌色上的前景色 — TraeWork --text-onbrand",
+    "comment": "品牌色上的前景色 — Template --text-onbrand",
     "dark": "#FFFFFF"
   },
   "accent": {
     "value": "#4B3FE3",
-    "comment": "品牌主色（图形/边框/选中/图标；作文字色用 --accent-text，作实底按钮走 --primary）；暗色保持 TraeWork 官方亮档以保图形可见性",
+    "comment": "品牌主色（图形/边框/选中/图标；作文字色用 --accent-text，作实底按钮走 --primary）；暗色保持 Template 官方亮档以保图形可见性",
     "dark": "#6A6FFF"
   },
   "accent-text": {
@@ -173,12 +173,12 @@
   },
   "accent-dim": {
     "value": "#3F31C6",
-    "comment": "TraeWork --bg-brand-active",
+    "comment": "Template --bg-brand-active",
     "dark": "#4B3FE3"
   },
   "accent-2": {
     "value": "#3F85FF",
-    "comment": "辅助色 — TraeWork --accent-blue（作文字色用 --accent-2-text）",
+    "comment": "辅助色 — Template --accent-blue（作文字色用 --accent-2-text）",
     "dark": "#4C88FF"
   },
   "accent-2-text": {
@@ -208,7 +208,7 @@
   },
   "accent-glow": {
     "value": "rgba(75, 63, 227, 0.08)",
-    "comment": "品牌色氛围色（柔和、无发光 — TraeWork quiet by default）",
+    "comment": "品牌色氛围色（柔和、无发光 — Template quiet by default）",
     "dark": "rgba(93, 98, 255, 0.12)"
   },
   "accent-soft": {
@@ -237,7 +237,7 @@
   },
   "shadow-soft": {
     "value": "0 1px 3px rgba(115, 115, 115, 0.08)",
-    "comment": "柔和阴影（TraeWork 中性 elevation；旧名 glow-sm，2.5=A 改名）",
+    "comment": "柔和阴影（Template 中性 elevation；旧名 glow-sm，2.5=A 改名）",
     "dark": "0 1px 3px rgba(0, 0, 0, 0.2)"
   },
   "shadow-raise": {
@@ -246,17 +246,17 @@
   },
   "grid-line": {
     "value": "transparent",
-    "comment": "背景纹理：TraeWork 无装饰背景，纹理关闭",
+    "comment": "背景纹理：Template 无装饰背景，纹理关闭",
     "dark": "transparent"
   },
   "amber": {
     "value": "#E27900",
-    "comment": "语义色 — TraeWork --status-warning-default",
+    "comment": "语义色 — Template --status-warning-default",
     "dark": "#F39A35"
   },
   "amber-dim": {
     "value": "#C46F11",
-    "comment": "TraeWork --status-warning-active",
+    "comment": "Template --status-warning-active",
     "dark": "#E27900"
   },
   "amber-glow": {
@@ -273,7 +273,7 @@
   },
   "error": {
     "value": "#E8463A",
-    "comment": "TraeWork --status-error-default（基色：图形/边框/氛围；文字用 --error-text，实底+白字用 --error-emphasis）",
+    "comment": "Template --status-error-default（基色：图形/边框/氛围；文字用 --error-text，实底+白字用 --error-emphasis）",
     "dark": "#EA574C"
   },
   "error-emphasis": {
@@ -294,7 +294,7 @@
   },
   "magenta": {
     "value": "#9570FF",
-    "comment": "TraeWork --accent-violet",
+    "comment": "Template --accent-violet",
     "dark": "#B655FC"
   },
   "ink-brown": {
@@ -304,7 +304,7 @@
   },
   "success": {
     "value": "#15A877",
-    "comment": "TraeWork --status-success-default（基色：图形/边框/氛围；实底+白字用 --success-emphasis）"
+    "comment": "Template --status-success-default（基色：图形/边框/氛围；实底+白字用 --success-emphasis）"
   },
   "success-emphasis": {
     "value": "#047857",
@@ -380,7 +380,7 @@
   },
   "shadow-modal": {
     "value": "0 16px 48px rgba(115, 115, 115, 0.12), 0 0 0 1px rgba(115, 115, 115, 0.06)",
-    "comment": "阴影体系 — TraeWork 中性阴影",
+    "comment": "阴影体系 — Template 中性阴影",
     "dark": "0 24px 64px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.02)"
   },
   "shadow-dropdown": {
@@ -401,7 +401,7 @@
   },
   "ease-soft": {
     "value": "cubic-bezier(0.4, 0, 0.2, 1)",
-    "comment": "动效缓动函数 — TraeWork 120ms hover / 200ms state / 300ms reveal"
+    "comment": "动效缓动函数 — Template 120ms hover / 200ms state / 300ms reveal"
   },
   "ease-paper": {
     "value": "cubic-bezier(0.25, 0.46, 0.45, 0.94)"

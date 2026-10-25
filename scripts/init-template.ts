@@ -514,7 +514,7 @@ function writeLocales(root: string, input: InitInput, dryRun: boolean): RewriteR
         const parsed = JSON.parse(text) as {
           settings?: Record<string, unknown>;
         };
-        // autostartDesc 写的是产品短名（上游为「Code Agent」，不含 Desktop），
+        // autostartDesc 写的是产品短名（上游品牌不含 Desktop 后缀），
         // 全名替换匹配不到——按语言整体重写该键，保证初始化后文案自洽
         if (parsed.settings !== undefined) {
           const isZh = rel.includes('zh-CN');

@@ -25,7 +25,7 @@ describe('resourcesDirOf', () => {
   describe('macOS（.app 包内路径）', () => {
     it('mac-arm64：返回 <dir>/<App>.app/Contents/Resources（回归锚）', () => {
       const dir = join(root, 'mac-arm64');
-      const appName = 'Code Agent Desktop.app';
+      const appName = 'Electron Desktop Template.app';
       mkdirSync(join(dir, appName, 'Contents', 'Resources'), { recursive: true });
 
       const result = resourcesDirOf(dir);
@@ -35,7 +35,7 @@ describe('resourcesDirOf', () => {
 
     it('mac（x64 默认目录名）同样解析到 .app 内', () => {
       const dir = join(root, 'mac');
-      const appName = 'Code Agent Desktop.app';
+      const appName = 'Electron Desktop Template.app';
       mkdirSync(join(dir, appName, 'Contents', 'Resources'), { recursive: true });
 
       expect(resourcesDirOf(dir)).toBe(join(dir, appName, 'Contents', 'Resources'));

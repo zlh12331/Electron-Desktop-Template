@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 import { COLLECTOR_IMAGE, STORAGE_INIT_IMAGE } from './collector-smoke-fixtures';
 
 const exec = promisify(execFile);
-const ownerLabel = 'io.code-agent.collector-smoke';
+const ownerLabel = 'io.electron-desktop-template.collector-smoke';
 
 /** Bounded, shell-free Docker invocation; never passes through real OTLP environment variables. */
 export async function docker(args: string[], timeout = 60_000): Promise<string> {
