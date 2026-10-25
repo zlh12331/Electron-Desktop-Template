@@ -1,6 +1,6 @@
 import { DEFAULT_ZOOM, stepZoom } from '@code-agent/shared/renderer';
 import { MotionConfig } from 'motion/react';
-import { lazy, type ReactElement, type ReactNode, Suspense, useEffect } from 'react';
+import { lazy, type ReactElement, type ReactNode, Suspense, useEffect, useState } from 'react';
 import { DialogHost } from '@/components/common/DialogHost';
 import { SectionErrorBoundary } from '@/components/common/SectionErrorBoundary';
 import { UpdateNotice } from '@/components/common/UpdateNotice';
@@ -62,6 +62,14 @@ export function AppShell({ children }: AppShellProps): ReactElement {
 
   const settingsOpen = useUiStore((s) => s.settingsOpen);
   const closeSettings = useUiStore((s) => s.closeSettings);
+  // 首次打开前不挂载 lazy 弹层：避免启动即请求 1MB+ 的 SettingsDialog chunk。
+  // 打开过一次后保持挂载，这样关闭动画/内部状态不会因卸载被截断。
+  const [settingsMounted, setSettingsMounted] = useState(settingsOpen);
+  useEffect(() => {
+    if (settingsOpen) {
+      setSettingsMounted(true);
+    }
+  }, [settingsOpen]);
   useEffect(() => {
     // 只在紧凑模式下自动收起；非紧凑不主动展开（模板默认无右栏内容，
     // 强制展开会留出空白区）。接入工作区面板后按需改回 isCompact 双向联动。
@@ -78,10 +86,22 @@ export function AppShell({ children }: AppShellProps): ReactElement {
   const paletteOpen = useUiStore((s) => s.paletteOpen);
   const openPalette = useUiStore((s) => s.openPalette);
   const closePalette = useUiStore((s) => s.closePalette);
+  const [paletteMounted, setPaletteMounted] = useState(paletteOpen);
+  useEffect(() => {
+    if (paletteOpen) {
+      setPaletteMounted(true);
+    }
+  }, [paletteOpen]);
 
   const shortcutHelpOpen = useUiStore((s) => s.shortcutHelpOpen);
   const closeShortcutHelp = useUiStore((s) => s.closeShortcutHelp);
   const openShortcutHelp = useUiStore((s) => s.openShortcutHelp);
+  const [shortcutHelpMounted, setShortcutHelpMounted] = useState(shortcutHelpOpen);
+  useEffect(() => {
+    if (shortcutHelpOpen) {
+      setShortcutHelpMounted(true);
+    }
+  }, [shortcutHelpOpen]);
 
   const setTheme = useSettingsStore((s) => s.setTheme);
   const theme = useSettingsStore((s) => s.theme);
@@ -176,16 +196,22 @@ export function AppShell({ children }: AppShellProps): ReactElement {
 
         <DialogHost />
 
-        <Suspense fallback={null}>
-          <LazySettingsDialog open={settingsOpen} onOpenChange={closeSettings} />
-        </Suspense>
+        {settingsMounted && (
+          <Suspense fallback={null}>
+            <LazySettingsDialog open={settingsOpen} onOpenChange={closeSettings} />
+          </Suspense>
+        )}
 
-        <Suspense fallback={null}>
-          <LazyCommandPalette open={paletteOpen} onOpenChange={closePalette} />
-        </Suspense>
-        <Suspense fallback={null}>
-          <LazyShortcutHelpDialog open={shortcutHelpOpen} onClose={closeShortcutHelp} />
-        </Suspense>
+        {paletteMounted && (
+          <Suspense fallback={null}>
+            <LazyCommandPalette open={paletteOpen} onOpenChange={closePalette} />
+          </Suspense>
+        )}
+        {shortcutHelpMounted && (
+          <Suspense fallback={null}>
+            <LazyShortcutHelpDialog open={shortcutHelpOpen} onClose={closeShortcutHelp} />
+          </Suspense>
+        )}
         <UpdateNotice />
       </div>
     </MotionConfig>

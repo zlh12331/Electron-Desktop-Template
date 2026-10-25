@@ -29,4 +29,18 @@ test.describe('冒烟测试：应用启动', () => {
     await expect(themeButton).toBeVisible({ timeout: 10_000 });
     await themeButton.click();
   });
+
+  test('设置弹层按需加载：启动不请求 SettingsDialog', async ({ page }) => {
+    const requests: string[] = [];
+    page.on('request', (request) => requests.push(request.url()));
+
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(500);
+    expect(requests.some((url) => url.includes('SettingsDialog'))).toBe(false);
+
+    await page.getByRole('button', { name: '打开设置' }).first().click();
+    await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 10_000 });
+    await expect.poll(() => requests.some((url) => url.includes('SettingsDialog'))).toBe(true);
+  });
 });
