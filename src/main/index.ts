@@ -45,6 +45,7 @@ import { telemetryHandlers } from './ipc/telemetry.handler';
 import { createUpdateHandlers } from './ipc/update.handler';
 import { createWindowHandlers } from './ipc/window.handler';
 import { broadcastLoginItemChanged, broadcastSettingChanged } from './main-events';
+import { installProductionMenu } from './menu';
 import { isQuitting, setCloseConfirmed, setQuitting } from './quit-state';
 import { applyCspToSession } from './security/csp';
 import { disposeServices, recoverFromCrash, serviceContainer } from './service-container';
@@ -194,6 +195,8 @@ app
           callback(false);
         });
         session.defaultSession.setPermissionCheckHandler(() => false);
+
+        installProductionMenu();
 
         logger.info({}, '应用启动');
         recordStartupMilestone('services');

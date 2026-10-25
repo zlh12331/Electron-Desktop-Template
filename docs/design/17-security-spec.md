@@ -18,6 +18,7 @@
 
 - **CSP**：`src/main/security/csp.ts` 对 `defaultSession` 统一注入；产线 `script-src` 只认自身、wasm 与**一个内联脚本哈希**（`check:csp-hash` 卡关——改 CSP 或 `index.html` 内联脚本必须同步重算）。`init:template` 改写 `storagePrefix` 时会同步重算该哈希，回归见 `scripts/init-template.test.ts`。
 - **开发期**放宽项（Vite HMR / React DevTools）只在 `!app.isPackaged` 生效，禁止进产线策略。
+- **生产菜单**：打包态使用 `src/main/menu-template.ts` 的 File/Edit/Window（macOS 为 appMenu/Edit/Window），不提供 View/Reload/Force Reload/Toggle Developer Tools；开发态保留 Electron 默认菜单用于调试。
 - **导航**：`will-navigate` 拦截站外跳转；`setWindowOpenHandler` 统一改为系统浏览器打开；外链只走 `app:openExternal`。
 - **权限**：`setPermissionRequestHandler` 与 `setPermissionCheckHandler` 双收口，渲染层系统权限请求/查询一律拒绝（当前无任何授权项）。
 - **IPC 来源**：仅接受主 frame（`senderFrame === sender.mainFrame`）且 URL 白名单；`file:` 入口要求 path/host 完全匹配、拒绝 query（防同后缀路径伪造），**允许 hash**——生产构建使用 hash router，hash 不改变实际加载的资源，拒绝它会让 About 等路由的所有 IPC 被 sender 校验误杀。
