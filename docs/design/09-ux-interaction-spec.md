@@ -28,7 +28,7 @@ flowchart LR
 
 - **mock 覆盖**：模板保留的全部域（app / window / dialog / settings / system / logs / devtools / backup / update / proxy / secrets / invalidation）；新增业务域时同步补 `src/renderer/dev/mock-api.ts`
 - **隔离性**：仅 `--mode web` 注入；`pnpm dev`（Electron）由 preload 注入真实 `window.api`；生产构建与 E2E 不加载 mock 代码（动态 import + 条件短路）
-- **相关文件**：`vite.web.config.ts` / `src/renderer/dev/mock-api.ts`（返回类型受 `IpcApi` 约束）/ `src/renderer/main.tsx` / `package.json` 的 `dev:web`
+- **相关文件**：`vite.web.config.ts` / `src/renderer/dev/mock-api.ts`（`createMockApi` 通过 `satisfies IpcApi` 对齐类型，`mock-api.test.ts` 按 `IPC_META` 校验域/方法/kind）/ `src/renderer/main.tsx` / `package.json` 的 `dev:web`
 - **已知限制**：mock 是内存态，刷新即失；不模拟 IPC 失败分支（错误态需在真实主进程或单测中验证）
 
 ## 一、全局架构

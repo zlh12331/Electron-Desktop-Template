@@ -109,8 +109,7 @@
 
 ### 4.3 契约/IPC（本项目第一公民，用户清单外必列）
 - 定义表三步：meta + definitions + handler；响应 schema 必写（R3 契约校验）；
-- **mock-api 同批对齐**——IpcApi 的实现者缺一个 typecheck 就挂（resetAll 实施中
-  dev server FATAL「handler 缺失」实证：契约体系 fail-fast 反而是在帮忙）；
+- **mock-api 同批对齐**——`createMockApi` 通过 `satisfies IpcApi` 接受编译期检查，`IPC_META` 契约测试校验域/方法/kind，缺域或缺方法在 `pnpm typecheck` 或 `pnpm test:renderer` 直接失败；
 - 是否需要主进程主动广播（broadcastSettingChanged / 31 号失效域声明）。
 
 ### 4.4 状态管理（四层判定）

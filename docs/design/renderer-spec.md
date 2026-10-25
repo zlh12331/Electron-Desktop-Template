@@ -87,7 +87,7 @@
 
 ## 10. dev 与测试
 
-- `dev/mock-api.ts`：浏览器模式（`pnpm dev:web`）的 `window.api` 假实现，只覆盖通用域。
+- `dev/mock-api.ts`：浏览器模式（`pnpm dev:web`）的 `window.api` 假实现，只覆盖通用域；`createMockApi` 受 `IpcApi` 编译期约束，`mock-api.test.ts` 按 `IPC_META` 校验方法集。
 - `test/setup.ts`：jsdom + jest-dom + ResizeObserver / IntersectionObserver / matchMedia polyfill + 空 `window.api` 骨架。
 - `test/smoke.test.tsx`：测试基建冒烟。
 

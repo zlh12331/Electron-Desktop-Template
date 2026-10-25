@@ -24,7 +24,12 @@ const memorySettings = new Map<string, unknown>([
 
 /** 假备份列表 */
 const mockBackups = [
-  { name: '2026-01-01T00-00-00', sizeBytes: 1_048_576, createdAt: Date.now() - 86_400_000 },
+  {
+    name: '2026-01-01T00-00-00',
+    sizeBytes: 1_048_576,
+    createdAtMs: Date.now() - 86_400_000,
+    healthy: true,
+  },
 ];
 
 /** 浏览器模式下的假凭据库（内存态；掩码算法与主进程 maskSecret 保持一致） */
@@ -37,7 +42,12 @@ const mockUpdateSnapshot: UpdateStatusPayload = {
 
 /** 安装 mock：把假 api 挂到 window.api（仅 dev:web 调用一次） */
 export function installMockApi(): void {
-  const api = {
+  window.api = createMockApi();
+}
+
+/** 构建与 IPC 契约同形的假 API（导出供 IPC_META 契约测试复用） */
+export function createMockApi(): IpcApi {
+  return {
     app: {
       getStatus: async () => ipcOk({ ready: true, protocolVersion: IPC_PROTOCOL_VERSION }),
       getInfo: async () =>
@@ -192,7 +202,7 @@ export function installMockApi(): void {
       read: async () => ipcOk({ lines: [], total: 0, filePath: '', truncated: false }),
     },
     devtools: {
-      open: async () => ipcOk({ ok: true }),
+      open: async () => ipcOk({ ok: true, mode: 'detach' as const }),
     },
     dialog: {
       pickDirectory: async () => ipcOk({ canceled: true }),
@@ -202,15 +212,13 @@ export function installMockApi(): void {
       subscribeDomains: () => () => {},
     },
     update: {
-      check: async () => ipcOk({ ok: true }),
+      check: async () => ipcOk({ status: 'checking' as const }),
       install: async () => ipcOk({ ok: true }),
       cancel: async () => ipcOk({ ok: true }),
       getStatus: async () => ipcOk({ snapshot: mockUpdateSnapshot, lastCheckAt: null }),
       getCacheInfo: async () => ipcOk({ path: '/tmp/mock-updater', bytes: 0, fileCount: 0 }),
-      clearCache: async () => ipcOk({ ok: true }),
+      clearCache: async () => ipcOk({ path: '/tmp/mock-updater', bytes: 0, fileCount: 0 }),
       subscribeStatus: () => () => {},
     },
-  } as unknown as IpcApi;
-
-  window.api = api;
+  } satisfies IpcApi;
 }
