@@ -2,6 +2,7 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "./packages/tsconfig/node.json",
   "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.cache/tsbuildinfo/configs.tsbuildinfo",
     "lib": ["ES2024"],
     "types": ["node"],
     "allowJs": true,

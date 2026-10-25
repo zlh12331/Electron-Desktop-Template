@@ -2,6 +2,7 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "@code-agent/tsconfig/base.json",
   "compilerOptions": {
+    "tsBuildInfoFile": "../../node_modules/.cache/tsbuildinfo/packages-shared.tsbuildinfo",
     "outDir": "./dist",
     "rootDir": "./src",
     "noEmit": false,

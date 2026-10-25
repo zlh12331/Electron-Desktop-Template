@@ -8,6 +8,8 @@ import { defineConfig } from 'vitest/config';
 
 // biome-ignore lint/style/noDefaultExport: vitest config 框架要求必须使用 export default
 export default defineConfig({
+  // 依赖优化缓存统一落仓库根的 node_modules/.vite/<层>（vitest 默认按 root 建在源码目录下）
+  cacheDir: resolve(import.meta.dirname, '../../node_modules/.vite/integration'),
   resolve: {
     alias: {
       '@main': resolve(import.meta.dirname, '../src/main'),

@@ -2,7 +2,7 @@
 // 边界：只管本包的用例与覆盖率；main / renderer / scripts 各有独立 vitest.config.ts
 
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 // 覆盖率阈值不在本文件内联：唯一真源是 scripts/coverage-floors.json。`pnpm check:coverage-floors`
@@ -23,6 +23,8 @@ const sharedFloor = (
 
 // biome-ignore lint/style/noDefaultExport: Vitest 框架要求 config 文件必须使用 export default
 export default defineConfig({
+  // 依赖优化缓存统一落仓库根的 node_modules/.vite/<层>（vitest 默认按 root 建在源码目录下）
+  cacheDir: resolve(import.meta.dirname, '../../node_modules/.vite/shared'),
   test: {
     // 与 packages/shared/tsconfig.json 的 types: ["vitest/globals"] 配套；本包用例仍显式 import，两者不可单独改动
     globals: true,

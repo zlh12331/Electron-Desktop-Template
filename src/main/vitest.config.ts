@@ -1,7 +1,7 @@
 // vitest.config.ts：主进程单测配置（pnpm test:main 的 --root 指向本目录）；
 // 覆盖率阈值从 scripts/coverage-floors.json 的 main 层读取（数字真源不在本文件）
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 type FloorsFile = {
@@ -19,6 +19,9 @@ const mainFloor = (
 
 // biome-ignore lint/style/noDefaultExport: vitest config 框架要求必须使用 export default
 export default defineConfig({
+  // 依赖优化缓存统一落仓库根的 node_modules/.vite/<层>：vitest 默认按 root 解析 cacheDir，
+  // 会在这层源码目录下递归建出 node_modules/.vite（生成物不该落在源码树里）
+  cacheDir: resolve(import.meta.dirname, '../../node_modules/.vite/main'),
   test: {
     globals: true,
     include: ['**/*.test.ts'],

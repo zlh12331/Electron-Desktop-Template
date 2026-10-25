@@ -2,9 +2,12 @@
 // scripts 目录 Vitest 配置（门禁规则核与脚手架纯函数测试，Node 环境）；
 // scripts/**/*.ts 的 biome override 已放行 noDefaultExport，可直接 export default
 
+import { resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  // 依赖优化缓存统一落仓库根的 node_modules/.vite/<层>（vitest 默认按 root 建在源码目录下）
+  cacheDir: resolve(import.meta.dirname, '../node_modules/.vite/scripts'),
   test: {
     // 与 src/main / src/renderer 一致：启用 globals（describe/it/expect 无需显式 import）
     globals: true,
