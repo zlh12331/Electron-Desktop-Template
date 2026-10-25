@@ -20,7 +20,7 @@
 - **开发期**放宽项（Vite HMR / React DevTools）只在 `!app.isPackaged` 生效，禁止进产线策略。
 - **导航**：`will-navigate` 拦截站外跳转；`setWindowOpenHandler` 统一改为系统浏览器打开；外链只走 `app:openExternal`。
 - **权限**：`setPermissionRequestHandler` 与 `setPermissionCheckHandler` 双收口，渲染层系统权限请求/查询一律拒绝（当前无任何授权项）。
-- **IPC 来源**：仅接受主 frame（`senderFrame === sender.mainFrame`）且 URL 白名单；`file:` 入口拒绝 query/hash，避免同后缀路径伪造。
+- **IPC 来源**：仅接受主 frame（`senderFrame === sender.mainFrame`）且 URL 白名单；`file:` 入口要求 path/host 完全匹配、拒绝 query（防同后缀路径伪造），**允许 hash**——生产构建使用 hash router，hash 不改变实际加载的资源，拒绝它会让 About 等路由的所有 IPC 被 sender 校验误杀。
 
 ## 三、密钥与凭据
 

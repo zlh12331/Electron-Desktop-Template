@@ -16,7 +16,9 @@ export function rendererEntryFileUrl(appPath: string): string {
 /**
  * 是否允许渲染层入口 URL
  *
- * file: 只接受产物入口的完全匹配（拒绝 query/hash 与任意目录同后缀文件）；
+ * file: 路径 + host 必须等于产物入口，query 拒绝；**hash 允许**——
+ * 生产构建用 hash router（file:// 下 history 路由不可用），hash 不改变
+ * 实际加载的资源，拒绝它会让 About 等路由的所有 IPC 被 sender 校验误杀。
  * dev 只接受 dev server origin（路径/query/hash 均可，保留 Vite 与 hash 路由）。
  *
  * @param rawUrl 待校验 URL
@@ -35,7 +37,8 @@ export function isAllowedRendererUrl(
     return false;
   }
   if (parsed.protocol === 'file:') {
-    return parsed.href === entryFileUrl;
+    const entry = new URL(entryFileUrl);
+    return parsed.host === entry.host && parsed.pathname === entry.pathname && parsed.search === '';
   }
   if (devServerUrl !== undefined && devServerUrl.length > 0) {
     try {

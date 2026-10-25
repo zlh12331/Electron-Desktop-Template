@@ -236,6 +236,48 @@ test.describe('生产构建冒烟测试', () => {
     await closeElectronApp(launchApp);
   });
 
+  test('hash 路由导航后 IPC 仍可用（About → 首页）', async () => {
+    ({ app, page } = await launchPackagedApp());
+
+    const callAppInfo = (): Promise<unknown> =>
+      page.evaluate(async () => {
+        const response = await window.api.app.getInfo();
+        if ('error' in response) {
+          throw new Error(`IPC 失败：${response.error.code}`);
+        }
+        return response.data;
+      });
+
+    await expect.poll(async () => (await callAppInfo()) !== null).toBe(true);
+
+    await page
+      .getByRole('button', { name: /查看说明|Read more/i })
+      .first()
+      .click();
+    await expect.poll(() => new URL(page.url()).hash).toBe('#/about');
+    await expect.poll(async () => (await callAppInfo()) !== null).toBe(true);
+
+    await page
+      .getByRole('button', { name: /返回|Back/i })
+      .first()
+      .click();
+    await expect.poll(() => new URL(page.url()).hash).toBe('#/');
+    await expect.poll(async () => (await callAppInfo()) !== null).toBe(true);
+  });
+
+  test('生产 CSP 拦截注入的内联脚本', async () => {
+    ({ app, page } = await launchPackagedApp());
+
+    const inlineExecuted = await page.evaluate(() => {
+      const script = document.createElement('script');
+      script.textContent = 'window.__cspInlineProbe = true';
+      document.head.appendChild(script);
+      return (window as Window & { __cspInlineProbe?: boolean }).__cspInlineProbe === true;
+    });
+
+    expect(inlineExecuted).toBe(false);
+  });
+
   test('应用无控制台错误', async () => {
     ({ app, page } = await launchPackagedApp());
 

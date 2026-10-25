@@ -11,10 +11,11 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 export default defineConfig({
   testDir: '.',
-  // 四类 electron 专属 spec：主窗口 + window.api/IPC 全链路（含 DevTools hook）、
-  // dev 更新调试（APP_DEV_UPDATE）、--hidden 静默启动、冷启动深链
+  // 五类 electron 专属 spec：主窗口 + window.api/IPC 全链路（含 DevTools hook）、
+  // file 模式 hash 路由 IPC 回归、dev 更新调试（APP_DEV_UPDATE）、--hidden 静默启动、冷启动深链
   testMatch: [
     '**/electron.spec.ts',
+    '**/electron-file.spec.ts',
     '**/electron-update-dev.spec.ts',
     '**/electron-hidden-start.spec.ts',
     '**/electron-deeplink.spec.ts',

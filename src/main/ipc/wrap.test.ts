@@ -214,7 +214,23 @@ describe('wrap', () => {
     expect(result).toMatchObject({ error: { code: ErrorCode.IPC_SENDER_INVALID } });
   });
 
-  it('file URL 带 query/hash 不被视为合法 sender', async () => {
+  it('file URL 带 hash 仍是合法 sender（生产 hash router）', async () => {
+    mockFromWebContents.mockReturnValue({ id: 1 });
+    const handler = vi.fn(async () => 'ok');
+    wrap('test:channel', null, handler);
+    const registeredHandler = getRegisteredHandler();
+    const sender = {
+      getURL: () => `${allowedFileUrl}#/about`,
+      mainFrame: topFrame,
+    };
+
+    const result = await registeredHandler({ sender, senderFrame: topFrame }, undefined);
+
+    expect(result).toEqual({ data: 'ok' });
+    expect(handler).toHaveBeenCalledOnce();
+  });
+
+  it('file URL 带 query 不被视为合法 sender', async () => {
     mockFromWebContents.mockReturnValue({ id: 1 });
     wrap('test:channel', null, async () => 'ok');
     const registeredHandler = getRegisteredHandler();
