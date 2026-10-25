@@ -28,6 +28,9 @@ export default defineConfig({
     exclude: ['**/*.perf.test.ts'],
     coverage: {
       provider: 'v8',
+      // 产物统一落仓库根 coverage/<层>：不把生成物留在这层源码目录里
+      // （全部门禁按目录名 coverage 跳过，故改名或换层都会打破它们的 SKIP 约束）
+      reportsDirectory: '../../coverage/main',
       reporter: ['text', 'html', 'lcov'],
       // 默认只统计被测试导入的文件；显式 include 让未被导入的模块也以 0% 计入，避免高风险模块隐身
       include: ['**/*.ts'],

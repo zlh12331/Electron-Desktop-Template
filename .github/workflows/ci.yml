@@ -316,9 +316,7 @@ jobs:
         with:
           name: coverage-${{ github.run_id }}
           path: |
-            packages/shared/coverage/
-            src/main/coverage/
-            src/renderer/coverage/
+            coverage/
           retention-days: 7
 
   # ── Job 3: unit 汇总（ruleset 引用它，而非 6 个平台名）──────────

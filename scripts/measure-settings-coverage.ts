@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { findMetricShortfalls, loadCoverageFloors, METRIC_KEYS } from './lib/coverage-floors';
 
 const ROOT = join(import.meta.dirname, '..');
-const SUMMARY_PATH = join(ROOT, 'src', 'renderer', 'coverage', 'coverage-summary.json');
+const SUMMARY_PATH = join(ROOT, 'coverage', 'renderer', 'coverage-summary.json');
 const FLOORS_PATH = join(ROOT, 'scripts', 'coverage-floors.json');
 /** 聚合前缀（posix 化后匹配，兼容 Windows 反斜杠产物路径） */
 const PREFIX = '/components/settings/';

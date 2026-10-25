@@ -5,7 +5,7 @@
 import { readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
-/** 覆盖率统计层 */
+/** 覆盖率统计层（lcovPath 为仓库根相对的产物路径，产物统一在根 coverage/<层>/） */
 export interface CoverageScope {
   readonly layer: 'main' | 'renderer' | 'shared';
   /** 源码根（相对仓库根） */
@@ -23,13 +23,13 @@ export const COVERAGE_SCOPES: readonly CoverageScope[] = [
   {
     layer: 'main',
     sourceRoot: 'src/main',
-    lcovPath: 'src/main/coverage/lcov.info',
+    lcovPath: 'coverage/main/lcov.info',
     allowed: ['index.ts'],
   },
   {
     layer: 'renderer',
     sourceRoot: 'src/renderer',
-    lcovPath: 'src/renderer/coverage/lcov.info',
+    lcovPath: 'coverage/renderer/lcov.info',
     allowed: [
       'App.tsx',
       'main.tsx',
@@ -51,7 +51,7 @@ export const COVERAGE_SCOPES: readonly CoverageScope[] = [
   {
     layer: 'shared',
     sourceRoot: 'packages/shared/src',
-    lcovPath: 'packages/shared/coverage/lcov.info',
+    lcovPath: 'coverage/shared/lcov.info',
     lcovPrefix: 'src/',
     allowed: ['index.ts'],
   },

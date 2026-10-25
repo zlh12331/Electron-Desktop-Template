@@ -43,6 +43,8 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
+      // 产物统一落仓库根 coverage/<层>（同上，不与源码混放）
+      reportsDirectory: '../../coverage/renderer',
       reporter: ['text', 'html', 'lcov', 'json-summary'],
       // 显式 include：未被测试导入的组件/模块也计入分母；dev mock 与入口文件另行排除
       include: ['**/*.{ts,tsx}'],

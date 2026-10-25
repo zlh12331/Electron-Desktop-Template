@@ -8,9 +8,9 @@ import { evaluateCriticalCoverage, parseLcovCoverage } from './lib/critical-cove
 
 const ROOT = join(import.meta.dirname, '..');
 const LCOV: Readonly<Record<'main' | 'renderer' | 'shared', string>> = {
-  main: 'src/main/coverage/lcov.info',
-  renderer: 'src/renderer/coverage/lcov.info',
-  shared: 'packages/shared/coverage/lcov.info',
+  main: 'coverage/main/lcov.info',
+  renderer: 'coverage/renderer/lcov.info',
+  shared: 'coverage/shared/lcov.info',
 };
 
 function main(): number {
