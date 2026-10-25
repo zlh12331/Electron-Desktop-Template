@@ -3,7 +3,7 @@
 // 打包/smoke →（可选）NSIS 安装生命周期。用法见 docs/guides/template-acceptance.md。
 // 不配置远端、不推送、不发 Release；失败默认保留副本便于排查。
 
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { deriveExecutableName } from './init-template';
@@ -111,6 +111,11 @@ async function main(): Promise<void> {
     console.log(`[acceptance] 副本：${copyRoot}`);
     stage('复制 git 跟踪文件', () => {
       const count = copyTrackedFiles(root, copyRoot);
+      // 仓库外副本不继承开发者全局 registry；.npmrc 固定官方源，镜像缺失 optional 平台包
+      // manifest 时 minimumReleaseAge 会把全新安装判失败（2026-10-25 实测）
+      if (existsSync(join(root, '.npmrc'))) {
+        copyFileSync(join(root, '.npmrc'), join(copyRoot, '.npmrc'));
+      }
       console.log(`  已复制 ${count} 个文件`);
       initGitRepository(copyRoot);
     });
