@@ -11,7 +11,7 @@
 # `no leaks found`；补上 useDefault = true 后恢复报 `leaks found: 1`。
 # 因此 useDefault = true **不可删除**——删掉即退回静默失效。
 
-title = "code-agent-desktop"
+title = "Electron Desktop Template"
 
 [extend]
 # 继承 gitleaks 内置规则集（100+ 条）。这是本配置唯一的规则来源，

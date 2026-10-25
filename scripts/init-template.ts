@@ -402,7 +402,9 @@ function writeElectronBuilder(
         .replace(/^productName: .*$/m, `productName: ${input.productName}`)
         // executableName 在 mac 段下是缩进键（^executableName 匹配不到）
         .replace(/^(\s*)executableName: .*$/m, `$1executableName: ${input.executableName}`)
-        // protocols 的 name 与 schemes 两处都指向旧 scheme
+        // protocols 的 name 与 schemes 都跟随品牌协议；之前只改 schemes，
+        // 派生项目的 CFBundleURLName 会残留模板/上游的 code-agent。
+        .replace(/(protocols:\n\s*-\s*name:\s*)[^\n]*/g, `$1${input.protocol}`)
         .replace(
           new RegExp(`(^\\s*-\\s+)${escapeRegExp(previous.protocol)}$`, 'gm'),
           `$1${input.protocol}`,
@@ -412,6 +414,8 @@ function writeElectronBuilder(
           `$1${input.protocol}`,
         )
         .replaceAll(`${previous.artifactBaseName}-`, artifactPrefix)
+        .replace(/^(\s*synopsis:\s*).*$/m, `$1${input.productName}`)
+        .replace(/^(\s*description:\s*).*$/m, `$1${input.description}`)
         // deb 的 maintainer 字段携带仓库坐标（无公开邮箱时的报障入口）
         .replace(
           /^(\s*maintainer:\s*).*$/m,

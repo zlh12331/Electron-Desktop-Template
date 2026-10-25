@@ -76,7 +76,7 @@
     SetOutPath $TEMP
     ; 尽力删除旧安装目录：新版安装器随后会写入全部文件，个别被占用的稍后被覆盖
     RMDir /r "$INSTDIR"
-    ; 不动用户数据（$APPDATA 下的会话库与设置），避免误删
+    ; 不动用户数据（$APPDATA 下的数据库与设置），避免误删
 
     ; 关键：清掉错误状态，让调用方（installSection.nsh）继续安装新版本
     ClearErrors

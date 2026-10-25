@@ -70,7 +70,10 @@ function checkElectronBuilder(issues: BrandIssue[], brand: BrandSource): void {
   expectContains(issues, file, text, `appId: ${brand.appId}`, 'appId');
   expectContains(issues, file, text, `productName: ${brand.productName}`, 'productName');
   expectContains(issues, file, text, `executableName: ${brand.executableName}`, 'executableName');
+  expectContains(issues, file, text, `name: ${brand.protocol}`, 'protocols.name');
   expectContains(issues, file, text, `schemes:\n        - ${brand.protocol}`, 'protocols.schemes');
+  expectContains(issues, file, text, `synopsis: ${brand.productName}`, 'linux.synopsis');
+  expectContains(issues, file, text, `description: ${brand.description}`, 'linux.description');
   expectContains(
     issues,
     file,

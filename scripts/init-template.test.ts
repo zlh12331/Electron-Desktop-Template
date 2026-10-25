@@ -244,8 +244,12 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
     expect(builder).toContain('Acme-Notes-Windows-');
     expect(builder).toContain('Acme-Notes-macOS-');
     expect(builder).toContain('Acme-Notes-Linux-');
+    expect(builder).toContain('name: acmenotes');
+    expect(builder).toContain('synopsis: Acme Notes');
+    expect(builder).toContain(`description: ${input.description}`);
     expect(builder).toContain('        - acmenotes');
     expect(builder).not.toContain('Code-Agent-Desktop');
+    expect(builder).not.toContain('code-agent');
 
     const installer = readFileSync(join(dir, 'resources/installer.nsh'), 'utf8');
     expect(installer).toContain('!define APP_PROTOCOL "acmenotes"');
@@ -475,6 +479,9 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
     expect(builder).toContain(`appId: ${brand.appId}`);
     expect(builder).toContain(`productName: ${brand.productName}`);
     expect(builder).toContain(`executableName: ${brand.executableName}`);
+    expect(builder).toContain(`name: ${brand.protocol}`);
+    expect(builder).toContain(`synopsis: ${brand.productName}`);
+    expect(builder).toContain(`description: ${brand.description}`);
     expect(builder).toContain(`        - ${brand.protocol}`);
     expect(builder).toContain(`artifactName: ${brand.artifactBaseName}-Windows-`);
     expect(html).toContain(`<title>${brand.productName}</title>`);

@@ -14,7 +14,7 @@
 # 用 workflow 的 config-file 直接引用本文件。
 #
 # 判断依据同 AGENTS.md「已移除」一节。
-name: "Code Agent Desktop CodeQL config"
+name: "Electron Desktop Template CodeQL config"
 
 # 模板已移除 vendored 源码（记忆引擎 / 动效参考源），当前无需排除任何路径。
 # 接入第三方只读源码时在此登记，避免其告警污染本项目质量门禁。
