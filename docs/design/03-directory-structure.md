@@ -11,7 +11,7 @@
 ├── docs/
 │   ├── design/               # 设计规范（长期有效）
 │   ├── guides/               # 操作指南（CI/CD、派生验收、开源运维）
-│   └── history/              # 实施记录（一次性归档）
+│   └── history/              # 实施记录（一次性，写完冻结）
 ├── drizzle/                  # 数据库迁移（schema.ts 派生产物，禁止手写）
 ├── e2e/                      # Playwright：浏览器模式 / Electron / 生产 smoke
 ├── observability/            # 本地 SigNoz 声明、SLO 契约、Collector 中继与尾采样
@@ -33,6 +33,15 @@
 ├── pnpm-workspace.yaml       # workspace + 构建脚本决策
 └── tsconfig.json             # solution-style 工程引用
 ```
+
+### 1.1 不入仓的生成物与缓存
+
+源码树内不产生成物——构建、覆盖率与缓存的落位都由工程配置显式指定：
+
+- **构建产物**：`out/`（electron-vite）、`release/`（electron-builder 安装包与 `latest*.yml`）；`pnpm build` / `pnpm build:win:x64` 再生。
+- **覆盖率产物**：`coverage/<层>/`（`main` / `renderer` / `shared` 三层，含 lcov / html / json-summary，由各层 `reportsDirectory` 指定）；`pnpm test:coverage` 再生。门禁按目录名 `coverage` 跳过，落位可整体迁移而不动扫描范围。
+- **构建与测试缓存**：`node_modules/.cache/tsbuildinfo/`（tsc 增量编译信息，每个工程一个文件）与 `node_modules/.vite/<层>/`（vitest 依赖优化缓存，按层隔离）；分别由 tsconfig 的 `tsBuildInfoFile` 与 vitest 的 `cacheDir` 显式指定，不按 root 默认解析——否则缓存会递归建进各层源码目录。
+- **运行时数据**：`.electron-user-data/`（dev）、`.e2e-user-data*/`（E2E 隔离实例）；`pnpm dev` / `pnpm test:e2e:electron` 再生。
 
 ## 2. 主进程（src/main）
 
@@ -120,4 +129,5 @@ packages/shared/src/
 - 单测与源码 colocation：`*.test.ts(x)`
 - 集成测试：`tests/integration/`（真实 SQLite，Electron SDK 替身）
 - E2E：`e2e/`（浏览器 / Electron / 生产 smoke）；本地可观测性另有 `observability:smoke` 与需 Docker 的 `observability:collector-smoke`
+- 覆盖率产物：仓库根 `coverage/<层>/`（CI 作为制品上传）；生成物与缓存的完整落位见 §1.1
 - 门禁入口：`pnpm verify:local`；完整打包验证 `pnpm verify:local:full`

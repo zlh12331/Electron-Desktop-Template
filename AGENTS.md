@@ -8,7 +8,7 @@
 ```bash
 pnpm dev                    # 启动 dev server + Electron 窗口
 pnpm dev:web                # 浏览器模式 dev（vite.web.config.ts，配合 src/renderer/dev/mock-api.ts）
-pnpm typecheck              # tsc --build + tsc -p scripts/tsconfig.json（不要用 --noEmit）
+pnpm typecheck              # tsc --build + tsc -p scripts/tsconfig.json + tsc -p tsconfig.tests.json（不要用 --noEmit）
 pnpm lint                   # biome check .（含格式/import 排序）
 pnpm lint:fix               # 自动修复
 pnpm test                   # 全部测试链式：packages → main → renderer → integration → scripts
@@ -61,6 +61,8 @@ pnpm tokens:build           # Style Dictionary 生成 tokens.css
 ```
 
 `check:static` 覆盖：tokens + i18n + comments（过期注释/失效文件引用）+ tsdoc（export 符号 TSDoc 棘轮）+ file-size（净行 ≤600）+ functions（形参 ≤4 / 函数体 ≤200）+ complexity（认知复杂度 ≤15）+ coverage-floors + observability-config（变量注册表/文档/CI 一致）+ observability-slo（SLO 定义与指标名/手册一致）+ docs + docs-scripts + docs-contracts（IPC 计数/门禁数/ErrorCode/路径引用）+ test-boundary + csp-hash + css-vars + animations + ui-consistency + brand，全部棘轮只收紧。
+
+上列「形状门禁」的扫描范围（如实）：`check:file-size` = `src/**` + `packages/*/src/**`；`check:complexity` / `check:tsdoc` = `src/**`；`check:functions`（形参 / 函数体）= `src/main` + `src/renderer`。`scripts/`、`e2e/`、`tests/` 不在其中——门禁脚本自身靠 `pnpm test:scripts`（规则核单测）看住正确性，E2E 靠 Playwright 套件。
 
 本地全量验证：`pnpm verify:local`（质量层）/ `pnpm verify:local:full`（追加构建与打包）。
 
@@ -157,7 +159,7 @@ tools/           → 独立 TS 子包（depcruise / typedoc）
 
 ## 构建产物 & Git
 
-- `out/` = electron-vite 产物；`release/` = electron-builder 产物；两者均不入仓。
+- 生成物一律不入仓：`out/` = electron-vite 产物；`release/` = electron-builder 产物；`coverage/<层>/` = 测试覆盖率（lcov / html / json-summary）；构建与测试缓存固定落在 `node_modules/.cache/tsbuildinfo/` 与 `node_modules/.vite/<层>/`——缓存落位由工程配置显式指定（tsconfig 的 `tsBuildInfoFile`、vitest 的 `cacheDir`），不按 root 默认解析，避免生成物漂进源码目录。
 - 预提交：lint-staged（Biome 自动修复）。pre-push：gitleaks 密钥扫描（`SKIP_PREPUSH=1` 跳过）。
 - 提交信息：Conventional Commits（commitlint 校验）；`feat`/`fix`/`perf` 才计入升版。
 - 发版：release-please 开 Release PR → 合并 → CD 三平台构建 → 打 tag 发布。详见 `RELEASING.md`。
