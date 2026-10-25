@@ -1,7 +1,7 @@
 # 17 · 安全规范（Electron 生产级基线）
 
 > 对齐 Electron 官方安全清单与 OWASP 桌面应用实践，按模板当前实现（sandbox / CSP / safeStorage / zod / fuses）制定。
-> 最后同步：2026-10-24（补充代理凭据例外与 Action pin 策略）
+> 最后同步：2026-10-25（补充数据库静态加密边界与 URL 精确白名单）
 
 ---
 > 🔒 工程化强制：`check:csp-hash`（CSP 内联哈希）+ `check:secrets-git`（pre-push / CI）+ `check:secrets`（全仓自查）+ `check:devtools`（产物不含 devtools）
@@ -34,6 +34,10 @@
 4. **代理凭据**：URL 内嵌的用户名/密码在 `settings:set` / 导入 / 启动迁移时拆出，经 `safeStorage` 存入 keychain 保留键（`__proxy_auth`），`app_settings` 只保无凭据 URL。设置导出与诊断包均脱敏 URL；渲染层只拿到 `hasAuth` / `authUsername` 派生状态，`secrets` 域拒绝访问保留键。加密不可用时拒绝保存凭据（不回退明文）。
 5. **`.env`**：仅主进程 `process.loadEnvFile()` 在 whenReady 前加载；文件不入仓。
 6. **测试密钥**：用显式 fake 值（`fake-token` 风格）；日志禁止输出密钥（只记掩码 / 存在性）。
+
+### 数据静态加密边界
+
+SQLite 主库（`app_settings` 与派生业务表）默认使用标准 better-sqlite3，**不启用 SQLCipher，落盘为明文 SQLite 文件**；只有 `keychain.dat` 中的凭据由 safeStorage 加密。派生项目若存 PII、医疗/金融等敏感业务数据，必须在接入业务表前选择 SQLCipher 兼容驱动（如 `better-sqlite3-multiple-ciphers`）或依赖 OS 全盘加密；模板不默认引入，以避免驱动替换、ABI 重编与密钥轮换复杂度。
 
 ## 四、输入验证与文件访问
 

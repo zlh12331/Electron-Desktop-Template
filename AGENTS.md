@@ -116,6 +116,7 @@ tools/           → 独立 TS 子包（depcruise / typedoc）
 - 表定义在 `storage/tables/`：`core.ts` 为通用表；业务表按域新建文件并在 `schema.ts` 登记。
 - 启动期热备份轮转 + `quick_check` 损坏自愈（`db.ts`）。
 - 设置真源 = `app_settings`；渲染层内存态经 `settings:set` 写穿透，启动时 `settings:getAll` 拉快照。
+- SQLite 主库默认不加密（凭据单独走 safeStorage）；存 PII/敏感业务数据时，派生项目需自行接 SQLCipher 或依赖 OS 全盘加密。
 
 ## 代码风格（Biome 非默认项）
 
