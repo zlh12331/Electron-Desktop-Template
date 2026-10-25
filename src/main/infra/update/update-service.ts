@@ -7,7 +7,7 @@ import type {
   UpdateGetStatusRes,
   UpdateStatusPayload,
 } from '@code-agent/shared/main';
-import { IPC_DEFINITIONS } from '@code-agent/shared/main';
+import { DEFAULT_UPDATE_SETTINGS, IPC_DEFINITIONS } from '@code-agent/shared/main';
 import { app, BrowserWindow } from 'electron';
 import {
   clearDeferredInstall,
@@ -154,7 +154,9 @@ export class UpdateService implements IUpdateService {
   /** 启动调度：配 logger/自动下载关闭（用户显式确认后才下）/预发布开关；dev 或用户关闭时跳过 */
   start(options: UpdateStartOptions = {}): void {
     this.started = true;
-    const autoCheckEnabled = (options.autoCheckEnabled ?? ((): boolean => true))();
+    const autoCheckEnabled = (
+      options.autoCheckEnabled ?? (() => DEFAULT_UPDATE_SETTINGS.autoCheck)
+    )();
     this.devUpdateForced = options.devUpdateEnabled === true;
     this.allowPrereleaseEnabled = options.allowPrereleaseEnabled ?? null;
     this.autoCheckEnabled = options.autoCheckEnabled ?? null;
@@ -208,7 +210,8 @@ export class UpdateService implements IUpdateService {
     logger.info({ scope: 'auto-updater', trigger }, '开始检查更新');
     try {
       this.updater.allowPrerelease =
-        (this.allowPrereleaseEnabled?.() ?? false) || app.getVersion().includes('-');
+        (this.allowPrereleaseEnabled?.() ?? DEFAULT_UPDATE_SETTINGS.allowPrerelease) ||
+        app.getVersion().includes('-');
       await withSpan('update.check', { trigger, 'app.version': app.getVersion() }, async () => {
         await this.withCheckTimeout(this.updater.checkForUpdates(), attempt);
         if (attempt.error !== null) {
@@ -312,7 +315,8 @@ export class UpdateService implements IUpdateService {
 
   /** 退出前刷新「退出时自动安装」开关（用户可能在运行中改过设置，按最新值执行） */
   refreshAutoInstallOnAppQuit(): void {
-    this.updater.autoInstallOnAppQuit = this.autoCheckEnabled?.() ?? true;
+    this.updater.autoInstallOnAppQuit =
+      this.autoCheckEnabled?.() ?? DEFAULT_UPDATE_SETTINGS.autoCheck;
   }
 
   dispose(): void {

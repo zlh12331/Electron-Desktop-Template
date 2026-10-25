@@ -1,8 +1,9 @@
 // i18n/index.ts：主进程侧最小翻译层——托盘等主进程 UI 的双语词典查找 + {param} 插值
 // 边界：渲染层走 i18next 完整管线，两边不共用实现；语言真源在 settings.language
+import { DEFAULT_LANGUAGE_SETTING } from '@code-agent/shared/main';
 import { MAIN_DICTIONARIES, type MainLanguage } from './dictionaries';
 
-export const DEFAULT_MAIN_LANGUAGE: MainLanguage = 'zh-CN';
+export const DEFAULT_MAIN_LANGUAGE: MainLanguage = DEFAULT_LANGUAGE_SETTING;
 
 let currentLanguage: MainLanguage = DEFAULT_MAIN_LANGUAGE;
 

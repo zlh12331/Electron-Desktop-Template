@@ -1,5 +1,6 @@
 // proxy-resolver.ts：代理配置解析与派生——设置值 zod 校验、Chromium 分区规则、绕过判定、URL 脱敏
 // 34 号：本文件是纯函数层（无副作用），应用/取 URL 的副作用在 proxy-applier / proxied-fetch
+import { DEFAULT_PROXY_SETTINGS } from '@code-agent/shared/main';
 import { z } from 'zod';
 
 import { logger } from '../../utils/logger';
@@ -41,7 +42,7 @@ const ProxyConfigSchema = z.object({
   bypass: z.array(z.string().min(1).max(253)).max(64).optional(),
 });
 
-const SYSTEM_DEFAULT: ProxyConfig = { mode: 'system' };
+const SYSTEM_DEFAULT: ProxyConfig = { mode: DEFAULT_PROXY_SETTINGS.mode };
 
 /** 解析设置原始值（用户可控面）：损坏/fixed 缺 url 一律回落 system 兜底并告警 */
 export function parseProxyConfig(raw: unknown): ProxyConfig {

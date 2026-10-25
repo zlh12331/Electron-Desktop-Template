@@ -6,6 +6,7 @@
 export * from './constants/brand';
 export * from './constants/errors';
 export * from './constants/protocol';
+export * from './constants/settings-defaults';
 // IPC 契约：定义表体系——meta（纯字符串，preload 侧可安全引入）→ definitions（meta + zod）→ derive（类型推导），
 // 另有 api / channels / payloads / response 提供 preload API、通道常量与请求响应类型
 export * from './ipc/api';

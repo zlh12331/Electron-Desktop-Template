@@ -1,4 +1,4 @@
-import { STORAGE_PREFIX } from '@code-agent/shared/renderer';
+import { DEFAULT_LANGUAGE_SETTING, STORAGE_PREFIX } from '@code-agent/shared/renderer';
 import i18next from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
@@ -14,8 +14,8 @@ export const SUPPORTED_LANGUAGES = ['zh-CN', 'en'] as const;
 /** 支持的语言类型 */
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
-/** 默认语言（也是 fallback 语言） */
-const DEFAULT_LANGUAGE: SupportedLanguage = 'zh-CN';
+/** 默认语言（也是 fallback 语言；与 shared 默认设置一致） */
+const DEFAULT_LANGUAGE: SupportedLanguage = DEFAULT_LANGUAGE_SETTING;
 
 /** localStorage key（与 settings-store 的前缀对齐） */
 export const LANGUAGE_STORAGE_KEY = `${STORAGE_PREFIX}:lang`;

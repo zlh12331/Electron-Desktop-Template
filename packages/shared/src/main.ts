@@ -1,6 +1,7 @@
 export * from './constants/brand';
 export * from './constants/errors';
 export * from './constants/protocol';
+export * from './constants/settings-defaults';
 export * from './constants/zoom';
 // ── IPC 契约：通道常量取自零 zod 的 ./ipc/channels（preload 可经 @code-agent/shared/ipc/channels
 //    子路径直接取用）；定义表取自含 zod 的 ./ipc/definitions（主进程 handler 注册按它校验入参/响应）

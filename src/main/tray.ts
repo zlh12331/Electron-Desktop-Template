@@ -1,7 +1,7 @@
 // tray.ts：系统托盘（后台驻留中心）——右键菜单（更新/自启/关窗行为/退出）、
 // tooltip 随更新状态变化、首关到托盘引导。依赖经 TrayDeps 注入（不直连服务容器，index.ts 装配）
 import { join } from 'node:path';
-import type { UpdateStatusPayload } from '@code-agent/shared/main';
+import { DEFAULT_NOTIFICATION_SETTINGS, type UpdateStatusPayload } from '@code-agent/shared/main';
 import {
   app,
   Menu,
@@ -37,7 +37,9 @@ const HIDE_HINT_KEY = 'window.hideHintShown';
  */
 function isNotificationEnabled(): boolean {
   const value = readSetting('notification') as { enabled?: unknown } | undefined;
-  return typeof value?.enabled === 'boolean' ? value.enabled : true;
+  return typeof value?.enabled === 'boolean'
+    ? value.enabled
+    : DEFAULT_NOTIFICATION_SETTINGS.enabled;
 }
 
 /** 托盘依赖注入接口：全部能力由 index.ts 从服务容器装配传入，托盘自身无业务依赖 */

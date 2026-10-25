@@ -1,4 +1,14 @@
-import { clampZoom, DEFAULT_ZOOM, type SettingKey } from '@code-agent/shared/renderer';
+import {
+  clampZoom,
+  DEFAULT_LANGUAGE_SETTING,
+  DEFAULT_NOTIFICATION_SETTINGS,
+  DEFAULT_PROXY_SETTINGS,
+  DEFAULT_THEME_SETTING,
+  DEFAULT_UPDATE_SETTINGS,
+  DEFAULT_WINDOW_SETTINGS,
+  DEFAULT_ZOOM,
+  type SettingKey,
+} from '@code-agent/shared/renderer';
 import { create } from 'zustand';
 
 import { changeLanguage, LANGUAGE_STORAGE_KEY } from '@/i18n/config';
@@ -293,25 +303,15 @@ export const DEFAULT_SHORTCUTS: KeyboardShortcuts = {
   openSettings: `${MOD}+,`,
 };
 
-/** 默认设置（模块级常量；applySettingsSnapshot 覆盖） */
+/** 默认设置（模块级常量；可由 shared 默认值统一推导） */
 const DEFAULT_SETTINGS: SettingsData = {
-  theme: 'dark',
-  language: 'zh-CN',
+  theme: DEFAULT_THEME_SETTING,
+  language: DEFAULT_LANGUAGE_SETTING,
   shortcuts: DEFAULT_SHORTCUTS,
-  update: {
-    autoCheck: true,
-    allowPrerelease: false,
-    skippedVersion: null,
-  },
-  window: {
-    closeAction: 'minimize',
-  },
-  notification: {
-    enabled: true,
-  },
-  proxy: {
-    mode: 'system',
-  },
+  update: { ...DEFAULT_UPDATE_SETTINGS },
+  window: { ...DEFAULT_WINDOW_SETTINGS },
+  notification: { ...DEFAULT_NOTIFICATION_SETTINGS },
+  proxy: { ...DEFAULT_PROXY_SETTINGS },
   appearance: {
     zoom: DEFAULT_ZOOM,
   },

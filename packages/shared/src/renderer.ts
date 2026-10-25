@@ -17,6 +17,14 @@ export type { ErrorMeta, IpcError } from './constants/errors';
 export { ERROR_META, ErrorCode } from './constants/errors';
 export { IPC_PROTOCOL_VERSION } from './constants/protocol';
 export {
+  DEFAULT_LANGUAGE_SETTING,
+  DEFAULT_NOTIFICATION_SETTINGS,
+  DEFAULT_PROXY_SETTINGS,
+  DEFAULT_THEME_SETTING,
+  DEFAULT_UPDATE_SETTINGS,
+  DEFAULT_WINDOW_SETTINGS,
+} from './constants/settings-defaults';
+export {
   clampZoom,
   DEFAULT_ZOOM,
   overlayHeightFor,

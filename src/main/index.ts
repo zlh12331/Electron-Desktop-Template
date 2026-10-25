@@ -1,7 +1,7 @@
 // index.ts：应用入口与生命周期——单实例锁、whenReady 启动序列（遥测→DB→容器→IPC→窗口→托盘）、
 // 深链接管、退出协商与善后链。边界：只做装配与编排，业务实现在 infra/ 与 service-container
 import { join } from 'node:path';
-import type { DeepLinkPayload } from '@code-agent/shared/main';
+import { DEFAULT_UPDATE_SETTINGS, type DeepLinkPayload } from '@code-agent/shared/main';
 import { app, BrowserWindow, nativeTheme, session } from 'electron';
 import {
   broadcastDeepLink,
@@ -391,15 +391,16 @@ function isAutoCheckEnabled(): boolean {
   try {
     const value = readSetting('update');
     if (typeof value !== 'object' || value === null) {
-      return true;
+      return DEFAULT_UPDATE_SETTINGS.autoCheck;
     }
-    return (value as { autoCheck?: unknown }).autoCheck !== false;
+    const autoCheck = (value as { autoCheck?: unknown }).autoCheck;
+    return typeof autoCheck === 'boolean' ? autoCheck : DEFAULT_UPDATE_SETTINGS.autoCheck;
   } catch (error) {
     logger.warn(
       { error: error instanceof Error ? error.message : String(error) },
       '读取更新设置失败，自动检查按默认开启',
     );
-    return true;
+    return DEFAULT_UPDATE_SETTINGS.autoCheck;
   }
 }
 
@@ -407,14 +408,17 @@ function isAllowPrereleaseEnabled(): boolean {
   try {
     const value = readSetting('update');
     if (typeof value !== 'object' || value === null) {
-      return false;
+      return DEFAULT_UPDATE_SETTINGS.allowPrerelease;
     }
-    return (value as { allowPrerelease?: unknown }).allowPrerelease === true;
+    const allowPrerelease = (value as { allowPrerelease?: unknown }).allowPrerelease;
+    return typeof allowPrerelease === 'boolean'
+      ? allowPrerelease
+      : DEFAULT_UPDATE_SETTINGS.allowPrerelease;
   } catch (error) {
     logger.warn(
       { error: error instanceof Error ? error.message : String(error) },
       '读取预发布设置失败，默认不接收预发布',
     );
-    return false;
+    return DEFAULT_UPDATE_SETTINGS.allowPrerelease;
   }
 }

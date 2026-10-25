@@ -1,4 +1,4 @@
-import { STORAGE_PREFIX } from '@code-agent/shared/renderer';
+import { DEFAULT_THEME_SETTING, STORAGE_PREFIX } from '@code-agent/shared/renderer';
 
 /** 持久化存储 key（与 createPersistentStore 的前缀 + name 拼接一致） */
 export const SETTINGS_STORAGE_KEY = `${STORAGE_PREFIX}:settings`;
@@ -13,8 +13,8 @@ export const SETTINGS_STORAGE_KEY = `${STORAGE_PREFIX}:settings`;
  */
 export const THEME_FIRST_PAINT_KEY = `${STORAGE_PREFIX}:theme`;
 
-/** 默认主题（与 settings-store 默认值一致） */
-export const DEFAULT_THEME = 'dark' as const;
+/** 默认主题（与 shared 默认设置一致） */
+export const DEFAULT_THEME = DEFAULT_THEME_SETTING;
 
 /** 用户可选主题 */
 export type StoredTheme = 'light' | 'dark' | 'system';

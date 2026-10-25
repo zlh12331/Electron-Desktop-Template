@@ -1,6 +1,7 @@
 // window.ts：主窗口创建与关窗协商——BrowserWindow 安全基线、导航/新窗限制、关窗行为（最小化到托盘 or 退出）、
 // 渲染进程崩溃自愈。边界：窗口唤起在 window-show，标题栏配色在 window-theme
 import { join } from 'node:path';
+import { DEFAULT_WINDOW_SETTINGS } from '@code-agent/shared/main';
 import { app, BrowserWindow, screen, shell } from 'electron';
 import { installExtension, REACT_DEVELOPER_TOOLS } from 'electron-devtools-installer';
 import { resolveStartHidden } from './infra/autostart/autostart';
@@ -25,11 +26,13 @@ export function readCloseAction(): 'minimize' | 'quit' {
   try {
     const value = readSetting('window');
     if (typeof value !== 'object' || value === null) {
-      return 'minimize';
+      return DEFAULT_WINDOW_SETTINGS.closeAction;
     }
-    return (value as { closeAction?: unknown }).closeAction === 'quit' ? 'quit' : 'minimize';
+    return (value as { closeAction?: unknown }).closeAction === 'quit'
+      ? 'quit'
+      : DEFAULT_WINDOW_SETTINGS.closeAction;
   } catch {
-    return 'minimize';
+    return DEFAULT_WINDOW_SETTINGS.closeAction;
   }
 }
 

@@ -15,7 +15,7 @@
 | L3 | TanStack Query | IPC invoke 请求-响应 | 系统状态、日志、备份、凭据掩码、更新状态/缓存 |
 | L4 | IPC 事件订阅 | 主进程推送 → 写 L2 | `update:event:status` / `settings:event:changed` / `invalidation:event:domains` / `app:event:deepLink` / `app:event:loginItemChanged` |
 
-**核心原则**：服务端数据与客户端状态分离；配置型数据必须走后端单一真源，禁止渲染层手写第二份默认表。
+**核心原则**：服务端数据与客户端状态分离；配置型数据必须走后端单一真源，禁止渲染层手写第二份默认表。平台无关的默认值真源在 `packages/shared/src/constants/settings-defaults.ts`，渲染层 store 与主进程消费方共用；快捷键默认因依赖平台修饰键仍在渲染层维护。
 
 ## 二、判定标准
 
