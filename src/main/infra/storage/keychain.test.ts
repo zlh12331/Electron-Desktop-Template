@@ -116,6 +116,8 @@ describe('keychain', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Linux CI 无系统密钥环；主套件验证安全存储路径，显式模拟 gnome_libsecret
+    mockSafeStorage.getSelectedStorageBackend.mockReturnValue('gnome_libsecret');
     rmSync(tempDir, { recursive: true, force: true });
     mkdirSync(tempDir, { recursive: true });
   });

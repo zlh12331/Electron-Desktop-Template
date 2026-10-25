@@ -95,7 +95,7 @@ test.describe('file 模式 hash 路由 IPC', () => {
     }
   });
 
-  test('默认 Ctrl+, 快捷键打开设置', async () => {
+  test('默认 Cmd/Ctrl+, 快捷键打开设置', async () => {
     const userData = mkdtempSync(join(tmpdir(), 'electron-file-shortcut-'));
     try {
       const launched = await launchFileMode(userData);
@@ -103,7 +103,9 @@ test.describe('file 模式 hash 路由 IPC', () => {
       const { page } = launched;
 
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-      await page.keyboard.press('Control+,');
+      // 默认快捷键按平台归一化：macOS 为 Meta(⌘)+,，其余平台为 Ctrl+,
+      const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+      await page.keyboard.press(`${modifier}+,`);
       await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 10_000 });
     } finally {
       if (app !== undefined) {
