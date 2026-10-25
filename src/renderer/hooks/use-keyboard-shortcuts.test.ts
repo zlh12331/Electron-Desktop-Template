@@ -2,13 +2,21 @@ import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const hotkeys = vi.hoisted(() => {
-  const calls: { keys: string; handler: () => void }[] = [];
+  const calls: {
+    keys: string;
+    handler: () => void;
+    options?: Readonly<Record<string, unknown>>;
+  }[] = [];
   return { calls };
 });
 
 vi.mock('react-hotkeys-hook', () => ({
-  useHotkeys: (keys: string, handler: () => void): void => {
-    hotkeys.calls.push({ keys, handler });
+  useHotkeys: (
+    keys: string,
+    handler: () => void,
+    options?: Readonly<Record<string, unknown>>,
+  ): void => {
+    hotkeys.calls.push({ keys, handler, ...(options !== undefined ? { options } : {}) });
   },
 }));
 
@@ -77,6 +85,16 @@ describe('useKeyboardShortcuts', () => {
     expect(boundKeys()).toContain('ctrl+p');
     expect(boundKeys()).toContain('ctrl+shift+t');
     expect(boundKeys()).toContain('ctrl+,');
+  });
+
+  it('可配置键按 event.key 匹配（useKey），固定键仍按 code', () => {
+    renderHook(() => useKeyboardShortcuts(handlers));
+
+    const custom = hotkeys.calls.find((call) => call.keys === 'ctrl+,');
+    expect(custom?.options).toMatchObject({ useKey: true, delimiter: '|' });
+
+    const fixed = hotkeys.calls.find((call) => call.keys === 'shift+Slash');
+    expect(fixed?.options?.['useKey']).toBeUndefined();
   });
 
   it('固定键：帮助（shift+Slash / f1）绑定到 onOpenShortcutHelp', () => {

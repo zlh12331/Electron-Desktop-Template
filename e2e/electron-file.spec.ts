@@ -94,4 +94,23 @@ test.describe('file 模式 hash 路由 IPC', () => {
       rmSync(userData, { recursive: true, force: true });
     }
   });
+
+  test('默认 Ctrl+, 快捷键打开设置', async () => {
+    const userData = mkdtempSync(join(tmpdir(), 'electron-file-shortcut-'));
+    try {
+      const launched = await launchFileMode(userData);
+      app = launched.app;
+      const { page } = launched;
+
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      await page.keyboard.press('Control+,');
+      await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 10_000 });
+    } finally {
+      if (app !== undefined) {
+        await closeElectronApp(app);
+        app = undefined;
+      }
+      rmSync(userData, { recursive: true, force: true });
+    }
+  });
 });

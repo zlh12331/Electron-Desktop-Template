@@ -78,8 +78,25 @@ function toHotkeyString(parsed: ParsedShortcut): string {
   return parts.join('+');
 }
 
-/** useHotkeys 公共选项：阻止默认行为，表单元素内不触发（与原实现一致） */
+/** 固定键绑定：按 event.code 匹配（空格/标点用 code 名，见下方固定键串） */
 const HOTKEY_OPTIONS = { preventDefault: true } as const;
+
+/**
+ * 可配置键绑定：按 event.key 匹配
+ *
+ * ShortcutPicker 录制的就是 e.key（如 Ctrl+, / Ctrl+Shift+T），而
+ * react-hotkeys-hook v5 默认按 event.code 匹配；不改 useKey 会让所有标点键
+ * （默认 openSettings = Ctrl+,）永远匹配不上。固定键仍用 code 模式，
+ * 因为 'shift+Slash' / 'ctrl+Equal' 这类 code 名对游戏键盘/布局更稳。
+ *
+ * delimiter 必须改成非逗号：hook 默认把逗号当“多个快捷键”的分隔符，
+ * `ctrl+,` 会被拆成 `ctrl+` 与空串，即使 useKey=true 也永远无法命中。
+ */
+const CUSTOM_HOTKEY_OPTIONS = {
+  preventDefault: true,
+  useKey: true,
+  delimiter: '|',
+} as const;
 
 /**
  * 固定键冲突清单（36 号 C：录键冲突检测用）
@@ -129,15 +146,24 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers): void {
     openSettings: toHotkeyString(parseShortcut(shortcuts.openSettings)),
   };
 
-  useHotkeys(hotkeys.commandPalette, () => handlersRef.current.onCommandPalette(), HOTKEY_OPTIONS, [
+  useHotkeys(
     hotkeys.commandPalette,
-  ]);
-  useHotkeys(hotkeys.toggleTheme, () => handlersRef.current.onToggleTheme(), HOTKEY_OPTIONS, [
+    () => handlersRef.current.onCommandPalette(),
+    CUSTOM_HOTKEY_OPTIONS,
+    [hotkeys.commandPalette],
+  );
+  useHotkeys(
     hotkeys.toggleTheme,
-  ]);
-  useHotkeys(hotkeys.openSettings, () => handlersRef.current.onOpenSettings(), HOTKEY_OPTIONS, [
+    () => handlersRef.current.onToggleTheme(),
+    CUSTOM_HOTKEY_OPTIONS,
+    [hotkeys.toggleTheme],
+  );
+  useHotkeys(
     hotkeys.openSettings,
-  ]);
+    () => handlersRef.current.onOpenSettings(),
+    CUSTOM_HOTKEY_OPTIONS,
+    [hotkeys.openSettings],
+  );
 
   useHotkeys('shift+Slash', () => handlersRef.current.onOpenShortcutHelp?.(), HOTKEY_OPTIONS, []);
   useHotkeys('f1', () => handlersRef.current.onOpenShortcutHelp?.(), HOTKEY_OPTIONS, []);
