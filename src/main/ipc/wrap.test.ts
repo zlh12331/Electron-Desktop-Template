@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import {
   AggregationTemporality,
   InMemoryMetricExporter,
@@ -18,7 +19,7 @@ vi.mock('../utils/error-report', () => ({
 }));
 
 vi.mock('electron', () => ({
-  app: { getAppMetrics: () => [] },
+  app: { getAppMetrics: () => [], getAppPath: () => process.cwd() },
   ipcMain: {
     handle: mockIpcMainHandle,
   },
@@ -40,6 +41,7 @@ vi.mock('../utils/logger', () => ({
 import { AppError, ErrorCode } from '@code-agent/shared/main';
 import { ipcMain } from 'electron';
 import { initOtelMetrics, resetOtelMetrics } from '../infra/telemetry/otel-metrics';
+import { rendererEntryFileUrl } from '../security/renderer-url';
 import { logger } from '../utils/logger';
 import { wrap } from './wrap';
 
@@ -58,8 +60,9 @@ function getRegisteredHandler(): InternalHandler {
 }
 
 const topFrame = {};
+const allowedFileUrl = rendererEntryFileUrl(process.cwd());
 const allowedSender = {
-  getURL: () => 'file:///C:/app/out/renderer/index.html',
+  getURL: () => allowedFileUrl,
   mainFrame: topFrame,
 };
 const allowedEvent = { sender: allowedSender, senderFrame: topFrame };
@@ -216,7 +219,21 @@ describe('wrap', () => {
     wrap('test:channel', null, async () => 'ok');
     const registeredHandler = getRegisteredHandler();
     const sender = {
-      getURL: () => 'file:///C:/app/out/renderer/index.html?spoof=1',
+      getURL: () => `${allowedFileUrl}?spoof=1`,
+      mainFrame: topFrame,
+    };
+
+    const result = await registeredHandler({ sender, senderFrame: topFrame }, undefined);
+
+    expect(result).toMatchObject({ error: { code: ErrorCode.IPC_SENDER_INVALID } });
+  });
+
+  it('同后缀不同目录的 file URL 不被视为合法 sender', async () => {
+    mockFromWebContents.mockReturnValue({ id: 1 });
+    wrap('test:channel', null, async () => 'ok');
+    const registeredHandler = getRegisteredHandler();
+    const sender = {
+      getURL: () => rendererEntryFileUrl(join(process.cwd(), 'other-app')),
       mainFrame: topFrame,
     };
 

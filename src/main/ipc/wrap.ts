@@ -2,37 +2,25 @@
 // span/metrics 观测、错误归一为 IpcError。定义表体系（ipc/register.ts）对全部 request 通道套用本包装
 import { randomUUID } from 'node:crypto';
 import { AppError, ErrorCode, type IpcError, type IpcResponse } from '@code-agent/shared/main';
-import { BrowserWindow, type IpcMainInvokeEvent, ipcMain, type WebContents } from 'electron';
+import { app, BrowserWindow, type IpcMainInvokeEvent, ipcMain, type WebContents } from 'electron';
 import type { ZodType } from 'zod';
 import { withSpan } from '../infra/telemetry/otel';
 import { type IpcFailureClass, recordIpcRequest } from '../infra/telemetry/otel-metrics';
+import { isAllowedRendererUrl, rendererEntryFileUrl } from '../security/renderer-url';
 import { reportError } from '../utils/error-report';
 import { logger } from '../utils/logger';
 
 // 渲染层可自带 traceId 贯穿请求日志，但须过白名单（防任意串进日志）；不合规格则重新生成
 const TRACE_ID_PATTERN = /^[\w-]{8,64}$/;
 
-// sender 来源白名单：打包态只认产物 index.html，dev 只认 dev server origin——
+// sender 来源白名单：打包态只认产物 index.html 的完全匹配，dev 只认 dev server origin——
 // 防其他 webContents（预览/外来 iframe）调用本应用 IPC
 function isAllowedSenderUrl(rawUrl: string): boolean {
-  try {
-    const parsed = new URL(rawUrl);
-    if (parsed.protocol === 'file:') {
-      // 只认产物入口本身：拒绝 query/hash 与任意目录下同后缀文件，缩小 sender 伪造面
-      return (
-        parsed.pathname.endsWith('/renderer/index.html') &&
-        parsed.search === '' &&
-        parsed.hash === ''
-      );
-    }
-    const devUrl = process.env['ELECTRON_RENDERER_URL'];
-    if (devUrl !== undefined && devUrl.length > 0) {
-      return parsed.origin === new URL(devUrl).origin;
-    }
-    return false;
-  } catch {
-    return false;
-  }
+  return isAllowedRendererUrl(
+    rawUrl,
+    rendererEntryFileUrl(app.getAppPath()),
+    process.env['ELECTRON_RENDERER_URL'],
+  );
 }
 
 /** handler 执行上下文：贯穿日志的 traceId + 发起方 webContents */

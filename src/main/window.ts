@@ -9,6 +9,7 @@ import { loadWindowState, trackWindowState, type WindowState } from './infra/sto
 import { recordRendererCrash } from './infra/telemetry/otel-metrics';
 import { bindStartupWindow, recordStartupReady } from './infra/telemetry/startup';
 import { isCloseConfirmed, isQuitting } from './quit-state';
+import { isAllowedRendererUrl, isHttpUrl, rendererEntryFileUrl } from './security/renderer-url';
 import { notifyMinimizedToTray } from './tray';
 import { reportError, reportMessage } from './utils/error-report';
 import { logger } from './utils/logger';
@@ -72,22 +73,12 @@ export function createWindow(): BrowserWindow {
     },
   });
 
-  // 导航白名单：只允许 dev server origin 或打包产物的 index.html，其余一律拦下
+  // 导航白名单：只允许 dev server origin 或产物 index.html 的完全匹配，其余一律拦下
   // （配合主进程对 defaultSession 的 CSP/XFO 注入，构成三层外站拦截的第一层）
   const navRendererUrl = process.env['ELECTRON_RENDERER_URL'];
+  const rendererEntryUrl = rendererEntryFileUrl(app.getAppPath());
   win.webContents.on('will-navigate', (event, url) => {
-    let allowed = false;
-    try {
-      const parsed = new URL(url);
-      if (navRendererUrl !== undefined && parsed.origin === new URL(navRendererUrl).origin) {
-        allowed = true;
-      } else if (parsed.protocol === 'file:') {
-        allowed = parsed.pathname.endsWith('/renderer/index.html');
-      }
-    } catch {
-      allowed = false;
-    }
-    if (!allowed) {
+    if (!isAllowedRendererUrl(url, rendererEntryUrl, navRendererUrl)) {
       logger.warn({ url: url.slice(0, 300) }, '已拦截非白名单页面导航');
       event.preventDefault();
     }
@@ -95,7 +86,7 @@ export function createWindow(): BrowserWindow {
 
   // window.open 一律拒绝：外链交系统浏览器打开，绝不在应用内开新 webContents
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http')) {
+    if (isHttpUrl(url)) {
       try {
         logger.info({ host: new URL(url).hostname }, '外部链接已交系统浏览器打开');
       } catch {}
