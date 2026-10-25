@@ -34,6 +34,11 @@ function copyToTemp(): string {
     'resources/installer.nsh',
     'src/renderer/i18n/locales',
     'packages/shared/src/constants',
+    'packages/shared/package.json',
+    'packages/shared/tsconfig.json',
+    'packages/tsconfig',
+    'tsconfig.json',
+    'pnpm-lock.yaml',
     'CONTRIBUTING.md',
     'SECURITY.md',
     'CODE_OF_CONDUCT.md',
@@ -71,7 +76,14 @@ describe('buildInitInput 校验', () => {
     expect(input.artifactBaseName).toBe('My-App');
     expect(input.storagePrefix).toBe('my-app');
     expect(input.author).toBe('me');
+    expect(input.internalScope).toBe('me');
     expect(input.description).toContain('My App');
+  });
+
+  it('内部 scope：缺省按 owner 小写推导，显式 scope 归一化并校验', () => {
+    expect(buildInitInput({ ...base, owner: 'Acme-Org' }).internalScope).toBe('acme-org');
+    expect(buildInitInput({ ...base, internalScope: '@Acme.UI' }).internalScope).toBe('acme.ui');
+    expect(() => buildInitInput({ ...base, internalScope: 'bad scope' })).toThrow(/--scope/);
   });
 
   it('非法 appId 抛错', () => {
@@ -114,7 +126,7 @@ describe('buildInitInput 校验', () => {
 describe('assertKnownCliArgs：未知参数必须显式失败', () => {
   it('正向：登记过的参数与 --dry-run 通过', () => {
     const parsed = parseArgs(
-      ['--name', 'My App', '--app-id', 'com.me.app', '--dry-run'],
+      ['--name', 'My App', '--app-id', 'com.me.app', '--scope', 'acme', '--dry-run'],
       ['dry-run'],
     );
     expect(() => assertKnownCliArgs(parsed)).not.toThrow();
@@ -291,6 +303,31 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
     expect(brandModule).toContain("export const PRODUCT_NAME = 'Acme Notes';");
     expect(brandModule).toContain("export const APP_ID = 'com.acme.notes';");
     expect(brandModule).toContain("export const REPO_OWNER = 'acme';");
+  });
+
+  it('正向：内部 workspace scope 同步包名、依赖、tsconfig 与锁文件', () => {
+    runIn(dir);
+
+    const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as {
+      devDependencies: Record<string, string>;
+    };
+    expect(pkg.devDependencies['@acme/shared']).toBe('workspace:*');
+    expect(pkg.devDependencies['@acme/tsconfig']).toBe('workspace:*');
+    expect(pkg.devDependencies).not.toHaveProperty('@code-agent/shared');
+
+    const sharedPkg = JSON.parse(
+      readFileSync(join(dir, 'packages/shared/package.json'), 'utf8'),
+    ) as { name: string; devDependencies: Record<string, string> };
+    expect(sharedPkg.name).toBe('@acme/shared');
+    expect(sharedPkg.devDependencies['@acme/tsconfig']).toBe('workspace:*');
+
+    const tsconfig = readFileSync(join(dir, 'packages/shared/tsconfig.json'), 'utf8');
+    expect(tsconfig).toContain('@acme/tsconfig');
+    expect(tsconfig).not.toContain('@code-agent/');
+
+    const lockfile = readFileSync(join(dir, 'pnpm-lock.yaml'), 'utf8');
+    expect(lockfile).toContain('@acme/shared');
+    expect(lockfile).not.toContain('@code-agent/');
   });
 
   it('正向：CHANGELOG 清空历史但保留写作模板，release manifest 归零', () => {

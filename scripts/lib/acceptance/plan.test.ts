@@ -15,6 +15,7 @@ describe('createAcceptanceBrand', () => {
     expect(brand.protocol).toMatch(/^derived-acceptance-[a-z0-9]+$/);
     expect(brand.owner).toBe('template-acceptance');
     expect(brand.repo).toBe('derived-acceptance');
+    expect(brand.scope).toBe('derived-acceptance');
   });
 
   it('不同时间生成不同协议（避免重复验收撞注册表）', () => {
@@ -32,6 +33,7 @@ describe('buildInitArgs', () => {
     expect(args).toContain(brand.productName);
     expect(args).toContain(brand.appId);
     expect(args).toContain(brand.protocol);
+    expect(args).toContain(brand.scope);
     expect(args.at(-1)).toBe('--dry-run');
   });
 

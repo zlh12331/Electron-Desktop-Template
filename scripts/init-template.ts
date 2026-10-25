@@ -4,13 +4,13 @@
 // 无法 import 的位置（package.json / LICENSE / CODEOWNERS / 文档 URL / i18n 文案），
 // 手工改 8 类位点必然漏；漏掉的位点在 check:brand 之外，CI 也不会报。
 // 用法：pnpm init:template --name "My App" --app-id com.me.myapp --protocol myapp \
-//         --owner me --repo myapp [--author "Me"] [--description "..."] \
+//         --owner me --repo myapp [--scope myorg] [--author "Me"] [--description "..."] \
 //         [--artifact-base My-App] [--executable my-app] [--dry-run]
 // 幂等：重复执行同一组参数不产生额外改动（每步都是「替换已知旧值」或「写定值」）。
 
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { extname, join, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { renderBrandModule } from './generate-brand.mjs';
 import { type ParsedArgs, parseArgs, rejectPositionals, requireValue } from './scaffold/lib/args';
@@ -24,6 +24,44 @@ export const BRAND_SOURCE = 'app.config.json';
 /** 品牌生成物（相对 root） */
 export const BRAND_OUTPUT = 'packages/shared/src/constants/brand.ts';
 
+/** 内部 workspace scope 合法形态（npm scope 不合法字符会破坏包解析） */
+const INTERNAL_SCOPE_RE = /^[a-z0-9][a-z0-9._-]*$/;
+
+/** 初始化时扫描的文本扩展名（内部 scope 只出现在这些文件里） */
+const TEXT_EXTENSIONS = new Set([
+  '.ts',
+  '.tsx',
+  '.js',
+  '.mjs',
+  '.cjs',
+  '.json',
+  '.jsonc',
+  '.yml',
+  '.yaml',
+  '.md',
+  '.css',
+  '.html',
+  '.nsh',
+  '.toml',
+]);
+
+/** 不参与 scope 扫描的目录（构建产物、缓存、运行时数据） */
+const SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  '.pnpm-store',
+  '.tmp',
+  '.qoder',
+  '.codegraph',
+  'out',
+  'release',
+  'coverage',
+  'dist',
+  'stats',
+  'test-results',
+  'archive',
+]);
+
 /** 初始化输入（全部经校验后使用） */
 export interface InitInput {
   readonly productName: string;
@@ -36,6 +74,8 @@ export interface InitInput {
   readonly repo: string;
   readonly author: string;
   readonly description: string;
+  /** 内部 workspace scope（不含 @；包名形如 @scope/shared） */
+  readonly internalScope: string;
 }
 
 /** 一处改写结果 */
@@ -91,6 +131,17 @@ export function deriveArtifactBaseName(executableName: string): string {
     .join('-');
 }
 
+/** 归一/校验内部 workspace scope（允许 CLI 带 @ 前缀；统一小写） */
+function normalizeInternalScope(raw: string): string {
+  const scope = raw.trim().replace(/^@/, '').toLowerCase();
+  if (!INTERNAL_SCOPE_RE.test(scope)) {
+    throw new Error(
+      `--scope 格式非法：${raw}（应为小写字母数字开头，可含 . _ -，不含 @ 前缀以外的字符）`,
+    );
+  }
+  return scope;
+}
+
 /**
  * 校验并补全初始化输入
  *
@@ -106,6 +157,7 @@ export function buildInitInput(raw: {
   description?: string;
   executableName?: string;
   artifactBaseName?: string;
+  internalScope?: string;
 }): InitInput {
   const productName = raw.productName.trim();
   if (productName.length === 0) {
@@ -123,6 +175,7 @@ export function buildInitInput(raw: {
   if (!REPO_RE.test(raw.repo)) {
     throw new Error(`--repo 格式非法：${raw.repo}（仓库名）`);
   }
+  const internalScope = normalizeInternalScope(raw.internalScope ?? raw.owner);
 
   const executableName = raw.executableName ?? deriveExecutableName(productName);
   if (!/^[a-z0-9][a-z0-9-]*$/.test(executableName)) {
@@ -149,6 +202,7 @@ export function buildInitInput(raw: {
     description:
       raw.description?.trim() ??
       `${productName} - 基于 Electron 的跨平台桌面应用（Windows / macOS / Linux）`,
+    internalScope,
   };
 }
 
@@ -213,6 +267,76 @@ interface PreviousBrand {
 /** 读真源 */
 function readBrandConfig(root: string): BrandConfig {
   return JSON.parse(readFileSync(join(root, BRAND_SOURCE), 'utf8')) as BrandConfig;
+}
+
+/** 读当前内部 workspace scope（从 packages/shared 包名解析；缺失时回退模板默认值） */
+function readWorkspaceScope(root: string): string {
+  const text = readIfExists(root, 'packages/shared/package.json');
+  if (text === null) {
+    return 'code-agent';
+  }
+  try {
+    const parsed = JSON.parse(text) as { name?: unknown };
+    if (typeof parsed.name !== 'string') {
+      return 'code-agent';
+    }
+    return /^@([^/]+)\//.exec(parsed.name)?.[1] ?? 'code-agent';
+  } catch {
+    return 'code-agent';
+  }
+}
+
+/** 跳过构建产物、缓存与运行时数据目录（e2e userData/报告按前缀匹配） */
+function shouldSkipDir(name: string): boolean {
+  return (
+    SKIP_DIRS.has(name) ||
+    name.startsWith('.electron-user-data') ||
+    name.startsWith('.e2e-user-data') ||
+    name.startsWith('playwright-report')
+  );
+}
+
+/** 收集需要做内部 scope 替换的文本文件（相对 root，POSIX 分隔符） */
+function collectWorkspaceTextFiles(root: string): string[] {
+  const files: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (!shouldSkipDir(entry.name)) {
+          walk(full);
+        }
+        continue;
+      }
+      if (!entry.isFile() || !TEXT_EXTENSIONS.has(extname(entry.name))) {
+        continue;
+      }
+      files.push(relative(root, full).split(sep).join('/'));
+    }
+  };
+  walk(root);
+  return files.sort();
+}
+
+/** 把内部 workspace scope 从当前值重写到目标值（包名、import、锁文件与文档一并更新） */
+function rewriteWorkspaceScope(root: string, nextScope: string, dryRun: boolean): RewriteResult[] {
+  const previousScope = readWorkspaceScope(root);
+  if (previousScope === nextScope) {
+    return [];
+  }
+  const results: RewriteResult[] = [];
+  for (const rel of collectWorkspaceTextFiles(root)) {
+    const result = rewriteText(
+      root,
+      rel,
+      (text) => text.replaceAll(`@${previousScope}/`, `@${nextScope}/`),
+      dryRun,
+    );
+    if (result.changed) {
+      results.push(result);
+    }
+  }
+  return results;
 }
 
 /** 正则元字符转义 */
@@ -544,6 +668,7 @@ export function runInitTemplate(
   };
 
   const results: RewriteResult[] = [
+    ...rewriteWorkspaceScope(root, input.internalScope, dryRun),
     writeBrandSource(root, input, dryRun),
     writePackageJson(root, input, dryRun),
     writeElectronBuilder(root, input, previous, dryRun),
@@ -577,6 +702,7 @@ const CLI_VALUE_KEYS = [
   'protocol',
   'owner',
   'repo',
+  'scope',
   'author',
   'description',
   'artifact-base',
@@ -624,6 +750,7 @@ function main(): void {
     ...(optional('executable') !== undefined
       ? { executableName: optional('executable') as string }
       : {}),
+    ...(optional('scope') !== undefined ? { internalScope: optional('scope') as string } : {}),
   });
 
   console.log(`[init-template]${dryRun ? '（dry-run，不落盘）' : ''}`);
@@ -633,6 +760,7 @@ function main(): void {
   console.log(`  可执行名    ${input.executableName}`);
   console.log(`  存储前缀    ${input.storagePrefix}`);
   console.log(`  安装包前缀  ${input.artifactBaseName}`);
+  console.log(`  内部 scope  @${input.internalScope}`);
   console.log(`  仓库        ${input.owner}/${input.repo}`);
   console.log('');
 
@@ -647,9 +775,10 @@ function main(): void {
 
   console.log('');
   console.log('下一步：');
-  console.log('  1. pnpm check:brand   # 校验品牌位点全部对齐');
-  console.log('  2. pnpm typecheck && pnpm lint');
-  console.log('  3. 替换 src/renderer/routes/home.tsx 为你的首屏');
+  console.log('  1. pnpm install --frozen-lockfile   # 重链内部 workspace 包（scope 已重写）');
+  console.log('  2. pnpm check:brand   # 校验品牌位点全部对齐');
+  console.log('  3. pnpm typecheck && pnpm lint');
+  console.log('  4. 替换 src/renderer/routes/home.tsx 为你的首屏');
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {

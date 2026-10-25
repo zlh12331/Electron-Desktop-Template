@@ -73,9 +73,10 @@ pnpm init:template --name "Derived Acceptance Lab" \
   --app-id com.example.derived-acceptance \
   --protocol derived-acceptance-20261023 \
   --owner template-acceptance --repo local-only \
-  --author "Template Acceptance" --dry-run   # 只报告，不落盘
+  --scope derived-acceptance --author "Template Acceptance" --dry-run   # 只报告，不落盘
 
 # 去掉 --dry-run 正式执行；随后用同一组参数再跑一次，应输出「无改动」
+pnpm install --frozen-lockfile --ignore-scripts   # scope 重写后重链 workspace 包
 pnpm check:brand
 pnpm check:csp-hash
 pnpm typecheck && pnpm lint

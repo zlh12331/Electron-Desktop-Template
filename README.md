@@ -14,7 +14,7 @@ Electron 44 + React 19 + TypeScript + Vite 8 的工程级桌面应用模板（Wi
 - **可观测性后端**：SLO、指标与 Collector 配置已定义；生产 Collector/告警后端不包含在模板内。
 - **性能画像**：有 bundle 预算、启动耗时与启动趋势；没有 FCP/LCP/INP 硬门槛。
 - **依赖基线**：Node 26 LTS、TypeScript 7、Vite 8 属前沿栈；升级与 override 规则见 [dependency-policy.md](docs/guides/dependency-policy.md)。
-- **内部包作用域**：`@code-agent/*` 是模板内部 workspace 包名，`init:template` 不会重写；它不出现在用户可见品牌位点中。
+- **内部包作用域**：`@code-agent/*` 是模板内部 workspace 包名；`init:template` 默认按 `--owner` 小写推导新 scope，并重写包名、imports 与锁文件，可用 `--scope` 覆盖。
 
 ## 包含什么
 
@@ -40,21 +40,22 @@ pnpm test:visual   # Windows 视觉基线（需先安装 Playwright Chromium）
 
 ## 从模板开始你的项目
 
-一条命令改完全部品牌位点（真源 + package.json + 构建配置 + LICENSE + CODEOWNERS + 文档 URL + i18n 文案 + CHANGELOG）：
+一条命令改完全部品牌位点（真源 + package.json + 构建配置 + LICENSE + CODEOWNERS + 文档 URL + i18n 文案 + CHANGELOG），并同步内部 workspace scope（默认取 `--owner` 小写，可用 `--scope` 覆盖）：
 
 ```bash
 pnpm init:template --name "My App" --app-id com.me.myapp --protocol myapp \
   --owner me --repo myapp --author "Me" --dry-run   # 先看会改哪些文件
 pnpm init:template --name "My App" --app-id com.me.myapp --protocol myapp \
   --owner me --repo myapp --author "Me"             # 实际执行
+pnpm install --frozen-lockfile                      # 重链内部 workspace 包
 pnpm check:brand                                    # 校验全部位点对齐
 ```
 
-命令幂等：重复执行同一组参数不会产生额外改动。产品名含中文等非 ASCII 字符时，可执行名无法自动推导，需显式指定：
+命令幂等：重复执行同一组参数不会产生额外改动。产品名含中文等非 ASCII 字符时，可执行名无法自动推导，需显式指定；内部 scope 也可单独覆盖：
 
 ```bash
 pnpm init:template --name "演示应用" --executable demo-app \
-  --app-id com.demo.app --protocol demoapp --owner demo --repo demo
+  --app-id com.demo.app --protocol demoapp --owner demo --repo demo --scope demo
 ```
 
 之后：

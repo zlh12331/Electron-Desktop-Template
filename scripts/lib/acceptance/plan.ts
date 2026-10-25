@@ -14,6 +14,8 @@ export interface AcceptanceBrand {
   readonly owner: string;
   /** 测试仓库名 */
   readonly repo: string;
+  /** 测试内部 workspace scope */
+  readonly scope: string;
   /** 测试作者 */
   readonly author: string;
 }
@@ -30,6 +32,7 @@ export function createAcceptanceBrand(now: Date = new Date()): AcceptanceBrand {
     protocol: `derived-acceptance-${now.getTime().toString(36)}`,
     owner: 'template-acceptance',
     repo: 'derived-acceptance',
+    scope: 'derived-acceptance',
     author: 'Template Acceptance',
   };
 }
@@ -53,6 +56,8 @@ export function buildInitArgs(brand: AcceptanceBrand, dryRun: boolean): string[]
     brand.owner,
     '--repo',
     brand.repo,
+    '--scope',
+    brand.scope,
     '--author',
     brand.author,
   ];

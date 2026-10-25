@@ -145,6 +145,13 @@ async function main(): Promise<void> {
       }
     });
 
+    stage('重链内部 workspace 包', () => {
+      // scope 重写会改包名/依赖/锁文件；用 frozen 校验锁文件自洽，ignore-scripts 避免重复原生安装
+      runPnpm(['install', '--frozen-lockfile', '--ignore-scripts'], copyRoot, {
+        timeoutMs: 5 * 60_000,
+      });
+    });
+
     stage('品牌与 CSP 门禁', () => {
       runPnpm(['check:brand'], copyRoot, { timeoutMs: 2 * 60_000 });
       runPnpm(['check:csp-hash'], copyRoot, { timeoutMs: 2 * 60_000 });

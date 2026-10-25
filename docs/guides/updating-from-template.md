@@ -45,7 +45,7 @@ git diff HEAD...template/main -- scripts/ .github/ docs/
 
 ## 4. 内部包作用域
 
-`@code-agent/*` 是模板内部 workspace 包名，不随 `init:template` 改名。同步上游时保留该作用域，避免大量 import 冲突；如果团队决定重命名，单独做一次全仓替换并更新 `tsconfig` paths、`pnpm-workspace.yaml` 与所有 import。
+`@code-agent/*` 是模板内部 workspace 包名。`init:template` 默认按 `--owner` 小写推导新 scope，并同步重写包名、imports 与 `pnpm-lock.yaml`；可用 `--scope` 显式指定。同步上游时，把上游 diff 中的 `@code-agent/*` 替换为本项目 scope（或先以 `--scope code-agent` 初始化）；改完必须重新 `pnpm install --frozen-lockfile` 重链 workspace 包。
 
 ## 5. 同步后检查
 
