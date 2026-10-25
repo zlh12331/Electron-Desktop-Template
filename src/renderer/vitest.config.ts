@@ -58,6 +58,9 @@ export default defineConfig({
         'test/**',
         'dev/**',
         'coverage/**',
+        // 纯 re-export barrel：V8 对 re-export 语句记 0；导出形状由 index.test.ts 验证
+        'i18n/index.ts',
+        'lib/motion/index.ts',
         'main.tsx',
         'App.tsx',
         // 应用壳/路由装配由 browser + Electron E2E 覆盖；单元测试不重复挂载整棵壳

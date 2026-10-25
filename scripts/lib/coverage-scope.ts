@@ -43,6 +43,9 @@ export const COVERAGE_SCOPES: readonly CoverageScope[] = [
       'router.tsx',
       'routes/**',
       'lib/query/**',
+      // 纯 re-export barrel：无执行路径，导出形状由 index.test.ts 验证
+      'i18n/index.ts',
+      'lib/motion/index.ts',
     ],
   },
   {
