@@ -9,6 +9,7 @@ const SCRIPT = join(import.meta.dirname, 'postinstall-rebuild.mjs');
 describe('postinstall（真实入口，安装器与编译器使用本地 fixture）', () => {
   let root: string;
   let installer: string;
+  let rebuildEntry: string;
 
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'template install '));
@@ -17,6 +18,7 @@ describe('postinstall（真实入口，安装器与编译器使用本地 fixture
     mkdirSync(electronDir, { recursive: true });
     mkdirSync(rebuildDir, { recursive: true });
     installer = join(electronDir, 'install.js');
+    rebuildEntry = join(rebuildDir, 'cli.js');
     writeFileSync(
       installer,
       `const fs = require('node:fs');
@@ -26,10 +28,7 @@ fs.mkdirSync(path.join(__dirname, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(__dirname, 'dist/electron'), 'fixture');
 fs.writeFileSync(path.join(__dirname, 'path.txt'), 'electron');`,
     );
-    writeFileSync(
-      join(rebuildDir, 'cli.js'),
-      "require('node:fs').appendFileSync('steps.txt', 'rebuild\\n');",
-    );
+    writeFileSync(rebuildEntry, "require('node:fs').appendFileSync('steps.txt', 'rebuild\\n');");
   });
 
   afterEach(() => {
@@ -66,6 +65,14 @@ fs.writeFileSync(path.join(__dirname, 'path.txt'), 'electron');`,
     const result = run();
     expect(result.status).toBe(1);
     expect(String(result.stderr)).toContain('Electron 二进制缺失');
+  });
+
+  it('原生模块重编失败时保留退出码，不留下能装不能跑的状态', () => {
+    writeFileSync(rebuildEntry, 'process.exit(9);');
+    const result = run();
+    expect(result.status).toBe(9);
+    expect(String(result.stderr)).toContain('原生模块重编译失败');
+    expect(String(result.stderr)).toContain('SKIP_ELECTRON_REBUILD=1');
   });
 
   it('跳过原生重编仍会安装 Electron', () => {

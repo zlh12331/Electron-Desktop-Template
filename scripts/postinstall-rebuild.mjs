@@ -38,10 +38,11 @@ const result = spawnSync(process.execPath, [electronRebuildCli, '-f', '-w', 'bet
 });
 
 if (result.status !== 0) {
-  console.warn(
-    '[postinstall] ⚠️ electron-rebuild 失败（不阻断 install）：本机工具链可能缺失。' +
-      '需要原生模块时手动重编：pnpm rebuild:native:electron（或设 SKIP_ELECTRON_REBUILD=1 静默跳过）',
+  console.error('[postinstall] 原生模块重编译失败（better-sqlite3 未编译为 Electron ABI）');
+  console.error(
+    '[postinstall] 直接启动会因 NODE_MODULE_VERSION 不匹配而失败。请修复本机构建工具链后重新执行 pnpm install；' +
+      '确需跳过时显式设置 SKIP_ELECTRON_REBUILD=1。',
   );
-  process.exit(0);
+  process.exit(result.status ?? 1);
 }
 console.log('[postinstall] 原生模块重编译完成');
