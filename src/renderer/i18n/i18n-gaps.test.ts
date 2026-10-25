@@ -38,6 +38,16 @@ describe('i18n 批次8 缺口补全', () => {
     expect(resources.en.errors).toBeDefined();
   });
 
+  it('每个 ErrorCode 在中英 errors namespace 都有文案', () => {
+    initI18n();
+    for (const code of Object.values(ErrorCode)) {
+      const key = `errors.${code}`;
+      for (const language of SUPPORTED_LANGUAGES) {
+        expect(i18n.t(key, { ns: 'errors', lng: language }), `${language}:${code}`).not.toBe(key);
+      }
+    }
+  });
+
   it('getCurrentLanguage：默认 zh-CN', () => {
     expect(getCurrentLanguage()).toBe('zh-CN');
   });

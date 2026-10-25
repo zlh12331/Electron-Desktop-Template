@@ -64,7 +64,7 @@ function collectStaticKeys(file: string): { direct: string[]; keyed: string[]; u
   for (const line of lines) {
     const t = line.trim();
     if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) continue;
-    for (const m of line.matchAll(/[a-zA-Z_$][w$]*Keys*:s*['"]([^'"`]+)['"]/g)) {
+    for (const m of line.matchAll(/[a-zA-Z_$][\w$]*Key\s*:\s*['"]([^'"`]+)['"]/g)) {
       const captured = m[1];
       if (captured !== undefined) keyed.push(captured);
     }
