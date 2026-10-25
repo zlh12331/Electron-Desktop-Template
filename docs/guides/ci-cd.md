@@ -1,7 +1,7 @@
 # CI/CD 流水线（六平台质量验证 + 产物验证分层）
 
-> 状态：**现行流水线说明 + 2026-09 重构记录**。文中 `v1.3.x` 版本号与实跑数据是当时的证据；当前模板仓库为 `0.1.0` 基线、尚未发版，版本与发版口径以 [RELEASING.md](../../RELEASING.md) 为准。
-> 必需检查现为 **6 项**（2026-09 的 5 项 + 2026-10-09 新增的 `Lint PR Title`）；文中 §3.3 / §10 的「5 项」是当时记录。
+> 状态：**现行流水线说明 + 2026-09 重构记录**。文中 `v1.3.x` 版本号与实跑数据是当时的证据；当前模板仓库为 `0.1.1`（2026-10-25 已发布 26 个资产），版本与发版口径以 [RELEASING.md](../../RELEASING.md) 为准。
+> 必需检查现为 **6 项**（2026-09 的 5 项 + 2026-10-09 新增的 `Lint PR Title`），实际 ruleset 名为 `protect-main`；文中 §3.3 / §10 的「5 项」是当时记录。
 > 阅读提示：改 CI 先看 §3（目标架构）与 §5（关键设计决策）；「第 2 节」是改前基线、「第 10 节」是落地记录与实跑结果。
 > 关联：[27-auto-update-spec.md](../history/27-auto-update-spec.md)（更新机制与发布资产）、[RELEASING.md](../../RELEASING.md)（发版 runbook）、[template-acceptance.md](template-acceptance.md)（模板底座验收）
 
@@ -174,7 +174,7 @@ flowchart TB
   U --> US["unit-summary<br/>if: always()"]
   EE --> EES["e2e-electron-summary<br/>if: always()"]
 
-  Q --> GATE{"ruleset 5 项必需检查<br/>全部 report 且全绿?"}
+  Q --> GATE{"ruleset 6 项必需检查<br/>全部 report 且全绿?"}
   US --> GATE
   I --> GATE
   EB --> GATE
@@ -283,7 +283,7 @@ flowchart LR
 
 | job       | 实例数 | 步骤（顺序执行）                                                                                                                                                                                                                                                |
 | --------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `gate`    | 1      | ① Detect release-please commit（提取版本号；非发布提交则下游全跳过）② CHANGELOG 润色兜底 `npx tsx scripts/check-changelog-polish.ts --version X.Y.Z`                                                                                                            |
+| `gate`    | 1      | ① Detect release-please commit（提取版本号；非发布提交则下游全跳过）② CHANGELOG 润色兜底 `pnpm exec tsx scripts/check-changelog-polish.ts --version X.Y.Z`                                                                                                            |
 | `build`   | **6**  | ① checkout（`fetch-depth: 0`）② pnpm ③ node ④ install ⑤ SBOM（CycloneDX，按架构命名）⑥ 仅 Linux：装 libfuse2 / rpm / xz-utils ⑦ 单测（**本次改造移出**）⑧ 打包（证书空值注入防护）⑨ `check:native-arch` ⑪ playwright deps（仅 ffmpeg）⑫ `test:smoke` ⑬ 上传产物 |
 | `merge`   | 1      | merge-multiple 拉齐 6 份元数据 → 合并 Windows 双架构 `latest.yml` → 合并 macOS 双架构 `latest-mac.yml` → 断言候选资产齐全                                                                                                                                       |
 | `release` | 1      | 下载全部产物 → collect（白名单筛选 + 版本号断言）→ 从 CHANGELOG 抽取 release body → 创建 tag + draft Release → 标记 release PR 为 tagged                                                                                                                        |
@@ -605,7 +605,7 @@ artifacts/mac-arm64/latest-mac.yml
 也可用 gh CLI：
 ```bash
 # 查看当前（应仍为 6 项）
-gh api repos/{owner}/{repo}/rulesets --jq '.[] | select(.name=="protect-release-branches") | .id'
+gh api repos/{owner}/{repo}/rulesets --jq '.[] | select(.name=="protect-main") | .id'
 # 改后回读确认
 gh api repos/{owner}/{repo}/rulesets/<id> --jq '.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context'
 ```
@@ -687,7 +687,7 @@ pnpm verify:local:full   # 追加产物层（含 build:win:x64 + smoke），约 
 
 **两个必须知晓的约束**：
 1. **推送仍会触发云端 workflow 并消耗配额**（`ci.yml` 由 `pull_request` / `merge_group` 触发、`release.yml`/`release-please.yml` 由 `push: main` 触发、`codeql.yml` 三种都有）。仅"本地验证"不能阻止派发；需要控量时用 commit message 加 `[skip ci]`（官方支持 `[skip ci]` / `[ci skip]` / `[no ci]` / `[skip actions]` / `[actions skip]`，仅作用于 `push` 与 `pull_request`，`pull_request_target` 例外）。
-2. **ruleset 的 5 项必需检查由云端产生**（用户决定暂不动 ruleset）。配额恢复前 PR 会卡在 pending；`.workbuddy-ai/` 等本地产物的提交也需按此策略权衡。
+2. **ruleset 的 6 项必需检查由云端产生**（用户决定暂不动 ruleset）。配额恢复前 PR 会卡在 pending；`.workbuddy-ai/` 等本地产物的提交也需按此策略权衡。
 
 **顺带发现的可优化项**（本次未改，供配额恢复后参考）：
 - ✅ **`pre-push` 的 gitleaks 已改造（2026-09-22 实施）**：原 `gitleaks dir .` 实测 **191 秒**

@@ -13,19 +13,20 @@
 # - （smoke-prod job 已移除：生产产物 smoke 统一交给 CD，见文件末尾说明）
 # - （原 package job 已移除：打包验证交给 CD，见文件末尾说明）
 #
-# ⚠️ ruleset 必需检查（5 项，云端配置，改 workflow 时须同步）：
+# ⚠️ ruleset 必需检查（6 项，云端配置，改 workflow 时须同步）：
 #   1. Typecheck / Lint / Unit Test / Audit   ← quality
 #   2. Unit Tests (all platforms)             ← unit-summary
 #   3. Integration Tests                      ← integration-tests
 #   4. E2E (Browser Mode)                     ← e2e-browser
 #   5. E2E (Electron, all platforms)          ← e2e-electron-summary
+#   6. Lint PR Title                          ← pr-title.yml
 #   多平台作业一律经 summary job 暴露稳定名：平台 label 换代时只改 workflow、
 #   不改云端 ruleset（"改漏 → 检查永不 report → PR 永久卡 pending"已发生过两次）。
 #   summary job 的 `name:` 必须逐字等于上述字符串，且必须带 `if: always()`。
 #
 # 触发策略（2026-09-10 方案二：CI on PR, CD on main）：
-# - **pull_request + merge_group 触发，不再 push: main**（2026-10-07 接入 merge queue，
-#   见下文 merge_group 节）。仓库 ruleset 强制「main 所有提交必须走 PR」
+# - **pull_request + merge_group 触发，不再 push: main**（workflow 已监听 merge_group；
+#   当前 ruleset 未启用 merge queue，启用后无需再改本文件）。仓库 ruleset 强制「main 所有提交必须走 PR」
 #   且 bypass_actors 为空（管理员亦不可绕过）、strict_required_status_checks_policy=true
 #   （PR 必须含 main 最新提交）、required_linear_history（只允许 squash/rebase，树不变）
 #   ⇒ 必需检查在合并前已对**完全相同的内容**跑过，push 阶段重复验证无信息增益。
@@ -50,8 +51,8 @@
 #
 # 参考项目 electron-shadcn-main/.github/workflows/testing.yaml 的 job 分层模式
 #
-# ⚠️ merge queue 支持（2026-10-07）：
-#   ruleset 启用 merge_queue 后，必需检查改在 merge_group 事件上把关——队列对
+# ⚠️ merge queue 支持（workflow 已接线；当前 ruleset 未启用）：
+#   若 ruleset 启用 merge_queue，必需检查改在 merge_group 事件上把关——队列对
 #   「本 PR + 排在它前面的所有变更」的假想合并树跑检查，那才是合并时的真实树。
 #   本 workflow 必须监听 merge_group: [checks_requested]：漏了 = 队列里必需检查
 #   永不 report = 所有 PR 卡死在队列（「永不 report」事故本项目已发生两次）。
@@ -574,7 +575,7 @@ jobs:
   #   - 同一次发版的安装包被构建 2 遍（Release PR 一次 + CD 一次）
   # 打包正确性由 release.yml 的 build job 保证——它是发版必经关卡，且失败不占号
   # （无 tag 无 Release，可直接重试）。
-  # ⚠️ 必需同步：ruleset「protect-release-branches」的 required_status_checks 已移除
+  # ⚠️ 必需同步：ruleset「protect-main」的 required_status_checks 已移除
   # Package (windows/ubuntu/macos-latest) 三项。若只删本 job 而不改 ruleset，这三项
   # 检查永不 report，所有 PR 会卡在 pending 无法合并（strict policy 下）。
   #
@@ -598,7 +599,7 @@ jobs:
   # Smoke (Production Build, windows-latest) 与 Smoke (Production Build, ubuntu-latest)
   # ⇒ 当时必需检查从 8 项降为 6 项。只删 job 不改 ruleset 会让这两项永不 report，
   # 所有 PR 卡在 pending（与上面 package job 同一个坑）。
-  # 2026-09-20 六平台改造后已是 **5 项**（见文件头清单）——smoke 覆盖改由 CD 的
+  # 2026-10-09 后已是 **6 项**（含 Lint PR Title，见文件头清单）——smoke 覆盖改由 CD 的
   # 6 个 build job 各自承担（每个平台验证自己的产物，含此前缺的 win-arm64 / mac-x64）。
   # 代价（如实记录）：打包层回归——preload 被误打成 ESM、原生模块 ABI/架构错配、
   # extraResources 漏文件、安装路径超长等——不再有 PR 阶段的早反馈，要到发版跑 CD

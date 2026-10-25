@@ -34,6 +34,8 @@ jobs:
     name: Gate (release-please commit?)
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
     outputs:
       is_release: ${{ steps.detect.outputs.is_release }}
       version: ${{ steps.detect.outputs.version }}
@@ -44,6 +46,22 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 26
+          cache: pnpm
+
+      # 用 lockfile 里的 tsx 执行门禁，避免 npx 拉取未锁定的包；
+      # gate 只需要脚本，不需要 Electron 二进制/原生重编。
+      - name: Install gate dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
       - name: Detect release-please commit
         id: detect
         env:
@@ -99,14 +117,14 @@ jobs:
       # CHANGELOG 未润色则拦截：润色版本段，或加 <!-- changelog:polished --> 放行标记
       - name: CHANGELOG polish check (兜底，打 tag 前)
         if: steps.detect.outputs.is_release == 'true'
-        run: npx --yes tsx@^4.23.0 scripts/check-changelog-polish.ts --version "$RELEASE_VERSION"
+        run: pnpm exec tsx scripts/check-changelog-polish.ts --version "$RELEASE_VERSION"
         env:
           RELEASE_VERSION: ${{ steps.detect.outputs.version }}
 
       # 三态自洽断言（manifest / tag / 版本方向），fail-closed
       - name: Release anchor check (post-merge, 打 tag 前)
         if: steps.detect.outputs.is_release == 'true'
-        run: npx --yes tsx@^4.23.0 scripts/check-release-anchor.ts --phase post-merge --version "$RELEASE_VERSION"
+        run: pnpm exec tsx scripts/check-release-anchor.ts --phase post-merge --version "$RELEASE_VERSION"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_VERSION: ${{ steps.detect.outputs.version }}
@@ -121,7 +139,7 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     timeout-minutes: 60
     permissions:
-      contents: write
+      contents: read
 
     strategy:
       fail-fast: false
@@ -171,6 +189,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
@@ -294,10 +313,14 @@ jobs:
     if: needs.gate.outputs.is_release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
@@ -364,6 +387,8 @@ jobs:
           egress-policy: audit
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Download all artifacts (keep subdirectories)
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8

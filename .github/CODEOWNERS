@@ -5,7 +5,7 @@
 # 文档：https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 #
 # 说明：本仓库当前为个人维护，全部文件归 @zlh12331。
-# 注意：仓库 ruleset「protect-release-branches」中 require_code_owner_review = false，
+# 注意：仓库 ruleset「protect-main」中 require_code_owner_review = false，
 # 因此 CODEOWNERS 只用于**自动指派审阅者**，不会阻塞自己开的 PR（避免自审死锁）。
 
 # 默认：全部文件

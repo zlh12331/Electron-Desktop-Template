@@ -18,13 +18,14 @@
 
 ### 2.1 模板仓
 
-- `package.json` 与 `.release-please-manifest.json` 均为 `0.1.0`。
-- `release-please-config.json` **顶层**有 `bootstrap-sha`，当前指向 `06b08ca7`（模板合并提交）。
-  它表示「从该提交之后开始收集首次发版的提交」，**不包含该提交本身**。
-- 仓库当前没有 tag、没有 Release：`0.1.0` 只是基线。首个真实 `fix` 合并 → `0.1.1`；
-  首个 `feat` → `0.2.0`。**不会出现 v0.1.0 tag。**
+- `package.json` 与 `.release-please-manifest.json` 当前均为 `0.1.1`；`v0.1.1` 已于
+  2026-10-25 发布（26 个资产）。
+- `release-please-config.json` **顶层**保留了 `bootstrap-sha`（`06b08ca7`，模板合并提交）。
+  它只用于首个 Release PR 的收集起点；首个 Release PR 合并后已失效，保留仅为历史锚点，
+  不影响后续版本推导（如需清理可删除）。
+- 首个 `fix` 已产出 `v0.1.1`；后续 `fix` → `0.1.2`，`feat` → `0.2.0`。仓库从未出现
+  `v0.1.0` tag。
 - `bootstrap-sha` 必须是配置**顶层键**；写进 `packages["."]` 会被 release-please 静默忽略。
-  首个 Release PR 合并后该键自动失效，可以删除。
 - 根提交没有父提交，无法被 `bootstrap-sha` 排除，因此锚点放在其后的 chore 提交上。
 
 ### 2.2 派生项目（`pnpm init:template`）
