@@ -11,13 +11,7 @@ import { join, relative } from 'node:path';
 const ROOT = join(import.meta.dirname, '..');
 
 /** IO 边界允许清单：集成测试允许替身的同仓模块（简化环境 Medium Test 的边界替身） */
-const IO_BOUNDARY_MOCKS = [
-  'infra/storage',
-  'llm-client/ai-provider',
-  'mcp/mcp-client',
-  'utils/logger',
-  'telemetry',
-];
+const IO_BOUNDARY_MOCKS = ['infra/storage', 'utils/logger', 'telemetry'];
 
 /** 真实 IO 信号（单测目录出现即"准集成"） */
 const IO_SIGNALS: ReadonlyArray<{ re: RegExp; name: string }> = [

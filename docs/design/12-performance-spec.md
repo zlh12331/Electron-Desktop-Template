@@ -54,8 +54,9 @@
 3. **事件订阅清理**：`subscribe` / 定时器卸载必清理，防泄漏（L4 IPC 订阅）
 4. **重渲染边界**：子组件 props 用原始值 / 稳定引用；React Compiler 已自动处理时不要
    再手写 `useMemo` / `useCallback` 重复包裹
-5. **高频事件合帧**：滚动、resize、拖拽等高频事件的状态写入统一走 rAF 合帧，
-   一帧至多一次 setState（参考 `use-resizable-panels.ts`）
+5. **高频事件合帧**：滚动、resize、拖拽等高频事件优先走 rAF 合帧，一帧至多一次
+   setState；当前拖拽实现直接 setState（依赖 React 批处理），出现掉帧时再按此规则收敛
+   （参考 `use-resizable-panels.ts`）
 6. **查询缓存粒度**：TanStack Query 的 `staleTime` 按数据变化频率设置——静态运行时信息
    可用 `Number.POSITIVE_INFINITY`，日志类用 `0`
 

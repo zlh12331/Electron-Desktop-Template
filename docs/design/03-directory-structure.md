@@ -43,6 +43,8 @@ src/main/
 ├── window.ts                 # 主窗创建、导航限制、关窗行为
 ├── window-show.ts            # 窗口唤起
 ├── window-theme.ts           # win32 标题栏配色联动
+├── menu.ts                   # 生产版最小应用菜单安装
+├── menu-template.ts          # 菜单模板（纯函数，单测）
 ├── tray.ts                   # 系统托盘
 ├── deep-link.ts              # 自定义协议解析与广播
 ├── main-events.ts            # 零散状态事件广播
@@ -71,7 +73,7 @@ src/main/
 ```
 src/renderer/
 ├── main.tsx                  # React 挂载 + 启动快照 + 首帧主题
-├── App.tsx                   # RouterProvider + QueryClientProvider
+├── App.tsx                   # AppErrorBoundary + AppProviders + RouterProvider
 ├── router.tsx                # 路由表（hash router，file:// 兼容）
 ├── routes/                   # 页面（home / about）
 ├── components/

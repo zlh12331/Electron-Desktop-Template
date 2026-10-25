@@ -42,7 +42,7 @@
 - **主题**：`light / dark / system` 三值，默认 `dark`；顶栏按钮与 `Ctrl/Cmd+Shift+T` 都按 `dark → light → system → dark` 循环。`ThemeProvider` 只负责给 `<html>` 切 class 并监听系统主题，组件禁止直接改 DOM。
 - **字号**：`--font-size-2xs(10) → 3xl(28)` 九档；正文默认 `sm/base/md`。
 - **圆角**：`--radius: 8px`，`--radius-sm/md/lg/xl` 派生。间距走 Tailwind 的 `gap-*` / `p-*`，不自定义像素阶梯。
-- **样式分区**：`tokens` / `base` / `layout` / `chat`（终端加载光标）/ `fuzzy`（命令面板）/ `motion`。业务样式接入时新建文件并在 `styles/index.css` 登记，不沿用上游类名。
+- **样式分区**：`tokens` / `base` / `layout` / `palette`（命令面板）/ `motion`。业务样式接入时新建文件并在 `styles/index.css` 登记，不沿用上游类名。
 - **动效**：集中走 `lib/motion/`（`transitions` / `variants`）与 `styles/motion.css`；`check:animations` 校验 keyframes 存在；全局响应 `prefers-reduced-motion`。
 - **对比度**：正文与图标文字 ≥ 4.5:1，组件边界 / 焦点环 ≥ 3:1（WCAG 2.1 AA）。新增或修改令牌必须双主题实测，禁止只在一个主题下验收。
 

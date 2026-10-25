@@ -126,7 +126,7 @@ function buildHandlerFile(spec: MethodSpec): string {
   const impl =
     kind === 'request'
       ? [
-          '  // TODO: 实现业务逻辑；服务依赖通过工厂函数注入（参考 file.handler.ts / session.handler.ts）',
+          '  // TODO: 实现业务逻辑；服务依赖通过工厂函数注入（参考 settings.handler.ts / backup.handler.ts）',
           `  ${method}: async (input) => {`,
           '    void input;',
           '    // TODO: 返回类型需与 definitions.ts 的 res 占位一致',

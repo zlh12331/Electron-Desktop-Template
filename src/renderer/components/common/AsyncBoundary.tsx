@@ -34,15 +34,15 @@ interface AsyncBoundaryProps<T> {
  *
  * @example
  * ```tsx
- * const query = useSessionsQuery();
- * const view = useAsyncView(query, { isEmpty: (d) => d.sessions.length === 0 });
+ * const query = useItemsQuery();
+ * const view = useAsyncView(query, { isEmpty: (d) => d.items.length === 0 });
  * return (
  *   <AsyncBoundary
  *     view={view}
- *     skeleton={<SessionListSkeleton />}
- *     empty={<EmptyState title={t('sidebar.noSessions')} actionLabel={t('common.retry')} onAction={...} />}
+ *     skeleton={<ItemListSkeleton />}
+ *     empty={<EmptyState title={t('sidebar.noItems')} actionLabel={t('common.retry')} onAction={...} />}
  *   >
- *     {(data) => <SessionList sessions={data.sessions} />}
+ *     {(data) => <ItemList items={data.items} />}
  *   </AsyncBoundary>
  * );
  * ```

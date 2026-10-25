@@ -40,8 +40,8 @@ export async function invoke<T>(channel: string, input?: unknown): Promise<IpcRe
  *
  * @example
  * ```ts
- * const unsubscribe = api.chat.onStreamChunk((chunk) => {
- *   console.log(chunk);
+ * const unsubscribe = api.update.subscribeStatus((status) => {
+ *   console.log(status);
  * });
  * // 组件卸载时
  * unsubscribe();

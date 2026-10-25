@@ -53,30 +53,28 @@
 ## 适用范围
 
 本项目是桌面应用，攻击面主要涉及：
-- **本地文件系统访问**（路径越权 / 符号链接逃逸）
-- **命令与终端执行**（命令注入 / 参数注入绕过）
-- **API Key 存储**（keychain / safeStorage 加密）
-- **远程控制通道**（局域网 HTTP/SSE 命令通道的鉴权与配对）
-- **IM 渠道接入**（群聊未授权触发 Agent 执行）
-- **MCP / 语言服务器子进程**（进程边界与权限）
-- **自动更新链路**（更新源与完整性校验）
+- **渲染层与 IPC**（XSS、sender 越权、CSP/导航绕过、preload 桥暴露面）
+- **本地文件系统访问**（用户授权路径、符号链接/路径穿越）
+- **凭据存储**（keychain / safeStorage；Linux 无密钥环时 basic_text 已被拒绝）
+- **SQLite 主库与备份**（当前主库默认不做静态加密，敏感数据需 SQLCipher 或 OS 全盘加密）
+- **自动更新链路**（更新源、差分元数据与产物完整性）
+- **外链与深链**（自定义协议解析、系统浏览器打开策略）
 
 以下**不属于**本政策范围的漏洞：
 - 需要攻击者已具备本地管理员权限或物理接触设备的问题
-- 依赖第三方服务（如 AI Provider）自身的问题（请报告给对应厂商）
+- 依赖第三方服务（如 Sentry / OTLP 后端）自身的问题（请报告给对应厂商）
 - 用户明确关闭安全机制（如自行放开沙箱）后产生的问题
-- 仅存在于 `third_party/` vendored 参考源的依赖问题（请上报其上游项目）
+- 仅存在于 vendored 第三方源码的依赖问题（请上报其上游项目）
 
 ## 安全设计说明
 
 本项目在若干层面做了防御（详见 `docs/design/17-security-spec.md`）：
-- **权限审批链**：写操作经 PermissionService → 渲染层审批弹窗 → 用户批准才执行
-- **plan / build 模式分离**：plan 模式直接拒绝写工具，零副作用
-- **路径守卫**：文件访问做 realpath 对称比较，防越权与符号链接逃逸
-- **命令分类与危险命令拦截**：executor 前置守卫
-- **密钥加密存储**：API Key 经 Electron `safeStorage`（Windows DPAPI / macOS Keychain / Linux libsecret）
-- **IM 渠道 fail-closed**：群聊默认拒绝，需显式登记白名单
-- **供应链**：SBOM（CycloneDX）随 release 归档 + asar 完整性校验 + 每次发布附 `latest*.yml` 校验
+- **进程隔离**：`sandbox: true` + `contextIsolation: true` + `nodeIntegration: false`；preload 只经 `contextBridge` 暴露白名单 API
+- **渲染层边界**：主进程注入 CSP（含首帧内联脚本哈希）、导航/新窗白名单、系统权限请求全部拒绝；打包态菜单不提供 DevTools/Reload
+- **IPC 边界**：定义表驱动的 zod 入参/响应校验 + sender URL/主 frame 校验；所有异常归一为稳定错误码
+- **凭据**：API Key/代理凭据经 Electron `safeStorage`（Windows DPAPI / macOS Keychain / Linux libsecret）；Linux `basic_text` 被视为不可用并拒绝写入
+- **文件访问**：用户经系统对话框选中的文件进入 realpath 规范化授权表；不自行拼接未授权路径
+- **供应链**：SBOM（CycloneDX）随 release 归档 + asar 完整性校验 + gitleaks + Actions SHA pin + 发布年龄闸；每次发布附 `latest*.yml` 校验
 
 ## 致谢
 
