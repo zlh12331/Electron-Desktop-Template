@@ -3,8 +3,8 @@ import type { InferHandlers, IPC_DEFINITIONS } from '@code-agent/shared/main';
 import { AppError, ErrorCode } from '@code-agent/shared/main';
 import {
   deleteSecret,
+  getEncryptionStatus,
   getSecret,
-  isEncryptionAvailable,
   isReservedSecretKey,
   listSecrets,
   maskSecret,
@@ -21,10 +21,10 @@ function assertVisibleKey(key: string): void {
 
 export const secretsHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContext>['secrets'] =
   {
-    isAvailable: async () => ({
-      available: isEncryptionAvailable(),
-      platform: process.platform,
-    }),
+    isAvailable: async () => {
+      const status = getEncryptionStatus();
+      return { ...status, platform: process.platform };
+    },
 
     list: async () => ({
       keys: (await listSecrets()).filter((key) => !isReservedSecretKey(key)).sort(),

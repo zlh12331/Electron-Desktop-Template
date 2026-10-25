@@ -259,6 +259,7 @@
     "secretsTitle": "Credentials",
     "secretsHint": "Credentials are encrypted by the OS (DPAPI / Keychain / libsecret). Only masked values are shown; plaintext never leaves the main process.",
     "secretsUnavailable": "No encryption backend is available on this system (Linux requires libsecret). Credential storage is disabled.",
+    "secretsInsecureBackend": "The Linux keyring is unavailable, so safeStorage fell back to basic_text (a hard-coded key, effectively unprotected). Credential storage is disabled. Install and unlock libsecret / gnome-keyring / KWallet and restart.",
     "secretsAddTitle": "Add credential",
     "secretsKeyLabel": "Key",
     "secretsKeyPlaceholder": "e.g. api-key",

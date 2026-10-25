@@ -259,6 +259,7 @@
     "secretsTitle": "凭据存储",
     "secretsHint": "凭据经系统加密（Windows DPAPI / macOS Keychain / Linux libsecret）后落盘，界面只显示掩码，明文不出主进程。",
     "secretsUnavailable": "当前系统缺少可用的加密后端（Linux 需安装 libsecret），凭据存储不可用。",
+    "secretsInsecureBackend": "当前 Linux 密钥环不可用，safeStorage 只能回退到 basic_text（硬编码密钥，等同未加密）；凭据存储已禁用。请安装并解锁 libsecret / gnome-keyring / KWallet 后重启。",
     "secretsAddTitle": "新增凭据",
     "secretsKeyLabel": "键名",
     "secretsKeyPlaceholder": "如 api-key",

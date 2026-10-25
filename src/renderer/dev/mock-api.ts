@@ -165,7 +165,13 @@ export function createMockApi(): IpcApi {
       clearAuth: async () => ipcOk({ ok: true }),
     },
     secrets: {
-      isAvailable: async () => ipcOk({ available: true, platform: 'web' }),
+      isAvailable: async () =>
+        ipcOk({
+          available: true,
+          platform: 'web',
+          backend: null,
+          reason: 'ok' as const,
+        }),
       list: async () => ipcOk({ keys: [...memorySecrets.keys()].sort() }),
       set: async (input: { key: string; value: string }) => {
         memorySecrets.set(input.key, input.value);

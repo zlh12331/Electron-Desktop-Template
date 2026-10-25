@@ -24,7 +24,7 @@ export const MAX_SECRET_VALUE_LENGTH = 64 * 1024;
 
 /** secrets:isAvailable 响应（加密能力探测） */
 export interface SecretsAvailabilityRes {
-  /** safeStorage 是否可用（Linux 缺 libsecret 时为 false，此时既不能读也不能写） */
+  /** safeStorage 是否可用于凭据（Linux basic_text 视为不可用） */
   readonly available: boolean;
   /**
    * 当前平台标识（`process.platform` 原值；浏览器 mock 为 'web'）
@@ -33,12 +33,18 @@ export interface SecretsAvailabilityRes {
    * 不应依赖 Node 命名空间。
    */
   readonly platform: string;
+  /** Linux 实际选中的密钥库后端（非 Linux 为 null） */
+  readonly backend: string | null;
+  /** 不可用原因：unavailable / insecure-backend（如 Linux basic_text） */
+  readonly reason: 'ok' | 'unavailable' | 'insecure-backend';
 }
 
 /** secrets:isAvailable 响应 schema */
 export const SecretsAvailabilityResSchema = z.object({
   available: z.boolean(),
   platform: z.string(),
+  backend: z.string().nullable(),
+  reason: z.enum(['ok', 'unavailable', 'insecure-backend']),
 });
 
 /** secrets:list 响应（只返回键名，不返回值） */

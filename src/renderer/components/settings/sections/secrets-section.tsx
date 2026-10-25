@@ -136,7 +136,11 @@ export function SecretsSection(): ReactElement {
       <p className="text-muted-foreground text-xs leading-[1.5]">{t('settings.secretsHint')}</p>
 
       {!available && (
-        <p className="text-destructive text-xs leading-[1.5]">{t('settings.secretsUnavailable')}</p>
+        <p className="text-destructive text-xs leading-[1.5]">
+          {availability.data?.reason === 'insecure-backend'
+            ? t('settings.secretsInsecureBackend')
+            : t('settings.secretsUnavailable')}
+        </p>
       )}
 
       {available && (

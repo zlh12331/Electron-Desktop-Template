@@ -17,9 +17,68 @@ let warnedEncryptionUnavailable = false;
 // 双下划线前缀为内部保留键（如代理凭据），不通过 secrets IPC 域暴露/改写
 const RESERVED_SECRET_PREFIX = '__';
 
-/** safeStorage 是否可用（Linux 无 libsecret 时为 false，届时密钥全部不可读） */
-export function isEncryptionAvailable(): boolean {
-  return safeStorage.isEncryptionAvailable();
+/** safeStorage 加密能力状态（basic_text 在 Linux 上只是硬编码密钥混淆，不可用于凭据） */
+export type EncryptionBackendStatus = 'ok' | 'unavailable' | 'insecure-backend';
+
+export interface EncryptionStatus {
+  readonly available: boolean;
+  /** Linux 选中的后端；非 Linux 或探测失败为 null */
+  readonly backend: string | null;
+  readonly reason: EncryptionBackendStatus;
+}
+
+/**
+ * 判断 safeStorage 后端是否足以承载凭据
+ *
+ * Linux 没有可用密钥环时 Electron 会退回 `basic_text`：`isEncryptionAvailable()`
+ * 仍可能返回 true，但数据由硬编码密码保护，官方文档明确称为 unprotected。
+ * 这里把 basic_text 视为不可用，避免 UI/文档误报“已加密”。
+ *
+ * @param available safeStorage.isEncryptionAvailable() 原值
+ * @param backend Linux 选中后端（非 Linux 传 null）
+ * @param platform 当前平台（测试可注入）
+ */
+export function isSecureEncryptionBackend(
+  available: boolean,
+  backend: string | null,
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  if (!available) {
+    return false;
+  }
+  return !(platform === 'linux' && backend === 'basic_text');
+}
+
+/** 读取 Linux 后端名；非 Linux / 探测失败返回 null */
+function readLinuxBackend(platform: NodeJS.Platform): string | null {
+  if (platform !== 'linux') {
+    return null;
+  }
+  try {
+    return safeStorage.getSelectedStorageBackend();
+  } catch {
+    return null;
+  }
+}
+
+/** 当前加密能力（凭据 UI、写入与读取共用同一判据） */
+export function getEncryptionStatus(
+  platform: NodeJS.Platform = process.platform,
+): EncryptionStatus {
+  const backend = readLinuxBackend(platform);
+  const available = isSecureEncryptionBackend(
+    safeStorage.isEncryptionAvailable(),
+    backend,
+    platform,
+  );
+  if (available) {
+    return { available: true, backend, reason: 'ok' };
+  }
+  return {
+    available: false,
+    backend,
+    reason: backend === 'basic_text' ? 'insecure-backend' : 'unavailable',
+  };
 }
 
 /** 是否为内部保留凭据键（secrets 域必须拒绝读写） */
@@ -158,8 +217,13 @@ async function writeStore(store: KeychainStore): Promise<void> {
 
 /** 写入密钥（加密不可用直接抛——明文落盘不可接受） */
 export async function setSecret(key: string, value: string): Promise<void> {
-  if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error('safeStorage 加密不可用，无法存储敏感数据');
+  const status = getEncryptionStatus();
+  if (!status.available) {
+    throw new Error(
+      status.reason === 'insecure-backend'
+        ? 'Linux 密钥环不可用（safeStorage 回退 basic_text），拒绝保存敏感数据'
+        : 'safeStorage 加密不可用，无法存储敏感数据',
+    );
   }
 
   const release = await acquireLock();
@@ -179,10 +243,16 @@ export async function setSecret(key: string, value: string): Promise<void> {
  * ⚠️ 仅供**主进程内部**业务代码调用，不得经 IPC 暴露给渲染层。
  */
 export async function getSecret(key: string): Promise<string | null> {
-  if (!safeStorage.isEncryptionAvailable()) {
+  const status = getEncryptionStatus();
+  if (!status.available) {
     if (!warnedEncryptionUnavailable) {
       warnedEncryptionUnavailable = true;
-      logger.warn({ key }, 'safeStorage 加密不可用：已保存的凭据均不可读取（getSecret 返回 null）');
+      logger.warn(
+        { key, backend: status.backend, reason: status.reason },
+        status.reason === 'insecure-backend'
+          ? 'safeStorage 仅提供 basic_text 后端（硬编码密钥，数据不受保护）：已保存的凭据均不可读取'
+          : 'safeStorage 加密不可用：已保存的凭据均不可读取',
+      );
     }
     return null;
   }

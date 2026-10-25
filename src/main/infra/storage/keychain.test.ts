@@ -41,7 +41,15 @@ vi.mock('electron', () => ({
 
 vi.mock('../../utils/logger', () => ({ logger: mockLogger }));
 
-import { deleteSecret, getSecret, listSecrets, maskSecret, setSecret } from './keychain';
+import {
+  deleteSecret,
+  getEncryptionStatus,
+  getSecret,
+  isSecureEncryptionBackend,
+  listSecrets,
+  maskSecret,
+  setSecret,
+} from './keychain';
 
 describe('加密不可用降级', () => {
   it('getSecret 返回 null 且告警仅一次（fail-silent 收口，2026-09-28）', async () => {
@@ -53,6 +61,35 @@ describe('加密不可用降级', () => {
       expect(mockLogger.warn).toHaveBeenCalledTimes(1);
     } finally {
       mockSafeStorage.isEncryptionAvailable.mockReturnValue(true);
+    }
+  });
+
+  it('Linux basic_text 后端视为不安全（硬编码密钥不等于加密）', () => {
+    expect(isSecureEncryptionBackend(true, 'gnome_libsecret', 'linux')).toBe(true);
+    expect(isSecureEncryptionBackend(true, 'kwallet5', 'linux')).toBe(true);
+    expect(isSecureEncryptionBackend(true, 'basic_text', 'linux')).toBe(false);
+    expect(isSecureEncryptionBackend(true, 'basic_text', 'win32')).toBe(true);
+    expect(isSecureEncryptionBackend(false, 'gnome_libsecret', 'linux')).toBe(false);
+  });
+
+  it('getEncryptionStatus：Linux basic_text 报 insecure-backend，强后端报 ok', () => {
+    try {
+      mockSafeStorage.isEncryptionAvailable.mockReturnValue(true);
+      mockSafeStorage.getSelectedStorageBackend.mockReturnValue('basic_text');
+      expect(getEncryptionStatus('linux')).toEqual({
+        available: false,
+        backend: 'basic_text',
+        reason: 'insecure-backend',
+      });
+
+      mockSafeStorage.getSelectedStorageBackend.mockReturnValue('gnome_libsecret');
+      expect(getEncryptionStatus('linux')).toEqual({
+        available: true,
+        backend: 'gnome_libsecret',
+        reason: 'ok',
+      });
+    } finally {
+      mockSafeStorage.getSelectedStorageBackend.mockReturnValue('basic_text');
     }
   });
 });

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const { mockSafeStorage, mockApp } = vi.hoisted(() => ({
   mockSafeStorage: {
     isEncryptionAvailable: vi.fn(() => true),
+    getSelectedStorageBackend: vi.fn(() => null),
     encryptString: vi.fn((s: string) => Buffer.from(`enc:${s}`)),
     decryptString: vi.fn((b: Buffer) => {
       const text = b.toString('utf8');
@@ -48,12 +49,19 @@ describe('secrets.handler', () => {
 
   it('isAvailable：如实反映 safeStorage 能力与平台', async () => {
     const res = await secretsHandlers.isAvailable(undefined, EMPTY_CTX);
-    expect(res).toEqual({ available: true, platform: process.platform });
+    expect(res).toEqual({
+      available: true,
+      platform: process.platform,
+      backend: null,
+      reason: 'ok',
+    });
 
     mockSafeStorage.isEncryptionAvailable.mockReturnValue(false);
     expect(await secretsHandlers.isAvailable(undefined, EMPTY_CTX)).toEqual({
       available: false,
       platform: process.platform,
+      backend: null,
+      reason: 'unavailable',
     });
   });
 

@@ -32,7 +32,9 @@ function renderWithQuery(ui: ReactElement): ReturnType<typeof render> {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.isAvailable.mockResolvedValue({ data: { available: true, platform: 'win32' } });
+  mocks.isAvailable.mockResolvedValue({
+    data: { available: true, platform: 'win32', backend: null, reason: 'ok' },
+  });
   mocks.list.mockResolvedValue({ data: { keys: [] } });
   mocks.set.mockResolvedValue({ data: { ok: true } });
   mocks.delete.mockResolvedValue({ data: { ok: true } });
@@ -63,10 +65,27 @@ describe('SecretsSection', () => {
   });
 
   it('加密不可用：隐藏写入口并显示警示', async () => {
-    mocks.isAvailable.mockResolvedValue({ data: { available: false, platform: 'linux' } });
+    mocks.isAvailable.mockResolvedValue({
+      data: { available: false, platform: 'linux', backend: null, reason: 'unavailable' },
+    });
     renderWithQuery(<SecretsSection />);
 
     expect(await screen.findByText(t('settings.secretsUnavailable'))).toBeDefined();
+    expect(screen.queryByLabelText(t('settings.secretsKeyLabel'))).toBeNull();
+  });
+
+  it('Linux basic_text：显示“等同未加密”警示', async () => {
+    mocks.isAvailable.mockResolvedValue({
+      data: {
+        available: false,
+        platform: 'linux',
+        backend: 'basic_text',
+        reason: 'insecure-backend',
+      },
+    });
+    renderWithQuery(<SecretsSection />);
+
+    expect(await screen.findByText(t('settings.secretsInsecureBackend'))).toBeDefined();
     expect(screen.queryByLabelText(t('settings.secretsKeyLabel'))).toBeNull();
   });
 

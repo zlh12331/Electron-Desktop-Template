@@ -23,6 +23,8 @@ function secretMaskedKey(key: string): readonly [string, string] {
 const NO_BRIDGE_AVAILABILITY: SecretsAvailabilityRes = {
   available: false,
   platform: 'browser',
+  backend: null,
+  reason: 'unavailable',
 };
 
 /** safeStorage 加密能力（决定 UI 是否允许写入） */
