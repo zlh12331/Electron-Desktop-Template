@@ -3,12 +3,12 @@
 import type { Session } from 'electron';
 
 // 产线策略：脚本只认自身 + wasm + 一个内联哈希；style 须 unsafe-inline（React inline style 注入不了 script，
-// 代价可接受）；frame-ancestors 'none' 防被外部页面嵌套
+// 代价可接受）；frame-ancestors 'none' 防被外部页面嵌套。字体只走本地系统栈，不加载远程 webfont。
 const PRODUCTION_CSP = [
   "default-src 'self'",
   "script-src 'self' 'wasm-unsafe-eval' 'sha256-wflUFQw0AXH7W5u0ZUrT7qIVXBvSnbku/DKhBtpbKkE='",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' https://fonts.gstatic.com",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self'",
   "connect-src 'self'",
   "img-src 'self' data: blob:",
   "worker-src 'self' blob:",
@@ -22,8 +22,8 @@ const PRODUCTION_CSP = [
 const DEVELOPMENT_CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' https://fonts.gstatic.com",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self'",
   "connect-src 'self' http://localhost:* ws://localhost:*",
   "img-src 'self' data: blob:",
   "worker-src 'self' blob:",

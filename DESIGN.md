@@ -6,7 +6,7 @@ version: 1.2.0
 source: tokens/aurora.json（Style Dictionary，生成 src/renderer/styles/tokens.css；文件名为历史名，内容为 Template 设计令牌）
 themes: [light, dark]
 mechanism: css-variables
-last_synced: 2026-10-24
+last_synced: 2026-10-25
 ---
 
 # DESIGN.md — Template 设计令牌契约
@@ -34,7 +34,7 @@ last_synced: 2026-10-24
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | 布局尺寸           | `--sidebar-w` / `--right-panel-w` / `--resizer-w` / `--topbar-h`                                                                                                           | `clamp(200px,17vw,280px)`                                                        | 面板宽高，clamp 响应式                                                                                            |
 | z-index 层级       | `--z-base:1` / `--z-surface:2` / `--z-raised:10` / `--z-popover:50` / `--z-modal:100` / `--z-boundary:999`                                                                 | `z-(--z-popover)`                                                                | 6 档浮层体系；toast 用 sonner 库默认层级，不设令牌。禁止裸 z-* 数字                                               |
-| 字体               | `--font-mono/sans/serif`                                                                                                                                                   | `--font-mono: "JetBrains Mono", …, "Noto Sans SC", "Microsoft YaHei", monospace` | 等宽/无衬线/标题三族（策略详见 §1.1）                                                                             |
+| 字体               | `--font-mono/sans/serif`                                                                                                                                                   | `--font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "PingFang SC", "Microsoft YaHei", monospace` | 等宽/无衬线/标题三族，全部使用系统字体（策略详见 §1.1）                                                           |
 | 字号               | `--font-size-2xs:10px` … `--font-size-3xl:28px`                                                                                                                            | 9 级唯一阶梯                                                                     | `text-*` Tailwind 映射经 var 桥接单源化（base.css @theme 引用 --font-size-*，改令牌传导）；font-size-literal 卡关 |
 | 圆角               | `--radius:8px` + `--radius-sm/md/lg/xl` 派生（6/8/10/12px）                                                                                                                | `rounded-md`                                                                     | shadcn 圆角映射                                                                                                   |
 | 背景层级           | `--bg` / `--bg-elev` / `--bg-elev-2/3`                                                                                                                                     | L0 页面底 → L3 悬浮态                                                            | 3 层背景深度，双主题                                                                                              |
@@ -47,24 +47,25 @@ last_synced: 2026-10-24
 | 阴影               | `--shadow-modal` / `--shadow-dropdown` / `--shadow-pop` / `--shadow-card(-hover)`                                                                                          | 中性阴影                                                                         | Template 无 glow，柔和阴影体系                                                                                    |
 | 动效               | `--ease-soft/paper/out` + `--duration-fast/state/reveal`（120/200/300ms）+ tw-animate-css                                                                                  | `var(--duration-fast)`                                                           | 缓动曲线 + 时长三档与动画关键帧（时长此前散写 7 种已收敛）                                                        |
 
-### 1.1 字体策略（2026-10-09 同步）
+### 1.1 字体策略（2026-10-25 同步）
 
 - **三栈 CJK 回退不变量**：`--font-sans/--font-serif/--font-mono` 栈内必须含 CJK
   回退——Windows mono 上下文缺回退时中文掉 SimSun 宋体，小字 ClearType 下发灰
-  发绿（文件树与 xterm 终端先后实测）；硬编码 `font-family`/`fontFamily` 必须引用
-  `var(--font-*)` 或自带 CJK 回退，`font-cjk-fallback` 规则 CSS/TS 双侧卡关，
-  CJK 白名单刻意不含 SimSun（它是本不变量要防的失败形态本身）。
-- **webfont**：Google Fonts 运行时加载 JetBrains Mono + Noto Sans SC（后者是 mono
-  栈的 CJK 回退）；加载失败降级栈内系统字体（PingFang SC / Microsoft YaHei /
-  Consolas），离线可用性由回退链兜底。未自托管（@font-face 零）——完全离线的
-  字体一致性与首载体积的取舍未拍板。
+  发绿；硬编码 `font-family`/`fontFamily` 必须引用 `var(--font-*)` 或自带 CJK
+  回退，`font-cjk-fallback` 规则 CSS/TS 双侧卡关，CJK 白名单刻意不含 SimSun
+  （它是本不变量要防的失败形态本身）。
+- **纯系统字体**：三栈只使用 OS 字体（SF Pro / PingFang SC / Segoe UI /
+  Microsoft YaHei / SF Mono / Menlo / Consolas），**不加载任何远程 webfont**；
+  CSP `font-src 'self'`、`style-src` 不再放行 Google Fonts。代价是 Windows/macOS
+  的字形与字距存在平台差异，由 Windows 视觉基线和双平台 CI 兜底；收益是零网络
+  依赖、离线一致性可控、无第三方 CDN 隐私面。
 - **--font-serif 名实**：历史名，实为 SF Pro sans 栈、用于标题（非衬线）；改名是
-  breaking（63 处消费 + e2e `.font-serif` 选择器），保持现名、此处如实登记。
+  breaking（历史消费点 + e2e `.font-serif` 选择器），保持现名、此处如实登记。
 - **其余字体轴**：font-weight / letter-spacing 走 Tailwind 标准工具类（font-bold /
-  tracking-*），未令牌化——标准 Tailwind 用法，非缺口；终端 lineHeight 为 xterm
-  单值（1.3），settings 仅 fontSize 档位（36 号），lineHeight 档位化留待需要时。
-- **settings 无 fontFamily 自定义面**（模板无编辑器/终端，仅保留字号与缩放档位）：有意——
-  防用户配置缺 CJK 回退的栈复发掉宋体问题。
+  tracking-*），未令牌化——标准 Tailwind 用法，非缺口；settings 仅 fontSize 档位，
+  lineHeight 档位化留待需要时。
+- **settings 无 fontFamily 自定义面**：有意——防用户配置缺 CJK 回退的栈复发掉
+  宋体问题。
 
 ## 2. 双主题机制
 
