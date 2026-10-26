@@ -304,6 +304,7 @@
     "listAria": "Notes list",
     "emptyTitle": "No notes yet",
     "emptyDesc": "Create the first note or import Markdown.",
+    "searchEmptyDesc": "Try a different keyword or clear the search to see all notes.",
     "emptyPreview": "(empty body)",
     "updatedAt": "Updated {{time}}",
     "untitled": "Untitled",

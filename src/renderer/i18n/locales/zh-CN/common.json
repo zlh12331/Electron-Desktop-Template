@@ -304,6 +304,7 @@
     "listAria": "笔记列表",
     "emptyTitle": "还没有笔记",
     "emptyDesc": "创建第一条，或用 Markdown 导入。",
+    "searchEmptyDesc": "换个关键词，或清空搜索查看全部笔记。",
     "emptyPreview": "（空正文）",
     "updatedAt": "更新于 {{time}}",
     "untitled": "无标题",

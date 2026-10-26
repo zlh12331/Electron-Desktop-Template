@@ -34,6 +34,7 @@ export function NoteList({
   onImport,
 }: NoteListProps): ReactElement {
   const { t } = useTranslation();
+  const searching = query.trim().length > 0;
 
   return (
     <aside className="flex h-full min-h-0 flex-col" aria-label={t('notes.listAria')}>
@@ -73,10 +74,9 @@ export function NoteList({
           </div>
         ) : notes.length === 0 ? (
           <EmptyState
-            title={t('notes.emptyTitle')}
-            description={t('notes.emptyDesc')}
-            actionLabel={t('notes.new')}
-            onAction={onCreate}
+            title={searching ? t('common.noResults') : t('notes.emptyTitle')}
+            description={searching ? t('notes.searchEmptyDesc') : t('notes.emptyDesc')}
+            {...(searching ? {} : { actionLabel: t('notes.new'), onAction: onCreate })}
             className="py-10"
           />
         ) : (

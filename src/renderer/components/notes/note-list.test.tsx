@@ -73,6 +73,15 @@ describe('NoteList', () => {
     expect(props.onCreate).toHaveBeenCalled();
   });
 
+  it('搜索无结果展示独立空态，不诱导新建', () => {
+    renderList({ notes: [], query: 'missing' });
+
+    expect(screen.getByText(t('common.noResults'))).toBeDefined();
+    expect(screen.getByText(t('notes.searchEmptyDesc'))).toBeDefined();
+    expect(screen.queryByText(t('notes.emptyTitle'))).toBeNull();
+    expect(screen.getAllByRole('button', { name: t('notes.new') })).toHaveLength(1);
+  });
+
   it('加载中展示状态指示器而非空态', () => {
     renderList({ notes: [], loading: true });
 
