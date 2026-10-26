@@ -5,28 +5,70 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { IPC_META } from '@code-agent/shared/ipc/meta';
+import { countIpcMeta, type IpcChannelCounts, type IpcMetaLike } from '../lib/docs-contracts';
+import { syncIpcSpecText } from '../lib/ipc-spec-sync';
 import type { ParsedArgs } from './lib/args';
 import { optionalValue, parseArgs, rejectPositionals, requireValue } from './lib/args';
 import { camelToPascal, isValidDomain, isValidMethod } from './lib/naming';
-import { insertBeforeAnchor, insertIntoObjectBlock, insertSortedLine } from './lib/text';
+import {
+  escapeRegExp,
+  insertBeforeAnchor,
+  insertIntoObjectBlock,
+  insertSortedLine,
+} from './lib/text';
 
 /** 仓库根（scripts/scaffold/ → 根） */
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
-interface MethodSpec {
+/** IPC 规范路径（文档契约的被检对象） */
+const IPC_SPEC_FILE = 'docs/design/19-ipc-spec.md';
+
+/** 一次脚手架请求 */
+export interface MethodSpec {
   readonly domain: string;
   readonly method: string;
   readonly kind: 'request' | 'event';
 }
 
+/** 脚手架执行选项（测试可注入临时根、IPC 元数据与日期） */
+export interface ScaffoldOptions {
+  readonly root?: string;
+  readonly meta?: IpcMetaLike;
+  readonly today?: string;
+}
+
 /** 读取文件（不存在时抛错） */
-function readSource(relativePath: string): string {
-  const abs = path.join(REPO_ROOT, relativePath);
+function readSource(root: string, relativePath: string): string {
+  const abs = path.join(root, relativePath);
   if (!existsSync(abs)) {
     throw new Error(`目标文件不存在：${relativePath}`);
   }
   return readFileSync(abs, 'utf8');
+}
+
+/** 本地日期（YYYY-MM-DD），写入规范同步日期 */
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * 计算本次脚手架后的 IPC 计数
+ *
+ * @param current 当前计数（来自 IPC_META）
+ * @param spec 本次新增的域/方法
+ * @returns 目标计数（新域追加到域清单末尾）
+ */
+export function nextIpcCounts(current: IpcChannelCounts, spec: MethodSpec): IpcChannelCounts {
+  const hasDomain = current.domainNames.includes(spec.domain);
+  return {
+    domains: current.domains + (hasDomain ? 0 : 1),
+    requests: current.requests + (spec.kind === 'request' ? 1 : 0),
+    events: current.events + (spec.kind === 'event' ? 1 : 0),
+    channels: current.channels + 1,
+    domainNames: hasDomain ? current.domainNames : [...current.domainNames, spec.domain],
+  };
 }
 
 /** 校验 + 组装方法描述 */
@@ -93,9 +135,46 @@ function metaDomainBlock(spec: MethodSpec): string {
   return `\n  ${spec.domain}: {\n${metaEntryLine(spec)}\n  },\n`;
 }
 
+/**
+ * 确保已有域文件包含指定命名导入
+ *
+ * 事件域首次加 request 时需要补 withSchema / OkResSchema；已有单行 import 合并，
+ * 多行 import 或已有声明则交给 TypeScript/格式化器处理，不重复插入。
+ */
+function ensureNamedImport(
+  source: string,
+  modulePath: string,
+  names: readonly string[],
+  exportAnchor: string,
+): string {
+  if (source.includes(`from '${modulePath}'`) && names.every((name) => source.includes(name))) {
+    return source;
+  }
+  const pattern = new RegExp(`^import \\{ ([^}]+) \\} from '${escapeRegExp(modulePath)}';$`, 'm');
+  const match = pattern.exec(source);
+  if (match !== null) {
+    const existing = (match[1] ?? '')
+      .split(',')
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0);
+    const missing = names.filter((name) => !existing.includes(name));
+    if (missing.length === 0) {
+      return source;
+    }
+    return source.replace(
+      pattern,
+      `import { ${[...existing, ...missing].join(', ')} } from '${modulePath}';`,
+    );
+  }
+  const line = `import { ${names.join(', ')} } from '${modulePath}';`;
+  return insertBeforeAnchor(source, exportAnchor, `${line}\n`) ?? source;
+}
+
 /** 新域文件内容（domains/<domain>.ts，新建域时生成） */
 function buildDomainFile(spec: MethodSpec): string {
   const { domain, kind } = spec;
+  const schemaImport =
+    kind === 'request' ? ["import { OkResSchema } from '../../schemas/app';"] : [];
   const withLine =
     kind === 'request'
       ? "import { withSchema } from '../with-schema';"
@@ -104,7 +183,7 @@ function buildDomainFile(spec: MethodSpec): string {
     `// domains/${domain}.ts：${domain} 域 IPC 定义（channel 元数据见 ../meta.ts，聚合见 ../definitions.ts）`,
     '// 边界：只声明本域方法与 schema 绑定；删除一个域 = 删本文件 + ../meta.ts 域块 + ../domains/index.ts 登记',
     '',
-    "import { OkResSchema } from '../../schemas/app';",
+    ...schemaImport,
     "import { IPC_META } from '../meta';",
     withLine,
     '',
@@ -147,7 +226,7 @@ function buildHandlerFile(spec: MethodSpec): string {
     '',
     `import type { InferHandlers, IPC_DEFINITIONS } from '@code-agent/shared/main';`,
     '',
-    "import type { IpcHandlerContext } from '../utils/wrap';",
+    "import type { IpcHandlerContext } from './wrap';",
     '',
     `/** ${Domain} 域 handler 实现（${domain} 域） */`,
     `export const ${domain}Handlers: InferHandlers<`,
@@ -160,15 +239,17 @@ function buildHandlerFile(spec: MethodSpec): string {
   ].join('\n');
 }
 
-/** 写入 handler 骨架（已存在时仅提示） */
-function writeHandlerSkeleton(spec: MethodSpec): void {
+/** 写入 handler 骨架（已存在时仅提示；event-only 域不生成 handler） */
+function writeHandlerSkeleton(root: string, spec: MethodSpec): void {
+  if (spec.kind === 'event') {
+    console.log('[跳过] event 域不生成 handler（主进程推送侧直接 emitEvent）');
+    return;
+  }
   const relative = `src/main/ipc/${spec.domain}.handler.ts`;
-  const abs = path.join(REPO_ROOT, relative);
+  const abs = path.join(root, relative);
   if (existsSync(abs)) {
     console.log(`[跳过] handler 已存在：${relative}`);
-    if (spec.kind === 'request') {
-      console.log(`  → 请在该文件补实现 ${spec.domain}.${spec.method}（缺失会编译期报错）`);
-    }
+    console.log(`  → 请在该文件补实现 ${spec.domain}.${spec.method}（缺失会编译期报错）`);
     return;
   }
   writeFileSync(abs, buildHandlerFile(spec), 'utf8');
@@ -178,21 +259,22 @@ function writeHandlerSkeleton(spec: MethodSpec): void {
 /**
  * 新域 handler 注册到 src/main/index.ts（import + registerIpcHandlers 条目）
  *
- * 只在新域首次生成时执行；已存在的域由使用者自行改注册方式（工厂注入等）。
+ * 新 request 域或原 event-only 域首次加 request 时执行；已有 handler 的域
+ * 由使用者自行维护注册方式（工厂注入等）。
  */
-function registerHandlerInIndex(spec: MethodSpec): void {
+function registerHandlerInIndex(root: string, spec: MethodSpec): void {
   const relative = 'src/main/index.ts';
-  const abs = path.join(REPO_ROOT, relative);
-  let source = readFileSync(abs, 'utf8');
+  const abs = path.join(root, relative);
+  let source = readSource(root, relative);
   const { domain } = spec;
 
   const importLine = `import { ${domain}Handlers } from './ipc/${domain}.handler';`;
   const withImport = insertSortedLine(
     source,
-    /^import \{ [a-zA-Z]+ \} from '\.\/ipc\/[a-zA-Z-]+\.handler';$/m,
+    /^import \{ [a-zA-Z0-9]+ \} from '\.\/ipc\/[a-zA-Z0-9-]+\.handler';$/m,
     importLine,
     (line) =>
-      line.replace(/^import \{ [a-zA-Z]+ \} from '\.\/ipc\//, '').replace(/\.handler';$/, ''),
+      line.replace(/^import \{ [a-zA-Z0-9]+ \} from '\.\/ipc\//, '').replace(/\.handler';$/, ''),
   );
   if (withImport === null) {
     throw new Error('src/main/index.ts 插入 handler import 失败：未找到同形 import 行');
@@ -201,9 +283,9 @@ function registerHandlerInIndex(spec: MethodSpec): void {
 
   const withEntry = insertIntoObjectBlock(
     source,
-    '    registerIpcHandlers({',
-    `      ${domain}: ${domain}Handlers,`,
-    '    });',
+    '        registerIpcHandlers({',
+    `          ${domain}: ${domain}Handlers,`,
+    '        });',
   );
   if (withEntry === null) {
     throw new Error('src/main/index.ts 插入 registerIpcHandlers 条目失败：未找到调用块');
@@ -215,20 +297,20 @@ function registerHandlerInIndex(spec: MethodSpec): void {
 
 /** 排序键：取行内 from './<name>' 的 name（无则回退整行） */
 function domainKeyOf(line: string): string {
-  const m = /from '\.\/([a-zA-Z]+)'/.exec(line);
+  const m = /from '\.\/([a-zA-Z0-9]+)'/.exec(line);
   return m?.[1] ?? line;
 }
 
-/** 新域登记到 domains/index.ts（import + 域册条目 + 再导出三处） */
-function registerDomainInIndex(spec: MethodSpec): void {
+/** 新域登记到 domains/index.ts（import + 域册条目） */
+function registerDomainInIndex(root: string, spec: MethodSpec): void {
   const relative = 'packages/shared/src/ipc/domains/index.ts';
-  const abs = path.join(REPO_ROOT, relative);
-  let source = readFileSync(abs, 'utf8');
+  const abs = path.join(root, relative);
+  let source = readSource(root, relative);
   const { domain } = spec;
 
   const withImport = insertSortedLine(
     source,
-    /^import \{ [a-zA-Z]+Domain \} from '\.\/[a-zA-Z]+';$/m,
+    /^import \{ [a-zA-Z0-9]+Domain \} from '\.\/[a-zA-Z0-9]+';$/m,
     `import { ${domain}Domain } from './${domain}';`,
     domainKeyOf,
   );
@@ -246,16 +328,6 @@ function registerDomainInIndex(spec: MethodSpec): void {
     throw new Error('domains/index.ts 插入域册条目失败：未找到 IPC_DOMAINS 对象块');
   }
   source = withRegistry;
-  const withExport = insertSortedLine(
-    source,
-    /^export \{ [a-zA-Z]+Domain \} from '\.\/[a-zA-Z]+';$/m,
-    `export { ${domain}Domain } from './${domain}';`,
-    domainKeyOf,
-  );
-  if (withExport === null) {
-    throw new Error('domains/index.ts 插入 export 失败：未找到同形 export 行');
-  }
-  source = withExport;
   writeFileSync(abs, source, 'utf8');
   console.log(`[更新] ${relative}（登记 ${domain} 域）`);
 }
@@ -288,19 +360,36 @@ function printManualSteps(spec: MethodSpec): void {
   console.log('');
   console.log('红利已自动生效（无需手写）：');
   console.log('  - IPC_CHANNELS 常量 / window.api（preload createIpcApi）/ IpcApi 类型');
-  console.log(`  - ${Domain} 域已登记进 domains/index.ts，handler 已注册进 src/main/index.ts`);
+  console.log(`  - ${Domain} 域已登记进 domains/index.ts`);
+  console.log(
+    kind === 'request'
+      ? `  - handler 已注册进 src/main/index.ts`
+      : '  - event 域无需 handler 注册（主进程推送侧直接 emitEvent）',
+  );
+  console.log('  - docs/design/19-ipc-spec.md 的 IPC 计数与域清单已同步');
 }
 
-/** 主流程 */
-function main(): void {
-  const parsed = parseArgs(process.argv.slice(2));
-  rejectPositionals(parsed);
-  const spec = buildMethodSpec(parsed);
+/**
+ * 执行脚手架（导出供临时副本测试调用；root/meta/today 可注入）
+ *
+ * @param spec 新增域/方法
+ * @param options 测试或派生环境覆盖项
+ */
+export function runScaffold(spec: MethodSpec, options: ScaffoldOptions = {}): void {
+  const root = options.root ?? REPO_ROOT;
   const channel = `${spec.domain}:${spec.method}`;
   const domainHeader = `  ${spec.domain}: {`;
 
+  // 先算文档，再改代码：规范结构异常时 fail-fast，避免代码与文档各走一半
+  const docsSource = readSource(root, IPC_SPEC_FILE);
+  const counts = countIpcMeta(options.meta ?? IPC_META);
+  const docsUpdated = syncIpcSpecText(docsSource, nextIpcCounts(counts, spec), {
+    updatedAt: options.today ?? today(),
+    file: IPC_SPEC_FILE,
+  });
+
   const metaPath = 'packages/shared/src/ipc/meta.ts';
-  const metaSource = readSource(metaPath);
+  const metaSource = readSource(root, metaPath);
   assertChannelAbsent(metaSource, metaPath, `('${channel}')`, channel);
   const metaUpdated = metaSource.includes(domainHeader)
     ? insertIntoObjectBlock(metaSource, domainHeader, metaEntryLine(spec))
@@ -308,23 +397,33 @@ function main(): void {
   if (metaUpdated === null) {
     throw new Error(`meta.ts 插入失败：未找到块 ${domainHeader} 或锚点 '} as const;'`);
   }
-  writeFileSync(path.join(REPO_ROOT, metaPath), metaUpdated, 'utf8');
+  writeFileSync(path.join(root, metaPath), metaUpdated, 'utf8');
   console.log(`[更新] ${metaPath}（${channel}）`);
 
   // 域定义：已存在则块内追加，新域则建文件并登记域册
   const domainPath = `packages/shared/src/ipc/domains/${spec.domain}.ts`;
-  const domainAbs = path.join(REPO_ROOT, domainPath);
+  const domainAbs = path.join(root, domainPath);
   if (existsSync(domainAbs)) {
-    const domainSource = readFileSync(domainAbs, 'utf8');
+    let domainSource = readSource(root, domainPath);
     assertChannelAbsent(
       domainSource,
       domainPath,
       `IPC_META.${spec.domain}.${spec.method}`,
       channel,
     );
+    const anchor = `export const ${spec.domain}Domain = {`;
+    domainSource =
+      spec.kind === 'request'
+        ? ensureNamedImport(
+            ensureNamedImport(domainSource, '../with-schema', ['withSchema'], anchor),
+            '../../schemas/app',
+            ['OkResSchema'],
+            anchor,
+          )
+        : ensureNamedImport(domainSource, '../with-schema', ['withPayload'], anchor);
     const updated = insertIntoObjectBlock(
       domainSource,
-      `export const ${spec.domain}Domain = {`,
+      anchor,
       definitionsEntryBlock(spec),
       '} as const;',
     );
@@ -336,18 +435,38 @@ function main(): void {
   } else {
     writeFileSync(domainAbs, buildDomainFile(spec), 'utf8');
     console.log(`[生成] ${domainPath}`);
-    registerDomainInIndex(spec);
-    registerHandlerInIndex(spec);
+    registerDomainInIndex(root, spec);
   }
 
-  writeHandlerSkeleton(spec);
+  const handlerRelative = `src/main/ipc/${spec.domain}.handler.ts`;
+  const handlerExisted = existsSync(path.join(root, handlerRelative));
+  writeHandlerSkeleton(root, spec);
+  // 新 request 域或「原 event-only 域首次加 request」都需要补 main 注册；
+  // 已有 handler 的域由原注册方式（工厂注入等）接管，不重复插入。
+  if (spec.kind === 'request' && !handlerExisted) {
+    registerHandlerInIndex(root, spec);
+  }
+
+  if (docsUpdated !== docsSource) {
+    writeFileSync(path.join(root, IPC_SPEC_FILE), docsUpdated, 'utf8');
+    console.log(`[更新] ${IPC_SPEC_FILE}（IPC 计数与域清单）`);
+  }
 
   printManualSteps(spec);
 }
 
-try {
-  main();
-} catch (error: unknown) {
-  console.error(`[失败] ${error instanceof Error ? error.message : String(error)}`);
-  process.exitCode = 1;
+/** CLI 入口 */
+function main(): void {
+  const parsed = parseArgs(process.argv.slice(2));
+  rejectPositionals(parsed);
+  runScaffold(buildMethodSpec(parsed));
+}
+
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    main();
+  } catch (error: unknown) {
+    console.error(`[失败] ${error instanceof Error ? error.message : String(error)}`);
+    process.exitCode = 1;
+  }
 }

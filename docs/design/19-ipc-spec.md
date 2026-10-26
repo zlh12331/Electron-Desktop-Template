@@ -23,7 +23,7 @@
 2. **domains/{domain}.ts**：`method: withSchema(IPC_META.domain.method, zSchema, type Res, resSchema)`——入参与响应契约（L2 校验自动生效），并在 `domains/index.ts` 登记
 3. **handler**：主进程 `src/main/ipc/{domain}.handler.ts` 实现并注册进 `src/main/index.ts`——**handler 缺失编译期报错**（类型推导 InferHandlers 强制）
 
-> 其余（preload API/类型/通道常量）全部自动生成。`pnpm scaffold:ipc --domain <d> --method <m>` 可一次生成上述三处骨架。
+> 其余（preload API/类型/通道常量）全部自动生成。`pnpm scaffold:ipc --domain <d> --method <m>` 可一次生成上述三处骨架，并同步本文件的域/通道计数与域清单；规范正文仍需人工补充。
 
 ## 三、请求-响应契约
 
