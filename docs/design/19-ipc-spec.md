@@ -122,7 +122,7 @@ channels.ts（IPC_CHANNELS 常量由 deriveChannels(meta) 生成，as const 字�
 - `protocol.ts`：IPC 协议版本常量（`IPC_PROTOCOL_VERSION`）。
 - `ipc/response.ts`：`IpcResponse<T> = { data } | { error }` 统一响应联合。
 
-`ErrorCode` 保留通用码 + IPC 边界码 + 文件系统码 + 备份码（业务专用码随业务裁剪），`useErrorMessage` hook（renderer）按 code 映射 i18n 文案，兜底 `ERROR_META.userMessage`。
+`ErrorCode` 保留通用码 + IPC 边界码 + 文件系统码 + 备份码（业务专用码随业务裁剪）。IPC 边界码含 `IPC_SENDER_INVALID` / `IPC_CHANNEL_NOT_FOUND` / `INVALID_RESPONSE` / `BRIDGE_UNAVAILABLE`（渲染层未注入 preload）；`useErrorMessage` hook（renderer）按 code 映射 i18n 文案，兜底 `ERROR_META.userMessage`。
 
 ## 7. 请求/响应 schema（`packages/shared/src/schemas/`）
 

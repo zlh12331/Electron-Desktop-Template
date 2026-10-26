@@ -1,6 +1,6 @@
 # CI/CD 流水线（六平台质量验证 + 产物验证分层）
 
-> 状态：**现行流水线说明 + 2026-09 重构记录**。文中 `v1.3.x` 版本号与实跑数据是当时的证据；当前模板仓库为 `0.1.1`（2026-10-25 已发布 26 个资产），版本与发版口径以 [RELEASING.md](../../RELEASING.md) 为准。
+> 状态：**现行流水线说明 + 2026-09 重构记录**。文中 `v1.3.x` 版本号与实跑数据是当时的证据；当前模板仓库为 `0.2.1`（2026-10-26 已发布 26 个资产，v0.1.1 为上一版本），版本与发版口径以 [RELEASING.md](../../RELEASING.md) 为准。
 > 必需检查现为 **6 项**（2026-09 的 5 项 + 2026-10-09 新增的 `Lint PR Title`），实际 ruleset 名为 `protect-main`；文中 §3.3 / §10 的「5 项」是当时记录。
 > 阅读提示：改 CI 先看 §3（目标架构）与 §5（关键设计决策）；「第 2 节」是改前基线、「第 10 节」是落地记录与实跑结果。
 > 关联：[27-auto-update-spec.md](../history/27-auto-update-spec.md)（更新机制与发布资产）、[RELEASING.md](../../RELEASING.md)（发版 runbook）、[template-acceptance.md](template-acceptance.md)（模板底座验收）
@@ -267,9 +267,8 @@ flowchart LR
   S1["① 准备<br/>checkout（fetch-depth: 0）<br/>pnpm → node 26 → install --frozen-lockfile"]
   S2["② SBOM 与系统依赖<br/>CycloneDX JSON（按架构命名）<br/>仅 Linux：libfuse2 / rpm / xz-utils"]
   S3["③ 打包与产物断言<br/>打包（证书空值防护）<br/>→ check:native-arch（读 ELF/PE/Mach-O 头）"]
-  S4["④ smoke 与上传<br/>playwright deps（仅 ffmpeg）<br/>→ test:smoke（Linux 走 xvfb-run）<br/>→ upload-artifact（按架构命名）"]
-  S1 --> S2 --> S3 --> S4
-  S4 -.-> SM[["smoke 的 6 个断言<br/>① 渲染出主界面　② window.api 已注入<br/>③ settings:getAll 可查 SQLite　④ system:getStatus 可用<br/>⑤ 启动 < 10s　　⑥ 无控制台错误"]]
+  S4["④ smoke 与上传<br/>playwright deps（仅 ffmpeg）<br/>→ test:smoke（Linux 走 xvfb-run）<br/>→ upload-artifact（按架构命名）"]  S1 --> S2 --> S3 --> S4
+  S4 -.-> SM[["smoke 的 9 个用例<br/>① 渲染出主界面　② window.api 已注入<br/>③ settings:getAll 可查 SQLite　④ system:getStatus 可用<br/>⑤ 启动 < 10s　⑥ hash 路由 IPC　⑦ CSP 内联脚本拦截<br/>⑧ dev/test 环境变量隔离　⑨ 无控制台错误"]]
 ```
 
 **读图要点**：
@@ -288,6 +287,11 @@ flowchart LR
 | `merge`   | 1      | merge-multiple 拉齐 6 份元数据 → 合并 Windows 双架构 `latest.yml` → 合并 macOS 双架构 `latest-mac.yml` → 断言候选资产齐全                                                                                                                                       |
 | `release` | 1      | 下载全部产物 → collect（白名单筛选 + 版本号断言）→ 从 CHANGELOG 抽取 release body → 创建 tag + draft Release → 标记 release PR 为 tagged                                                                                                                        |
 | `publish` | 1      | 12 组合资产断言（6 平台 × 安装包/元数据）→ 命名负向断言 → 元数据双架构断言 → 差分门禁 → draft 转正式发布                                                                                                                                                        |
+
+> **smoke 的 fuse 前提**：`test:smoke` 用 Playwright `_electron.launch` 驱动打包产物，依赖
+> `--inspect`。`electron-builder.yml` 必须保持 `enableNodeCliInspectArguments: true`；
+> 关闭会让 6 个平台全部 “Process failed to launch”（0.2.0 事故，0.2.1 修复）。若要关闭，
+> 需先提供不依赖 Node inspector 的 smoke 方案。
 
 ### 3.0.3 完整链路（从提交到用户可见）
 

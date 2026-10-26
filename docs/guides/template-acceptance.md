@@ -106,8 +106,13 @@ pnpm check:native-arch
 pnpm test:smoke
 ```
 
-判定：安装包生成；原生模块架构与目标一致；生产包 6 项 smoke 全过、无控制台错误、
+判定：安装包生成；原生模块架构与目标一致；生产包 9 个 smoke 用例全过、无控制台错误、
 启动到可交互在预算内。
+
+> smoke 使用 Playwright `_electron.launch` 驱动打包产物，依赖 `--inspect`；打包配置必须保持
+> `enableNodeCliInspectArguments: true`（0.2.0 曾因关闭该 fuse 导致六平台 smoke 全部失败）。
+> smoke 必须对真实 `release/<platform>-unpacked` 目录运行；用 junction/符号链接替换会让
+> `app.getAppPath()` 与页面 URL 路径不一致，触发 `IPC_SENDER_INVALID` 假失败。
 
 > 这一步验证的是 `release/<platform>-unpacked`。NSIS 安装/卸载由
 > `pnpm acceptance:derived --nsis` 或 `pnpm acceptance:nsis --installer <exe> --yes`
