@@ -65,9 +65,9 @@ disableAsarIntegrity: false
 # 其余 fuse 的取值与理由：
 #   - enableCookieEncryption：保持默认 false。应用不依赖 Chromium cookie（设置持久化在
 #     SQLite），暂不启用以免影响既有用户的一次性迁移。
-#   - enableNodeCliInspectArguments: false
-#     打包态不接受 --inspect / --inspect-brk；本地调试走 dev 的 remote-debugging-port，
-#     发布包不再暴露调试器入口。
+#   - enableNodeCliInspectArguments: true
+#     Playwright 的 production smoke 通过 --inspect 驱动打包应用；关闭后 6 平台
+#     smoke 全部无法启动。若未来要关闭，需先提供不依赖 Node inspector 的 smoke 方案。
 #   - enableNodeOptionsEnvironmentVariable: false
 #     模板已无依赖 NODE_OPTIONS 的子进程（原引擎子进程已移除）；关闭后外部环境变量
 #     无法向主进程注入 Node 选项。
@@ -75,7 +75,7 @@ electronFuses:
   runAsNode: false
   onlyLoadAppFromAsar: true
   enableEmbeddedAsarIntegrityValidation: true
-  enableNodeCliInspectArguments: false
+  enableNodeCliInspectArguments: true
   enableNodeOptionsEnvironmentVariable: false
 
 # 需要打入 asar 的文件白名单（out/ 是 electron-vite 构建产物）

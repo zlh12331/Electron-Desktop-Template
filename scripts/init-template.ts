@@ -219,20 +219,6 @@ function readIfExists(root: string, rel: string): string | null {
   return existsSync(abs) ? readFileSync(abs, 'utf8') : null;
 }
 
-/** 读当前 package.json 版本（站点版本号跟随派生项目的 0.0.0 基线） */
-function readPackageVersion(root: string): string {
-  const raw = readIfExists(root, 'package.json');
-  if (raw === null) {
-    return '0.0.0';
-  }
-  try {
-    const parsed = JSON.parse(raw) as { version?: unknown };
-    return typeof parsed.version === 'string' ? parsed.version : '0.0.0';
-  } catch {
-    return '0.0.0';
-  }
-}
-
 /** 写文件（内容未变则跳过，保证幂等且不触发无谓的 mtime 变化） */
 function writeIfChanged(root: string, rel: string, next: string, dryRun: boolean): RewriteResult {
   const current = readIfExists(root, rel);
@@ -684,7 +670,6 @@ function rewriteEmbeddedSvgBrand(
 
 interface SiteRewriteContext {
   readonly previous: PreviousBrand;
-  readonly previousVersion: string;
 }
 
 /**
@@ -709,7 +694,7 @@ function writeSite(
             `github.com/${context.previous.owner}/${context.previous.repo}`,
             `github.com/${input.owner}/${input.repo}`,
           )
-          .replaceAll(`v${context.previousVersion}`, 'v0.0.0'),
+          .replace(/\bv\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\b/g, 'v0.0.0'),
         context.previous.productName,
         input.productName,
       ),
@@ -783,7 +768,6 @@ export function runInitTemplate(
   options: InitOptions = {},
 ): RewriteResult[] {
   const source = readBrandConfig(root);
-  const previousVersion = readPackageVersion(root);
   const previous: PreviousBrand = {
     productName: source.productName,
     protocol: source.protocol,
@@ -792,7 +776,6 @@ export function runInitTemplate(
     owner: source.repo.owner,
     repo: source.repo.name,
   };
-
   const results: RewriteResult[] = [
     ...rewriteWorkspaceScope(root, input.internalScope, dryRun),
     writeBrandSource(root, input, dryRun),
@@ -806,7 +789,7 @@ export function runInitTemplate(
     writeCodeowners(root, input, previous, dryRun),
     ...writeRepoUrls(root, input, previous, dryRun),
     ...(options.keepSite === true
-      ? [writeSite(root, input, { previous, previousVersion }, dryRun)]
+      ? [writeSite(root, input, { previous }, dryRun)]
       : removeTemplateSite(root, dryRun)),
     ...resetReleaseState(root, dryRun),
   ];
