@@ -158,6 +158,7 @@ async function main(): Promise<void> {
       }
     });
 
+    // notes-example:start
     stage('Local Notes 参考切片按默认策略移除', () => {
       const leftovers = [
         'src/renderer/routes/notes.tsx',
@@ -175,6 +176,7 @@ async function main(): Promise<void> {
         throw new Error('Local Notes 移除后 meta.ts 仍残留 notes 域或标记');
       }
     });
+    // notes-example:end
 
     stage('重链内部 workspace 包', () => {
       // scope 重写会改包名/依赖/锁文件；用 frozen 校验锁文件自洽，ignore-scripts 避免重复原生安装

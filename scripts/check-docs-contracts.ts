@@ -66,6 +66,12 @@ const SKIP_DIRS = new Set([
 /** 源码扫描根（文档中的示例与源码注释都会引用这些路径） */
 const SOURCE_ROOTS = ['src', 'packages/shared/src', 'scripts'] as const;
 
+/**
+ * 路径引用检查豁免：示例移除器保存的是「删除清单」，派生项目中这些路径本就不存在。
+ * 只豁免路径规则，ErrorCode / 门禁计数等文档契约仍照常检查。
+ */
+const PATH_REF_EXEMPT_FILES = new Set(['scripts/lib/notes-example.ts']);
+
 /** 源码扩展名 */
 const SOURCE_EXTENSIONS = ['.ts', '.tsx'] as const;
 
@@ -158,7 +164,9 @@ function main(): number {
     }
     issues.push(...checkErrorCodeRefs(content, file, codes));
     issues.push(...checkLegacyProtocolRefs(content, file));
-    issues.push(...checkPathRefs(content, file, fileExists));
+    if (!PATH_REF_EXEMPT_FILES.has(file)) {
+      issues.push(...checkPathRefs(content, file, fileExists));
+    }
   }
 
   if (issues.length === 0) {
