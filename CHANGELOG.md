@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.1 (2026-10-26)
+
+<!-- changelog:polished -->
+
+> 0.2.1 修复 0.2.0 的发布流水线与派生初始化：打包态 production smoke 恢复可用，`init:template --keep-site` 不再受上游版本号影响。
+
+### 修复
+
+- **发布流水线恢复**：0.2.0 六平台 production smoke 因关闭 inspect fuse 无法启动；恢复该 fuse（NodeOptions 仍关闭），并在配置回归测试中记录原因。
+- **派生站点版本**：`init:template --keep-site` 改为匹配任意 semver 并统一写 `v0.0.0`，发版后不再因 package.json 版本变化而失败。
+- **发布流程补记**：0.2.0 的详细变更保留在上一版本段；0.2.1 作为发布修复版本单独记录。
+
+### 已知限制
+
+- 三平台未签名包；自动更新「安装 → 更新 → 卸载」仍未真实演练。
+
 ## 0.2.0 (2026-10-26)
 
 <!-- changelog:polished -->
