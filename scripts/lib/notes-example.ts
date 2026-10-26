@@ -97,6 +97,9 @@ export const NOTES_EXAMPLE_PATHS = {
   marked: MARKED_FILES,
 } as const;
 
+/** 标记文件集合（O(1) 判定；替换阶段据此跳过没有标记的普通文件） */
+const MARKED_FILE_SET = new Set<string>(MARKED_FILES);
+
 /** 标记行（支持 `//` 与 HTML 注释） */
 const MARKER_RE = /^\s*(?:\/\/|<!--)\s*notes-example:(start|end)\s*(?:-->)?\s*$/;
 
@@ -150,6 +153,28 @@ const REPLACEMENT_FILES: readonly ReplacementFile[] = [
         'await expect(page).toHaveURL(/#\\/about$/, { timeout: 15_000 });',
       ],
       ["\n    await expect(page.getByText('笔记不存在')).toBeVisible();", ''],
+    ],
+  },
+  {
+    file: 'src/renderer/components/layout/Sidebar.tsx',
+    pairs: [
+      [
+        "import { Info, NotebookPen, Settings2 } from 'lucide-react';",
+        "import { Info, Settings2 } from 'lucide-react';",
+      ],
+    ],
+  },
+  {
+    file: 'src/renderer/dev/mock-api.ts',
+    pairs: [
+      [
+        '  type IpcApi,\n  type Note,\n  type UpdateStatusPayload,',
+        '  type IpcApi,\n  type UpdateStatusPayload,',
+      ],
+      [
+        "import { ipcErr, ipcOk } from '@/lib/ipc-factories';",
+        "import { ipcOk } from '@/lib/ipc-factories';",
+      ],
     ],
   },
 ];
@@ -249,6 +274,10 @@ function applyReplacements(root: string, dryRun: boolean): NotesExampleResult[] 
   for (const { file, pairs } of REPLACEMENT_FILES) {
     const current = readIfExists(root, file);
     if (current === null) {
+      continue;
+    }
+    // 同时含标记块的文件：没有标记说明示例已不在（测试夹具的占位文件），跳过替换
+    if (MARKED_FILE_SET.has(file) && !current.includes('notes-example:')) {
       continue;
     }
     let next = current;
@@ -464,6 +493,9 @@ export function removeNotesExample(
   const { dryRun } = options;
   const results: NotesExampleResult[] = [];
 
+  // 替换先于标记删除：两者作用于不同片段，先行可在标记仍在时判断文件是否属于示例
+  results.push(...applyReplacements(root, dryRun));
+
   for (const rel of MARKED_FILES) {
     const current = readIfExists(root, rel);
     if (current === null) {
@@ -476,11 +508,7 @@ export function removeNotesExample(
   for (const rel of LOCALE_FILES) {
     results.push(removeLocaleKeys(root, rel, dryRun));
   }
-  results.push(
-    removePackageScript(root, dryRun),
-    removeTestBoundaryEntry(root, dryRun),
-    ...applyReplacements(root, dryRun),
-  );
+  results.push(removePackageScript(root, dryRun), removeTestBoundaryEntry(root, dryRun));
 
   const doc = syncIpcDocs(root, options.today ?? today(), dryRun);
   if (doc !== null) {

@@ -78,6 +78,40 @@ function createFixture(): string {
   );
   write(
     root,
+    'src/renderer/components/layout/Sidebar.tsx',
+    [
+      "import { Info, NotebookPen, Settings2 } from 'lucide-react';",
+      '// notes-example:start',
+      'const noteIcon = NotebookPen;',
+      'void noteIcon;',
+      '// notes-example:end',
+      'export { Info, Settings2 };',
+    ].join('\n'),
+  );
+  write(
+    root,
+    'src/renderer/dev/mock-api.ts',
+    [
+      'import {',
+      '  IPC_PROTOCOL_VERSION,',
+      '  type IpcApi,',
+      '  type Note,',
+      '  type UpdateStatusPayload,',
+      "} from '@code-agent/shared/renderer';",
+      "import { ipcErr, ipcOk } from '@/lib/ipc-factories';",
+      '// notes-example:start',
+      "const example: Note = { id: 'x', title: '', body: '', createdAt: 0, updatedAt: 0 };",
+      'void example;',
+      'void ipcErr;',
+      '// notes-example:end',
+      'export type Api = IpcApi;',
+      'export type Payload = UpdateStatusPayload;',
+      'void IPC_PROTOCOL_VERSION;',
+      'void ipcOk;',
+    ].join('\n'),
+  );
+  write(
+    root,
     'src/renderer/hooks/use-deep-link.ts',
     [
       '/**',
@@ -100,6 +134,10 @@ function createFixture(): string {
     [
       "expect(router.state.location.pathname).toBe('/notes/abc');",
       "await waitFor(() => expect(router.state.location.pathname).toBe('/notes/cold'));",
+      '// notes-example:start',
+      "const route = '/notes/:id';",
+      'void route;',
+      '// notes-example:end',
     ].join('\n'),
   );
   write(
@@ -312,6 +350,13 @@ describe('removeNotesExample', () => {
     ]);
     expect(read(root, 'src/renderer/hooks/use-deep-link.ts')).toContain('navigate(ROUTES.about);');
     expect(read(root, 'src/renderer/hooks/use-deep-link.ts')).not.toContain('ROUTES.note');
+    expect(read(root, 'src/renderer/components/layout/Sidebar.tsx')).toBe(
+      ["import { Info, Settings2 } from 'lucide-react';", 'export { Info, Settings2 };'].join('\n'),
+    );
+    const mockApi = read(root, 'src/renderer/dev/mock-api.ts');
+    expect(mockApi).not.toContain('type Note');
+    expect(mockApi).not.toContain('ipcErr');
+    expect(mockApi).toContain("import { ipcOk } from '@/lib/ipc-factories';");
     expect(read(root, 'src/renderer/hooks/use-deep-link.test.tsx')).toBe(
       [
         "expect(router.state.location.pathname).toBe('/about');",

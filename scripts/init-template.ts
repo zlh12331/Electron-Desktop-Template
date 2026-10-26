@@ -15,6 +15,7 @@ import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'no
 import { extname, join, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { renderBrandModule } from './generate-brand.mjs';
+import { formatWorkspace } from './lib/format-workspace';
 import { removeNotesExample } from './lib/notes-example';
 import { type ParsedArgs, parseArgs, rejectPositionals, requireValue } from './scaffold/lib/args';
 
@@ -889,6 +890,9 @@ function main(): void {
   console.log('');
 
   const results = runInitTemplate(input, dryRun, REPO_ROOT, { keepSite, keepExample });
+  if (!dryRun && !formatWorkspace(REPO_ROOT)) {
+    console.log('  ⚠ 未找到 Biome，安装依赖后运行 pnpm lint:fix');
+  }
   const changed = results.filter((r) => r.changed);
   for (const r of changed) {
     console.log(`  ${dryRun ? '将改动' : '已改动'}  ${r.file}`);
@@ -906,15 +910,8 @@ function main(): void {
   );
   console.log('  4. pnpm typecheck && pnpm lint');
   console.log('  5. 替换 src/renderer/routes/home.tsx 为你的首屏');
-  let nextStep = 6;
-  if (keepExample) {
-    console.log(
-      `  ${nextStep}. 已保留 Local Notes 参考切片；删除时可运行 pnpm remove:notes-example`,
-    );
-    nextStep += 1;
-  }
   if (keepSite && !dryRun) {
-    console.log(`  ${nextStep}. site/ 页面文案仍为模板营销内容，发布前按产品人工改写`);
+    console.log('  6. site/ 页面文案仍为模板营销内容，发布前按产品人工改写');
   }
 }
 
