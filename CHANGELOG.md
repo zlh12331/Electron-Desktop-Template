@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.2.1...v0.3.0) (2026-10-26)
+
+
+### 新增
+
+* 交付 Notes 参考切片与体积/内存加固 ([#39](https://github.com/zlh12331/Electron-Desktop-Template/issues/39)) ([283f43d](https://github.com/zlh12331/Electron-Desktop-Template/commit/283f43d59b878395bf14f9f5f48dbc2fba3146cd))
+
 ## 0.2.1 (2026-10-26)
 
 <!-- changelog:polished -->
