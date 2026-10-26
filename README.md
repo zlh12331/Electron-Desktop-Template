@@ -75,7 +75,7 @@ pnpm init:template --name "演示应用" --executable demo-app \
 
 只改个别字段也可以手改 `app.config.json` → `pnpm brand:sync` → `pnpm check:brand`。
 
-模板底座改动后的验收流程见 [docs/guides/template-acceptance.md](docs/guides/template-acceptance.md)；从上游模板同步变更见 [docs/guides/updating-from-template.md](docs/guides/updating-from-template.md)。
+模板是一次性起点：派生后的项目由使用方自行维护，模板不承诺上游同步。模板底座改动后的验收流程见 [docs/guides/template-acceptance.md](docs/guides/template-acceptance.md)。
 
 ### 覆盖率口径
 

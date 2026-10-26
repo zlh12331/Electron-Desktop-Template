@@ -21,7 +21,6 @@
 - **要验收模板底座**：[guides/template-acceptance.md](guides/template-acceptance.md)（干净副本 → 初始化 → 启动/持久化 → 打包 smoke）
 - **要接可观测性 / 查告警**：[23 可观测性规范](design/23-otel-spec.md) → [observability-runbook.md](guides/observability-runbook.md)（本地 SigNoz、Sentry 凭据、SLO 与告警）
 - **要把模板交给团队**：[guides/oss-automation.md](guides/oss-automation.md)（单人维护 + 本机 agent 的审批门控模型）
-- **要从上游同步模板更新**：[guides/updating-from-template.md](guides/updating-from-template.md)（remote、冲突边界、同步后验证）
 
 ## 约定
 
