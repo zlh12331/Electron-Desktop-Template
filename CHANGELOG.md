@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.2.0](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.1.1...v0.2.0) (2026-10-26)
+
+
+### 新增
+
+* **main:** 生产版改用不含 View/DevTools 的最小应用菜单 ([eb1a35e](https://github.com/zlh12331/Electron-Desktop-Template/commit/eb1a35ebe6aab1eaa5f4e4c9abe5abda0bf812b5))
+* **scripts:** init:template 支持内部 workspace scope 重命名 ([136eec0](https://github.com/zlh12331/Electron-Desktop-Template/commit/136eec0bcef6d0f29d1161bcff57f727efe8d82b))
+
+
+### 修复
+
+* **ipc:** 允许 hash 路由的 file 入口通过 sender 校验 ([0b302cc](https://github.com/zlh12331/Electron-Desktop-Template/commit/0b302cc4a720945c3f2dfbe0b43c0b4e7666bb67))
+* **quality:** 修复剪贴板/fuses 并收紧质量门禁 ([#35](https://github.com/zlh12331/Electron-Desktop-Template/issues/35)) ([ddc48fd](https://github.com/zlh12331/Electron-Desktop-Template/commit/ddc48fd63acc5ab2f942726c1f2c4d41a15b4888))
+* **renderer:** mock API 增加编译期与运行时契约 ([72c6e51](https://github.com/zlh12331/Electron-Desktop-Template/commit/72c6e5167ff7bcf4f5812de9391e9620473b4a45))
+* **renderer:** 修复可配置快捷键的 key/code 与逗号分隔问题 ([09cd848](https://github.com/zlh12331/Electron-Desktop-Template/commit/09cd848fe7d45980260016b970ab6df03dacf918))
+* **renderer:** 弹层改为首次打开才挂载，避免启动加载设置大 chunk ([6de278b](https://github.com/zlh12331/Electron-Desktop-Template/commit/6de278be730a4e7b0c1acdcdbc541546faf34648))
+* **scripts:** postinstall 原生重编译失败时阻断安装 ([5f32f37](https://github.com/zlh12331/Electron-Desktop-Template/commit/5f32f37e8b7350abc86f67359be2a26796118194))
+* **scripts:** 修复 check:i18n 的 keyed 提取正则并补错误码双语测试 ([d03e8ce](https://github.com/zlh12331/Electron-Desktop-Template/commit/d03e8ce99dedddb2e4daa621d5e0f6ce90401ff5))
+* **scripts:** 派生验收副本保留官方 registry 配置 ([dd48f30](https://github.com/zlh12331/Electron-Desktop-Template/commit/dd48f308d1c475e59b3c1925ba5f32026f3d600d))
+* **scripts:** 补齐 protocols.name 与 Linux 包元数据的品牌同步 ([ca94ab9](https://github.com/zlh12331/Electron-Desktop-Template/commit/ca94ab93c05d828a4478b00dd7759bd4bf59f1dc))
+* **security:** 移除 Google Fonts 远程依赖并收紧 CSP ([69297b7](https://github.com/zlh12331/Electron-Desktop-Template/commit/69297b7f58f09935058e146ae552245d9b5cb8eb))
+* **security:** 精确校验渲染层 URL 与外部链接协议 ([7ed25a0](https://github.com/zlh12331/Electron-Desktop-Template/commit/7ed25a0eaf92d6375948448e1ab04e57cdde6331))
+* **security:** 识别 Linux safeStorage basic_text 并禁用凭据存储 ([d752c0f](https://github.com/zlh12331/Electron-Desktop-Template/commit/d752c0f88a723d4005b6b079c882b62b20b013ea))
+
 ## 0.1.1 (2026-10-25)
 
 <!-- changelog:polished -->
