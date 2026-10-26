@@ -325,9 +325,6 @@
     "comment": "命令/代码块深色背景（双主题一致，终端风格）",
     "dark": "#070A0E"
   },
-  "overlay-blur": {
-    "value": "8px"
-  },
   "glass-bg": {
     "value": "rgba(255, 255, 255, 0.85)",
     "dark": "rgba(23, 23, 23, 0.85)"

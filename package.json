@@ -100,6 +100,7 @@
     "check:observability-slo": "tsx scripts/check-observability-slo.ts",
     "scaffold:ipc": "tsx scripts/scaffold/scaffold-ipc.ts",
     "init:template": "tsx scripts/init-template.ts",
+    "remove:notes-example": "tsx scripts/remove-notes-example.ts",
     "acceptance:derived": "tsx scripts/acceptance-derived.ts",
     "acceptance:nsis": "tsx scripts/acceptance-nsis.ts",
     "analyze:bundle": "cross-env ANALYZE_BUNDLE=1 pnpm build",

@@ -15,6 +15,9 @@ const originalTake = window.api.app.takePendingDeepLink;
 function renderAtHome(): ReturnType<typeof createMemoryRouter> {
   const router = createMemoryRouter([
     { path: '/', element: <Probe /> },
+    // notes-example:start
+    { path: '/notes/:id', element: <div>note</div> },
+    // notes-example:end
     { path: '/about', element: <div>about</div> },
   ]);
   render(<RouterProvider router={router} />);
@@ -45,7 +48,7 @@ describe('useDeepLink', () => {
       listener?.({ targetId: 'abc', url: 'electron-template://open/abc' });
     });
 
-    expect(router.state.location.pathname).toBe('/about');
+    expect(router.state.location.pathname).toBe('/notes/abc');
   });
 
   it('冷启动暂存值在挂载后消费一次', async () => {
@@ -55,7 +58,7 @@ describe('useDeepLink', () => {
     }));
 
     const router = renderAtHome();
-    await waitFor(() => expect(router.state.location.pathname).toBe('/about'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/notes/cold'));
   });
 
   it('仅唤起（targetId=null）不导航', async () => {

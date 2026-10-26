@@ -4,6 +4,7 @@ import { lazy, type ReactElement, type ReactNode, Suspense, useEffect, useState 
 import { DialogHost } from '@/components/common/DialogHost';
 import { SectionErrorBoundary } from '@/components/common/SectionErrorBoundary';
 import { UpdateNotice } from '@/components/common/UpdateNotice';
+import { Spinner } from '@/components/ui/spinner';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { useLayoutBreakpoint } from '@/hooks/use-layout-breakpoint';
 import { useResizablePanels } from '@/hooks/use-resizable-panels';
@@ -33,6 +34,15 @@ const LazyShortcutHelpDialog = lazy(async () => {
   const mod = await import('@/components/common/ShortcutHelpDialog');
   return { default: mod.ShortcutHelpDialog };
 });
+
+/** 懒加载浮层的统一占位：避免首次打开设置/命令面板时出现空白帧 */
+function LazyOverlayFallback(): ReactElement {
+  return (
+    <div className="bg-overlay-bg fixed inset-0 z-popover flex items-center justify-center">
+      <Spinner className="size-5" />
+    </div>
+  );
+}
 
 interface AppShellProps {
   /** 主内容区（通常由 RouterProvider 通过 <Outlet /> 传入） */
@@ -197,18 +207,18 @@ export function AppShell({ children }: AppShellProps): ReactElement {
         <DialogHost />
 
         {settingsMounted && (
-          <Suspense fallback={null}>
+          <Suspense fallback={<LazyOverlayFallback />}>
             <LazySettingsDialog open={settingsOpen} onOpenChange={closeSettings} />
           </Suspense>
         )}
 
         {paletteMounted && (
-          <Suspense fallback={null}>
+          <Suspense fallback={<LazyOverlayFallback />}>
             <LazyCommandPalette open={paletteOpen} onOpenChange={closePalette} />
           </Suspense>
         )}
         {shortcutHelpMounted && (
-          <Suspense fallback={null}>
+          <Suspense fallback={<LazyOverlayFallback />}>
             <LazyShortcutHelpDialog open={shortcutHelpOpen} onClose={closeShortcutHelp} />
           </Suspense>
         )}

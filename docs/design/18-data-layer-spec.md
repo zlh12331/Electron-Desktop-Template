@@ -51,7 +51,7 @@ IPC handler → storage/ 下的存取模块（settings-pref / settings-io / back
 - 约束：key 必须匹配 `/^[A-Za-z][A-Za-z0-9._-]{0,63}$/`；单值序列化后 ≤256KB（设置表不承载大对象）。
 
 `settings-io.ts`：设置导出 / 导入（版本化 JSON，白名单键 + 逐键值级 schema；非法值整批拒绝，导入走同一事务写路径）；导出会剥掉代理 URL 的 userinfo，导入先校验再把代理凭据拆到 keychain。
-`backup-store.ts`：备份列表、健康检查、创建、`stageRestore`（暂存 + 重启生效，避免在 WAL 连接打开时热替换主库）。
+`backup-store.ts`：备份列表、健康检查、创建、`stageRestore`（暂存 + 重启生效，避免在 WAL 连接打开时热替换主库）；`applyPendingRestore` 先把 pending 改名到同目录临时文件，再原子 rename 覆盖主库，失败时还原 pending 供下次重试；替换成功后才清理旧 `-wal`/`-shm`。
 
 ## 五、事务边界
 
@@ -64,7 +64,7 @@ IPC handler → storage/ 下的存取模块（settings-pref / settings-io / back
 ## 六、生命周期与自愈（`db.ts`）
 
 ```
-applyPendingRestore（上次未完成的恢复）
+applyPendingRestore（pending → 临时文件 → 原子 rename 主库；失败保留旧库/pending）
 → 打开 + 默认 pragma（WAL / foreign_keys / busy_timeout）
 → restoreCorruptDatabase：quick_check 失败则回滚最近健康备份，再失败则归档重建
 → auto_vacuum 对齐（增量回收）

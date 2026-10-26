@@ -127,6 +127,10 @@ src/main/ipc/wrap.ts            # sender 校验 + zod 双向校验 + traceId
 收紧方式统一：修完一处 → 跑对应的 `--tighten` / `--update-baseline` → 基线下降。
 **不允许为了通过而调松基线**；确需放宽必须显式评审并写进提交说明。
 
+`scripts/**` 已纳入 `check:file-size` / `check:functions` / `check:complexity`（测试文件不计）。
+首次纳入时的存量债务已登记在 `scripts/*.baseline.json`：`init-template.ts` 净行 735、
+21 个复杂度文件/30 处；后续只允许收紧。
+
 ---
 
 ## 五、漂移门禁族
@@ -166,6 +170,7 @@ src/main/ipc/wrap.ts            # sender 校验 + zod 双向校验 + traceId
 - **必需检查用 summary job 暴露稳定名**：平台 label 换代只改 workflow，不改云端 ruleset；summary job 必须 `if: always()`（被跳过的必需检查 = 永不 report = PR 永久卡 pending）
 - **发版三护栏**：合并纪律（CD 全绿才人工合并）/ 锚点检查（tag ↔ Release PR ↔ 待合并版本三态自洽）/ 内容边界（Release PR 只允许版本号 + CHANGELOG）
 - **打包验证只在 CD**：`ci.yml` 不做六架构打包（与 `release.yml` 完全重复）；动打包链路的 PR 合并前本地跑 `pnpm build:win:x64` → `check:native-arch` → `pnpm test:smoke`
+- **发布失败恢复**：CD 在 tag 前失败时不要只改 `autorelease: pending` label；按 [RELEASING §4.1](../../RELEASING.md) 用新版本走手动发布 PR，保证 tag 与产物一致。production smoke 依赖 inspect fuse，见 17 号安全规范。
 
 ---
 

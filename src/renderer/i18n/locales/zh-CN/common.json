@@ -295,9 +295,44 @@
       "closeDialog": "关闭对话框"
     }
   },
+  "notes": {
+    "title": "Local Notes",
+    "subtitle": "可删除的端到端参考切片：SQLite 持久化、IPC 契约、缓存失效、文件授权与深链。",
+    "new": "新建笔记",
+    "import": "导入 Markdown",
+    "search": "搜索标题或正文",
+    "listAria": "笔记列表",
+    "emptyTitle": "还没有笔记",
+    "emptyDesc": "创建第一条，或用 Markdown 导入。",
+    "searchEmptyDesc": "换个关键词，或清空搜索查看全部笔记。",
+    "emptyPreview": "（空正文）",
+    "updatedAt": "更新于 {{time}}",
+    "untitled": "无标题",
+    "titleLabel": "标题",
+    "bodyLabel": "正文",
+    "characters": "{{value}} 字符",
+    "save": "保存",
+    "saving": "保存中…",
+    "delete": "删除",
+    "deleting": "删除中…",
+    "export": "导出",
+    "exporting": "导出中…",
+    "created": "笔记已创建",
+    "imported": "已导入：{{title}}",
+    "saved": "笔记已保存",
+    "deleted": "笔记已删除",
+    "exported": "已导出到 {{path}}",
+    "deleteTitle": "删除笔记",
+    "deleteMessage": "确定删除「{{title}}」？该操作不可撤销。",
+    "selectPrompt": "选择或新建一条笔记",
+    "selectHint": "从左侧选择一条，或点击新建。",
+    "notFound": "笔记不存在",
+    "notFoundHint": "它可能已被删除；从左侧选择其他笔记。"
+  },
   "sidebar": {
     "ariaLabel": "侧栏导航",
     "nav": {
+      "notes": "笔记",
       "about": "关于",
       "settings": "设置"
     }

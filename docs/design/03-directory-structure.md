@@ -71,7 +71,7 @@ src/main/
 │   ├── telemetry/            # Sentry + OpenTelemetry（trace/metrics/logs）+ 事件循环/内存监控 + 脱敏
 │   └── update/               # electron-updater 封装
 ├── ipc/                      # 按域的 handler + 统一注册器 + wrap（sender/契约/span/metrics）
-├── security/                 # CSP 等安全基线
+├── security/                 # CSP / URL 白名单 / 权限白名单 / session-hardening
 └── utils/                    # logger / error-report / telemetry-flush / file-permissions / json-file
 ```
 

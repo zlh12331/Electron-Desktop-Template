@@ -158,6 +158,26 @@ async function main(): Promise<void> {
       }
     });
 
+    // notes-example:start
+    stage('Local Notes 参考切片按默认策略移除', () => {
+      const leftovers = [
+        'src/renderer/routes/notes.tsx',
+        'src/main/infra/notes',
+        'packages/shared/src/schemas/notes.ts',
+        'e2e/notes.spec.ts',
+        'drizzle/0001_lazy_mad_thinker.sql',
+        'docs/design/notes-example.md',
+      ].filter((rel) => existsSync(join(copyRoot, rel)));
+      if (leftovers.length > 0) {
+        throw new Error(`默认 init:template 未移除 Local Notes 参考切片：${leftovers.join(', ')}`);
+      }
+      const meta = readFileSync(join(copyRoot, 'packages/shared/src/ipc/meta.ts'), 'utf8');
+      if (meta.includes('notes-example:') || meta.includes('notes:')) {
+        throw new Error('Local Notes 移除后 meta.ts 仍残留 notes 域或标记');
+      }
+    });
+    // notes-example:end
+
     stage('重链内部 workspace 包', () => {
       // scope 重写会改包名/依赖/锁文件；用 frozen 校验锁文件自洽，ignore-scripts 避免重复原生安装
       runPnpm(['install', '--frozen-lockfile', '--ignore-scripts'], copyRoot, {

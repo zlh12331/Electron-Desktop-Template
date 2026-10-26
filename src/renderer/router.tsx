@@ -37,6 +37,24 @@ export const router = createHashRouter([
           return { Component: AboutPage };
         },
       },
+      // notes-example:start
+      {
+        path: ROUTES.notes,
+        lazy: async () => {
+          const { NotesPage } = await import('./routes/notes');
+          // biome-ignore lint/style/useNamingConvention: React Router lazy 要求模块导出 Component
+          return { Component: NotesPage };
+        },
+      },
+      {
+        path: `${ROUTES.notes}/:id`,
+        lazy: async () => {
+          const { NotesPage } = await import('./routes/notes');
+          // biome-ignore lint/style/useNamingConvention: React Router lazy 要求模块导出 Component
+          return { Component: NotesPage };
+        },
+      },
+      // notes-example:end
     ],
   },
 ]);

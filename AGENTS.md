@@ -149,6 +149,9 @@ tools/           → 独立 TS 子包（depcruise / typedoc）
 | 加一个设置分区                   | `lib/settings-sections.ts` + `settings/sections/registry.tsx` + 分区组件                                              |
 | 加一个主进程服务                 | `infra/<domain>/` + `service-container.ts`（accessor + dispose）                                                      |
 | 加一个桥接 hook                  | `hooks/` + `components/layout/bridges.ts`                                                                             |
+<!-- notes-example:start -->
+| 示例切片 / 删除 | 看/删 Local Notes：`docs/design/notes-example.md`（`init:template` / `remove:notes-example`） |
+<!-- notes-example:end -->
 
 ## 外部服务 / 凭据
 

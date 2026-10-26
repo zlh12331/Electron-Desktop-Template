@@ -50,12 +50,12 @@ describe('nextIpcCounts', () => {
   const current = countIpcMeta(IPC_META);
 
   it('新 request 域同时增加域、request 与总通道', () => {
-    const next = nextIpcCounts(current, { domain: 'notes', method: 'create', kind: 'request' });
+    const next = nextIpcCounts(current, { domain: 'widgets', method: 'create', kind: 'request' });
     expect(next.domains).toBe(current.domains + 1);
     expect(next.requests).toBe(current.requests + 1);
     expect(next.events).toBe(current.events);
     expect(next.channels).toBe(current.channels + 1);
-    expect(next.domainNames.at(-1)).toBe('notes');
+    expect(next.domainNames.at(-1)).toBe('widgets');
   });
 
   it('已有域只增加对应 kind 与总通道', () => {
@@ -82,7 +82,7 @@ describe('runScaffold（临时副本，真实格式）', () => {
 
   beforeEach(() => {
     dir = createFixture();
-    spec = { domain: 'notes', method: 'create', kind: 'request' };
+    spec = { domain: 'widgets', method: 'create', kind: 'request' };
   });
 
   afterEach(() => {
@@ -94,23 +94,23 @@ describe('runScaffold（临时副本，真实格式）', () => {
 
     const meta = readFileSync(join(dir, META), 'utf8');
     const domainFile = readFileSync(
-      join(dir, 'packages', 'shared', 'src', 'ipc', 'domains', 'notes.ts'),
+      join(dir, 'packages', 'shared', 'src', 'ipc', 'domains', 'widgets.ts'),
       'utf8',
     );
     const mainIndex = readFileSync(join(dir, MAIN_INDEX), 'utf8');
-    const handler = readFileSync(handlerPath(dir, 'notes'), 'utf8');
+    const handler = readFileSync(handlerPath(dir, 'widgets'), 'utf8');
     const expected = nextIpcCounts(countIpcMeta(IPC_META), spec);
 
-    expect(meta).toContain("create: request('notes:create')");
+    expect(meta).toContain("create: request('widgets:create')");
     expect(domainFile).toContain('withSchema');
     expect(domainFile).toContain('OkResSchema');
-    expect(mainIndex).toContain("import { notesHandlers } from './ipc/notes.handler';");
-    expect(mainIndex).toContain('notes: notesHandlers,');
+    expect(mainIndex).toContain("import { widgetsHandlers } from './ipc/widgets.handler';");
+    expect(mainIndex).toContain('widgets: widgetsHandlers,');
     expect(handler).toContain("from './wrap'");
     expect(handler).not.toContain("from '../utils/wrap'");
     expect(checkIpcSpec(readDocs(dir), DOCS, expected)).toEqual([]);
     expect(readDocs(dir)).toContain(`实测 ${expected.domains} 个`);
-    expect(readDocs(dir)).toContain('notes');
+    expect(readDocs(dir)).toContain('widgets');
   });
 
   it('新 event 域：不生成/注册 handler，且不引入未使用 OkResSchema', () => {
@@ -188,7 +188,7 @@ describe('runScaffold（临时副本，真实格式）', () => {
     expect(readFileSync(join(dir, DOMAIN_INDEX), 'utf8')).toBe(domainIndexBefore);
     expect(readDocs(dir)).toBe(docsBefore);
     expect(readFileSync(mainIndexPath, 'utf8')).toBe(corruptedMainIndex);
-    expect(existsSync(handlerPath(dir, 'notes'))).toBe(false);
-    expect(existsSync(join(dir, 'packages/shared/src/ipc/domains/notes.ts'))).toBe(false);
+    expect(existsSync(handlerPath(dir, 'widgets'))).toBe(false);
+    expect(existsSync(join(dir, 'packages/shared/src/ipc/domains/widgets.ts'))).toBe(false);
   });
 });

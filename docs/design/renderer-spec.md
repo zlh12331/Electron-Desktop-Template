@@ -62,7 +62,7 @@
 
 | 文件 | 职责 |
 |---|---|
-| `ipc.ts` | `window.api` 类型化封装，`unwrap()` / `unwrapErrorMessage` 单一出口 |
+| `ipc.ts` | `window.api` 类型化封装，`unwrap()` / `unwrapErrorMessage` 单一出口；无桥统一抛 `BRIDGE_UNAVAILABLE` |
 | `ipc-factories.ts` | `ipcOk` / `ipcErr` 构造 |
 | `query/query-client.ts` | TanStack QueryClient 单例 |
 | `settings-ops.ts` | 设置页动作桥接（导出导入 / 数据目录 / 诊断包 / 自启 / 代理测试 / 代理凭据清除 / 缓存） |

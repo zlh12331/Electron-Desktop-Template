@@ -70,8 +70,9 @@
 
 本项目在若干层面做了防御（详见 `docs/design/17-security-spec.md`）：
 - **进程隔离**：`sandbox: true` + `contextIsolation: true` + `nodeIntegration: false`；preload 只经 `contextBridge` 暴露白名单 API
-- **渲染层边界**：主进程注入 CSP（含首帧内联脚本哈希）、导航/新窗白名单、系统权限请求全部拒绝；打包态菜单不提供 DevTools/Reload
-- **IPC 边界**：定义表驱动的 zod 入参/响应校验 + sender URL/主 frame 校验；所有异常归一为稳定错误码
+- **渲染层边界**：主进程注入 CSP（含首帧内联脚本哈希）、导航/新窗白名单、权限默认拒绝（仅放行剪贴板写）；打包态菜单不提供 DevTools/Reload，`devtools:open` 同样拒绝
+- **IPC 边界**：定义表驱动的 zod 入参/响应校验 + sender URL/主 frame 校验；所有异常归一为稳定错误码（含 `BRIDGE_UNAVAILABLE`）
+- **打包态隔离**：`ELECTRON_RENDERER_URL` / 关窗豁免 / dev 更新 / 额外 env 文件只在未打包时生效；fuses 关闭 `runAsNode` 与 NodeOptions；Inspect 保留供 Playwright production smoke（如需关闭须先替换 smoke 方案）
 - **凭据**：API Key/代理凭据经 Electron `safeStorage`（Windows DPAPI / macOS Keychain / Linux libsecret）；Linux `basic_text` 被视为不可用并拒绝写入
 - **文件访问**：用户经系统对话框选中的文件进入 realpath 规范化授权表；不自行拼接未授权路径
 - **供应链**：SBOM（CycloneDX）随 release 归档 + asar 完整性校验 + gitleaks + Actions SHA pin + 发布年龄闸；每次发布附 `latest*.yml` 校验

@@ -7,10 +7,10 @@ Electron 44 + React 19 + TypeScript + Vite 8 的工程级桌面应用模板（Wi
 
 ## 成熟度与边界
 
-**已经验证的**：类型检查、lint、19 项静态审计、单测/集成/E2E、覆盖率范围与关键模块阈值、Windows 视觉基线、生产启动 <10s，全部在本仓库本地实测通过。
+**已经验证的**：类型检查、lint、19 项静态审计、单测/集成/E2E、覆盖率范围与关键模块阈值、Windows 视觉基线、生产启动 <10s、v0.2.1 发布与更新实测（2026-10-26），全部在本仓库或发布验收中实测通过。
 
 **还需要发布方完成的**：
-- **签名与自动更新**：当前发布口径为**三平台未签名包**；macOS 需手动绕过 Gatekeeper，未签名自动更新未验证。面向普通用户正式分发前，再完成签名/公证与「安装 → 更新 → 卸载」演练。
+- **签名与分发**：当前发布口径为**三平台未签名包**；v0.2.1 更新已验证，但签名/公证与「卸载」演练仍未完成，macOS 仍需手动绕过 Gatekeeper。面向普通用户正式分发前，再完成签名/公证与完整安装→卸载演练。
 - **可观测性后端**：SLO、指标与 Collector 配置已定义；生产 Collector/告警后端不包含在模板内。
 - **性能画像**：有 bundle 预算、启动耗时与启动趋势；没有 FCP/LCP/INP 硬门槛。
 - **依赖基线**：Node 26 LTS、TypeScript 7、Vite 8 属前沿栈；升级与 override 规则见 [dependency-policy.md](docs/guides/dependency-policy.md)。
@@ -26,6 +26,9 @@ Electron 44 + React 19 + TypeScript + Vite 8 的工程级桌面应用模板（Wi
 - **数据库静态加密边界**：SQLite 主库默认不加密（凭据单独走 safeStorage）；存 PII/敏感业务数据的派生项目需自行接 SQLCipher 或依赖 OS 全盘加密
 - **质量门禁**：类型、lint、19 项静态审计、单测、集成测试、E2E、视觉回归、覆盖率范围/关键模块阈值、死代码检测、密钥扫描
 - **品牌单一真源**：`app.config.json` 一处改产品名 / appId / 协议 / 存储前缀
+<!-- notes-example:start -->
+- **可删除的端到端业务样本**：Local Notes（SQLite + IPC + Query 失效 + 文件导入导出 + 深链）；`init:template` 默认移除，`--keep-example` 保留
+<!-- notes-example:end -->
 
 ## 快速开始
 
@@ -61,6 +64,10 @@ pnpm init:template --name "演示应用" --executable demo-app \
 
 默认移除模板自带的 GitHub Pages 营销站（`site/` 与 `.github/workflows/static.yml`）。需要保留站点时加 `--keep-site`：产品名、品牌名、仓库链接与版本号会同步改写，但页面里的模板营销文案仍需按产品人工调整。
 
+<!-- notes-example:start -->
+默认同时移除 Local Notes 参考切片及其迁移（派生项目从空白业务面开始）；想保留整套示例加 `--keep-example`。已在运行的项目可单独执行 `pnpm remove:notes-example`（默认保留 notes 表，`--drop-table` 显式清表），见 [示例说明](docs/design/notes-example.md)。
+<!-- notes-example:end -->
+
 之后：
 0. 替换 `resources/icons/icon.png`（1024×1024），再重跑 `scripts/generate-tray-assets.py` 生成托盘图（模板图标不会自动替换）
 1. 替换 `src/renderer/routes/home.tsx` 为你的首屏
@@ -68,7 +75,7 @@ pnpm init:template --name "演示应用" --executable demo-app \
 
 只改个别字段也可以手改 `app.config.json` → `pnpm brand:sync` → `pnpm check:brand`。
 
-模板底座改动后的验收流程见 [docs/guides/template-acceptance.md](docs/guides/template-acceptance.md)；从上游模板同步变更见 [docs/guides/updating-from-template.md](docs/guides/updating-from-template.md)。
+模板是一次性起点：派生后的项目由使用方自行维护，模板不承诺上游同步。模板底座改动后的验收流程见 [docs/guides/template-acceptance.md](docs/guides/template-acceptance.md)。
 
 ### 覆盖率口径
 

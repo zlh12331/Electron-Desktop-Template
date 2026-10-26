@@ -76,9 +76,9 @@ channels.ts / payloads.ts / api.ts（派生常量与类型）
 
 - `sandbox: true` + `contextIsolation: true` + `nodeIntegration: false`。
 - CSP 由主进程注入（`security/csp.ts`），含首帧内联脚本哈希锚定（`check:csp-hash`）。
-- 导航/新窗限制在 `window.ts`；渲染层系统权限请求一律拒绝。
+- 导航/新窗限制在 `window.ts`；渲染层权限默认拒绝，仅放行剪贴板写（`security/permissions.ts`），打包态拒绝 DevTools。
 - 凭据走 `safeStorage` 加密；密钥扫描由 gitleaks 在 pre-push 与 CI 执行。
-- asar 完整性校验 + fuses（`runAsNode: false` 等）在 `electron-builder.yml` 声明。
+- asar 完整性校验 + fuses（`runAsNode: false`、NodeOptions 关闭、Inspect 保留供 production smoke）在 `electron-builder.yml` 声明；session 级 CSP/权限统一经 `security/session-hardening.ts`。
 
 ## 8. 构建与发布
 

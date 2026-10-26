@@ -51,13 +51,17 @@ SQLite 主库（`app_settings` 与派生业务表）默认使用标准 better-sq
 ## 五、渲染层安全
 
 1. **XSS**：Markdown 渲染（关于页 release notes）先 `remark-gfm` 再 `rehype-raw` + **`rehype-sanitize`**；禁止新增 `dangerouslySetInnerHTML`（确需时须评审并说明来源可信）。
-2. **远程内容**：模板不加载远程 HTML / iframe；未来接入网页承载时使用 `WebContentsView` + 独立 session 分区，不回渲染层 iframe。
+2. **远程内容**：模板不加载远程 HTML / iframe；未来接入网页承载时使用 `WebContentsView` + 独立 session 分区，不回渲染层 iframe；新 partition 必须调用 `hardenSession()`，复用 CSP 与权限白名单。
 3. **依赖**：`pnpm audit:registry`（moderate 起卡关）、`pnpm knip`（死依赖减少攻击面）。
+4. **权限**：默认拒绝；唯一放行 `clipboard-sanitized-write`（复制按钮），`clipboard-read`、媒体、通知等保持拒绝。
 
 ## 六、构建与发布安全
 
 - `asar: true` + `embeddedAsarIntegrityValidation` + `onlyLoadAppFromAsar`（详见 `electron-builder.yml` 注释）。
-- Electron fuses：`runAsNode: false`（关 `ELECTRON_RUN_AS_NODE`，防 LOLBin 绕过 asar）、`onlyLoadAppFromAsar: true`、`enableEmbeddedAsarIntegrityValidation: true`；新增需要子进程的业务改用 `utilityProcess`，不要为此改回 `runAsNode`。
+- Electron fuses：`runAsNode: false`（关 `ELECTRON_RUN_AS_NODE`，防 LOLBin 绕过 asar）、`onlyLoadAppFromAsar: true`、`enableEmbeddedAsarIntegrityValidation: true`、`enableNodeOptionsEnvironmentVariable: false`；新增需要子进程的业务改用 `utilityProcess`，不要为此改回 `runAsNode`。
+- `enableNodeCliInspectArguments: true` 是**有意保留**的例外：production smoke 用 Playwright `_electron.launch` 通过 `--inspect` 驱动打包产物；关闭会让六平台 smoke 全部无法启动（0.2.0 事故）。若要关闭，需先提供不依赖 Node inspector 的 smoke 方案。
+- 渲染层权限默认拒绝，唯一放行 `clipboard-sanitized-write`（复制按钮依赖）；`clipboard-read` 与其他权限继续拒绝。`hardenSession()` 统一给 defaultSession 与未来 WebContentsView 的独立 partition 安装 CSP + 权限白名单；新 partition 不得绕过。
+- 打包态不信任 `ELECTRON_RENDERER_URL` / `APP_SKIP_CLOSE_GUARD` / `APP_DEV_UPDATE` / `APP_ENV_FILE`（`dev-test-env.ts`），防止外部环境改写加载源或 IPC 来源；打包态 `devtools:open` 返回不可用，与生产菜单一致。
 - 签名/公证凭据只从 CI secrets 注入；未配置时构建跳过签名，不将就假签名。
 
 ## 七、依赖与供应链

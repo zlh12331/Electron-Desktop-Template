@@ -2,7 +2,7 @@
 
 > 本文是 IPC 契约的**开发规范**（怎么加 / 怎么用 / 怎么传错）；契约清单以 `packages/shared/src/ipc/meta.ts` 为准。
 > 基于项目自研 IPC 自动化体系（meta → definitions → derive → preload 生成 → register 统一注册）。
-> 最后同步：2026-10-24（模板版：13 域 48 channel = 43 request + 5 event，按 meta.ts 实测）
+> 最后同步：2026-10-26（模板版 + Local Notes 示例：14 域 55 channel = 50 request + 5 event，按 meta.ts 实测）
 
 ---
 
@@ -14,7 +14,7 @@
 | `{domain}:stream:{event}` | 流式事件 | （模板暂无；接入流式业务时用） |
 | `{domain}:event:{name}` | 状态推送 | `update:event:status`、`app:event:deepLink` |
 
-- domain 与 meta.ts 域表一致（模板 13 域 48 channel），新域需评估是否并入现有域
+- domain 与 meta.ts 域表一致（模板 14 域 55 channel），新域需评估是否并入现有域
 - action 用动词（get/list/create/delete/rename/start/stop/send）
 
 ## 二、新增 IPC 方法（三步流程，编译期强制）
@@ -84,13 +84,15 @@ channels.ts（IPC_CHANNELS 常量由 deriveChannels(meta) 生成，as const 字�
 | `{domain}:stream:{event}` | 流式事件（主进程 `send`） | 模板暂无；接入流式业务时按此形态声明 |
 | `{domain}:event:{name}` | 状态事件推送 | `update:event:status`、`app:event:deepLink` |
 
-域清单（`IPC_META` / `registerIpcHandlers` 中，实测 13 个）：
-`app / window / backup / settings / proxy / secrets / system / logs / telemetry / devtools / dialog / invalidation / update`。
-共 43 个 request 通道 + 5 个 event 通道（2026-10-24 实测）；方法数以 meta.ts 为唯一真源。
+域清单（`IPC_META` / `registerIpcHandlers` 中，实测 14 个）：
+`app / window / backup / settings / proxy / secrets / system / logs / telemetry / devtools / dialog / invalidation / notes / update`。
+共 50 个 request 通道 + 5 个 event 通道（2026-10-26 实测）；方法数以 meta.ts 为唯一真源。
 
-> **扩展点说明（模板内暂无生产消费方）**：`invalidation:event:domains` 尚无生产发送方；
-> `logs:read` 与 `dialog:pickDirectory` 尚无 UI 消费方。三者保留为业务接入骨架，
-> 契约与测试已就绪，接入方按约定接线即可，不视为“开箱即用”的现成界面能力。
+<!-- notes-example:start -->
+> **扩展点说明**：`invalidation:event:domains` 已由 Notes 写路径消费；`logs:read` 与
+> `dialog:pickDirectory` 仍无 UI 消费方，保留为业务接入骨架。Notes 示例可由
+> `init:template` 移除，移除后域/通道计数会按 meta 重算（文档契约由 sync 同步）。
+<!-- notes-example:end -->
 
 ## 3. Preload 桥（`src/preload/`）
 
@@ -122,12 +124,12 @@ channels.ts（IPC_CHANNELS 常量由 deriveChannels(meta) 生成，as const 字�
 - `protocol.ts`：IPC 协议版本常量（`IPC_PROTOCOL_VERSION`）。
 - `ipc/response.ts`：`IpcResponse<T> = { data } | { error }` 统一响应联合。
 
-`ErrorCode` 保留通用码 + IPC 边界码 + 文件系统码 + 备份码（业务专用码随业务裁剪），`useErrorMessage` hook（renderer）按 code 映射 i18n 文案，兜底 `ERROR_META.userMessage`。
+`ErrorCode` 保留通用码 + IPC 边界码 + 文件系统码 + 备份码（业务专用码随业务裁剪）。IPC 边界码含 `IPC_SENDER_INVALID` / `IPC_CHANNEL_NOT_FOUND` / `INVALID_RESPONSE` / `BRIDGE_UNAVAILABLE`（渲染层未注入 preload）；`useErrorMessage` hook（renderer）按 code 映射 i18n 文案，兜底 `ERROR_META.userMessage`。
 
 ## 7. 请求/响应 schema（`packages/shared/src/schemas/`）
 
 按域拆分 zod schema，主进程 handler 用于校验入参、推导响应类型。清单（实测 `packages/shared/src/schemas/`）：
-`app / backup / devtools / dialog / invalidation / proxy / secrets / settings / system / telemetry / update / window`。
+`app / backup / devtools / dialog / invalidation / notes / proxy / secrets / settings / system / telemetry / update / window`。
 
 ## 8. 典型调用链（以 `backup:list` 为例）
 

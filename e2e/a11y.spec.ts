@@ -82,6 +82,15 @@ test.describe('可访问性（WCAG 2.1 AA）', () => {
     expect(formatViolations('关于页', await scan(page))).toEqual([]);
   });
 
+  // notes-example:start
+  test('Local Notes 参考切片', async ({ page }) => {
+    await page.goto('/#/notes');
+    await expect(page.getByRole('heading', { name: 'Local Notes' })).toBeVisible();
+    await settle(page);
+    expect(formatViolations('Local Notes', await scan(page))).toEqual([]);
+  });
+  // notes-example:end
+
   test('设置：全部分区', async ({ page }) => {
     const violations: string[] = [];
 

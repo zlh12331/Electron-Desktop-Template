@@ -28,6 +28,9 @@ export * from './schemas/backup';
 export * from './schemas/devtools';
 export * from './schemas/dialog';
 export * from './schemas/invalidation';
+// notes-example:start
+export * from './schemas/notes';
+// notes-example:end
 export * from './schemas/proxy';
 export * from './schemas/secrets';
 export * from './schemas/settings';

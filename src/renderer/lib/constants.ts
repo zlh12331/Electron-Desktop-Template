@@ -19,6 +19,12 @@ export const ROUTES = {
   home: '/',
   /** 关于页（示例业务路由；接入真实业务时可替换或追加） */
   about: '/about',
+  // notes-example:start
+  /** Local Notes 参考切片：列表页（随示例整体删除） */
+  notes: '/notes',
+  /** Local Notes 参考切片：单条详情页（深链目标） */
+  note: (id: string) => `/notes/${encodeURIComponent(id)}`,
+  // notes-example:end
 } as const;
 
 /**

@@ -48,6 +48,9 @@ export type * from './schemas/dialog';
 export type * from './schemas/invalidation';
 // 失效域词表：渲染层前缀失效映射须与主进程声明侧同源（禁散写字面量）
 export { INVALIDATION_DOMAINS } from './schemas/invalidation';
+// notes-example:start
+export type * from './schemas/notes';
+// notes-example:end
 export type * from './schemas/proxy';
 export type * from './schemas/secrets';
 export type * from './schemas/settings';

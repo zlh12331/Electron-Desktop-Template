@@ -8,8 +8,8 @@ import { hasIpcBridge, unwrap } from '@/lib/ipc';
 /**
  * 深度链接桥接 Hook（AppShell 挂载一次）
  *
- * 收到协议唤起时导航到目标页面。模板版只演示「如何消费深链 payload」：
- * payload.targetId 命中已注册路由时跳转，否则留驻当前页（窗口已由主进程聚焦）。
+ * 收到协议唤起时导航到目标页面。示例切片把 payload.targetId 解析为笔记 id，
+ * 直接打开 `/notes/<id>`（目标不存在时页面显示「笔记不存在」）。
  * 接入业务后把这里换成真实的路由解析（例：`/open/<id>` → 打开目标实体）。
  */
 export function useDeepLink(): void {
@@ -24,8 +24,8 @@ export function useDeepLink(): void {
       if (payload.targetId === null) {
         return;
       }
-      // 深链示例：targetId 视作目标实体 id，模板内跳转到关于页作为占位
-      navigate(ROUTES.about);
+      // 深链示例：targetId 视作笔记 id，打开参考切片的详情页
+      navigate(ROUTES.note(payload.targetId));
     };
 
     const unsubscribe = window.api.app.subscribeDeepLink((payload) => {

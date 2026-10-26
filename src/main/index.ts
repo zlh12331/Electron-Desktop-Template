@@ -36,6 +36,9 @@ import { appHandlers } from './ipc/app.handler';
 import { backupHandlers } from './ipc/backup.handler';
 import { devtoolsHandlers } from './ipc/devtools.handler';
 import { dialogHandlers } from './ipc/dialog.handler';
+// notes-example:start
+import { notesHandlers } from './ipc/notes.handler';
+// notes-example:end
 import { createProxyHandlers } from './ipc/proxy.handler';
 import { registerIpcHandlers } from './ipc/register';
 import { secretsHandlers } from './ipc/secrets.handler';
@@ -173,6 +176,9 @@ app
           backup: backupHandlers,
           system: systemHandlers,
           logs: logsHandlers,
+          // notes-example:start
+          notes: notesHandlers,
+          // notes-example:end
           telemetry: telemetryHandlers,
           devtools: devtoolsHandlers,
           dialog: dialogHandlers,

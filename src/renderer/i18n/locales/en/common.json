@@ -295,9 +295,44 @@
       "closeDialog": "Close dialog"
     }
   },
+  "notes": {
+    "title": "Local Notes",
+    "subtitle": "A removable end-to-end reference slice: SQLite persistence, IPC contracts, cache invalidation, file grants and deep links.",
+    "new": "New note",
+    "import": "Import Markdown",
+    "search": "Search title or body",
+    "listAria": "Notes list",
+    "emptyTitle": "No notes yet",
+    "emptyDesc": "Create the first note or import Markdown.",
+    "searchEmptyDesc": "Try a different keyword or clear the search to see all notes.",
+    "emptyPreview": "(empty body)",
+    "updatedAt": "Updated {{time}}",
+    "untitled": "Untitled",
+    "titleLabel": "Title",
+    "bodyLabel": "Body",
+    "characters": "{{value}} characters",
+    "save": "Save",
+    "saving": "Saving…",
+    "delete": "Delete",
+    "deleting": "Deleting…",
+    "export": "Export",
+    "exporting": "Exporting…",
+    "created": "Note created",
+    "imported": "Imported: {{title}}",
+    "saved": "Note saved",
+    "deleted": "Note deleted",
+    "exported": "Exported to {{path}}",
+    "deleteTitle": "Delete note",
+    "deleteMessage": "Delete \"{{title}}\"? This cannot be undone.",
+    "selectPrompt": "Select or create a note",
+    "selectHint": "Pick one from the list or create a new note.",
+    "notFound": "Note not found",
+    "notFoundHint": "It may have been deleted; choose another note."
+  },
   "sidebar": {
     "ariaLabel": "Sidebar navigation",
     "nav": {
+      "notes": "Notes",
       "about": "About",
       "settings": "Settings"
     }

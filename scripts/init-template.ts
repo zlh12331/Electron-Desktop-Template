@@ -5,15 +5,18 @@
 // 手工改 8 类位点必然漏；漏掉的位点在 check:brand 之外，CI 也不会报。
 // 用法：pnpm init:template --name "My App" --app-id com.me.myapp --protocol myapp \
 //         --owner me --repo myapp [--scope myorg] [--author "Me"] [--description "..."] \
-//         [--artifact-base My-App] [--executable my-app] [--keep-site] [--dry-run]
+//         [--artifact-base My-App] [--executable my-app] [--keep-site] [--keep-example] [--dry-run]
 // 幂等：重复执行同一组参数不产生额外改动（每步都是「替换已知旧值」或「写定值」）。
 // 营销站：默认移除 site/ 与 .github/workflows/static.yml；--keep-site 保留并改写品牌/仓库。
+// 参考切片：默认移除 Local Notes（含其迁移）；--keep-example 保留整套示例。
 
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { extname, join, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { renderBrandModule } from './generate-brand.mjs';
+import { formatWorkspaceOrWarn } from './lib/format-workspace';
+import { removeNotesExample } from './lib/notes-example';
 import { type ParsedArgs, parseArgs, rejectPositionals, requireValue } from './scaffold/lib/args';
 
 /** 仓库根 */
@@ -83,6 +86,8 @@ export interface InitInput {
 export interface InitOptions {
   /** 保留模板营销站（site/ + static.yml），并改写站点内的品牌/仓库坐标 */
   readonly keepSite?: boolean;
+  /** 保留 Local Notes 参考切片（默认移除；派生项目从空白业务面开始） */
+  readonly keepExample?: boolean;
 }
 
 /** 一处改写结果 */
@@ -792,6 +797,10 @@ export function runInitTemplate(
       ? [writeSite(root, input, { previous }, dryRun)]
       : removeTemplateSite(root, dryRun)),
     ...resetReleaseState(root, dryRun),
+    // 示例移除放在最后：它要读取已改写过品牌/语言的 i18n 文件，并同步 IPC 文档计数。
+    ...(options.keepExample === true
+      ? []
+      : removeNotesExample(root, { dryRun, removeMigration: true })),
   ];
 
   // 生成物最后写：它由 app.config.json 派生，必须在真源落盘之后。
@@ -841,10 +850,11 @@ export function assertKnownCliArgs(parsed: ParsedArgs): void {
 
 /** CLI 入口 */
 function main(): void {
-  const parsed = parseArgs(process.argv.slice(2), ['dry-run', 'keep-site']);
+  const parsed = parseArgs(process.argv.slice(2), ['dry-run', 'keep-site', 'keep-example']);
   assertKnownCliArgs(parsed);
   const dryRun = parsed.flags.has('dry-run');
   const keepSite = parsed.flags.has('keep-site');
+  const keepExample = parsed.flags.has('keep-example');
   const optional = (key: string): string | undefined => parsed.values.get(key);
 
   const input = buildInitInput({
@@ -876,9 +886,11 @@ function main(): void {
   console.log(`  内部 scope  @${input.internalScope}`);
   console.log(`  仓库        ${input.owner}/${input.repo}`);
   console.log(`  营销站      ${keepSite ? '保留（品牌/仓库已改写）' : '移除'}`);
+  console.log(`  参考切片    ${keepExample ? '保留 Local Notes' : '移除 Local Notes（含迁移）'}`);
   console.log('');
 
-  const results = runInitTemplate(input, dryRun, REPO_ROOT, { keepSite });
+  const results = runInitTemplate(input, dryRun, REPO_ROOT, { keepSite, keepExample });
+  formatWorkspaceOrWarn(REPO_ROOT, dryRun);
   const changed = results.filter((r) => r.changed);
   for (const r of changed) {
     console.log(`  ${dryRun ? '将改动' : '已改动'}  ${r.file}`);

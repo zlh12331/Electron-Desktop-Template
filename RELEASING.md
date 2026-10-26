@@ -18,13 +18,14 @@
 
 ### 2.1 模板仓
 
-- `package.json` 与 `.release-please-manifest.json` 当前均为 `0.1.1`；`v0.1.1` 已于
-  2026-10-25 发布（26 个资产）。
+- `package.json` 与 `.release-please-manifest.json` 当前均为 `0.2.1`；`v0.2.1` 已于
+  2026-10-26 发布（26 个资产）。`v0.1.1` 于 2026-10-25 发布（26 个资产）。
+- 版本推导现状：`0.1.1 → 0.2.0` 由 feat 驱动；0.2.0 的 CD 在 production smoke 失败、
+  未产生 tag，随后通过手动发布 PR 产出 **0.2.1**（见 §4.1）。下次正常 `fix` → `0.2.2`，
+  `feat` → `0.3.0`；仓库从未出现 `v0.1.0` / `v0.2.0` tag。
 - `release-please-config.json` **顶层**保留了 `bootstrap-sha`（`06b08ca7`，模板合并提交）。
   它只用于首个 Release PR 的收集起点；首个 Release PR 合并后已失效，保留仅为历史锚点，
   不影响后续版本推导（如需清理可删除）。
-- 首个 `fix` 已产出 `v0.1.1`；后续 `fix` → `0.1.2`，`feat` → `0.2.0`。仓库从未出现
-  `v0.1.0` tag。
 - `bootstrap-sha` 必须是配置**顶层键**；写进 `packages["."]` 会被 release-please 静默忽略。
 - 根提交没有父提交，无法被 `bootstrap-sha` 排除，因此锚点放在其后的 chore 提交上。
 
@@ -55,6 +56,9 @@
 5. `release.yml` 依次：gate 识别发布提交 → 六架构构建（Windows x64/ARM64、macOS arm64/x64、
    Linux x64/ARM64）+ 产物 smoke → 合成 win/mac 双架构更新元数据 → 打 tag + draft Release +
    label 收尾 → 校验资产转正式。
+   - 产物 smoke 使用 Playwright `_electron.launch`，依赖 `--inspect`；`electron-builder.yml`
+     必须保持 `enableNodeCliInspectArguments: true`。若未来要关闭该 fuse，需先提供不依赖
+     Node inspector 的 smoke 方案，否则六平台 smoke 会全部无法启动（2026-10-26 0.2.0 实测）。
 6. `latest*.yml` 随资产一起发布，供已安装客户端自动更新。
 
 ### 3.1 润色 CHANGELOG（必需）
@@ -91,14 +95,31 @@ pnpm check:changelog-polish   # 验证通过后再合并 Release PR
 - `publish` 失败时 Release 保持 draft；核对安装包与四份 `latest*.yml`
   （`latest` / `latest-mac` / `latest-linux` / `latest-linux-arm64`）是否齐全。
 
-### 4.1 常见故障
+### 4.1 已合并 Release PR、CD 未出 tag（pending 卡死）
 
-| 现象                                                                                           | 原因与处置                                                                                                                                               |
-| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| push 后不再开 Release PR，日志 `There are untagged, merged release PRs outstanding - aborting` | 存在已合并但仍带 `autorelease: pending` 的 Release PR（判定只读 label，不检查 tag）。手工改为 `autorelease: tagged` 后，手动重跑 Release Please workflow |
-| Release PR 迟迟等不到检查                                                                      | 缺少 `RELEASE_PLEASE_TOKEN`。`GITHUB_TOKEN` 产生的事件不触发其他 workflow，必需检查永远等不到。配置细粒度 PAT（contents + pull-requests 写权限）         |
-| 手动 dispatch 报「未能在最近 300 个提交中找到发布提交」                                        | 该版本的 Release PR 尚未合并，或版本号填错。确认 `chore(main): release X.Y.Z` 已在 main 上                                                               |
-| 更新已存在的 Release 报 403                                                                    | 对已存在 release 做 update 会被拒；正常路径是 create。重放已存在 tag 时用 `gh release edit` 手动处理                                                     |
+0.2.0 的实际恢复路径（2026-10-26）：
+1. Release workflow 全平台 smoke 失败，未打 tag；Release PR #33 已合并但 label 仍为
+   `autorelease: pending`。
+2. 修复代码走普通 PR 合入 main（#36：恢复 inspect fuse + init-template 站点版本）。
+3. release-please 因 pending 状态 **不会自动开下一个 Release PR**；手动建发布分支，只改
+   `package.json` / `.release-please-manifest.json` / `CHANGELOG.md`，PR 标题必须是
+   `chore(main): release X.Y.Z`（squash 后 release gate 依赖该 subject）。
+4. `check:changelog-polish --version X.Y.Z`、`check:release-anchor --phase post-merge --version X.Y.Z`
+   本地先跑通；合并后 CD 从 main HEAD 构建、tag 钉在该发布提交，产出新版本（0.2.1）。
+5. 不要复用已失败版本号（0.2.0 无 tag 也不应重发）；新版本号更干净，release-please 也会在
+   下一次 main 变更时恢复常态。
+
+若只是**构建/网络抖动**且发布提交本身可复用，可走 workflow_dispatch 的受控重放；但只要
+修复引入了新代码，就必须用新版本，否则 tag 与产物不一致。
+
+### 4.2 常见故障
+
+| 现象                                                                                           | 原因与处置                                                                                                                                                                          |
+| ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| push 后不再开 Release PR，日志 `There are untagged, merged release PRs outstanding - aborting` | 存在已合并但仍带 `autorelease: pending` 的 Release PR（判定只读 label，不检查 tag）。若 CD 已失败未出包，按 §4.1 修复并用新版本；不要只改 label 强行重开，否则 tag 与产物可能不一致 |
+| Release PR 迟迟等不到检查                                                                      | 缺少 `RELEASE_PLEASE_TOKEN`。`GITHUB_TOKEN` 产生的事件不触发其他 workflow，必需检查永远等不到。配置细粒度 PAT（contents + pull-requests 写权限）                                    |
+| 手动 dispatch 报「未能在最近 300 个提交中找到发布提交」                                        | 该版本的 Release PR 尚未合并，或版本号填错。确认 `chore(main): release X.Y.Z` 已在 main 上                                                                                          |
+| 更新已存在的 Release 报 403                                                                    | 对已存在 release 做 update 会被拒；正常路径是 create。重放已存在 tag 时用 `gh release edit` 手动处理                                                                                |
 
 ## 五、签名与分发
 
@@ -113,7 +134,9 @@ pnpm check:changelog-polish   # 验证通过后再合并 Release PR
   xattr -dr com.apple.quarantine "/Applications/<应用名>.app"
   ```
 
-- **自动更新**：macOS 未签名包的 Squirrel.Mac 更新未验证，建议手动下载安装；Windows/Linux 可尝试，但缺少代码签名信任链。
+- **自动更新**：v0.2.1 已完成一次用户实测更新（2026-10-26，未签名包）；macOS 未签名包的
+  Squirrel.Mac 更新仍未验证，建议手动下载安装。Windows/Linux 可继续实测，但缺少代码签名
+  信任链，正式分发前仍需签名/公证。
 
 `release.yml` 会在检测到 Windows 或 macOS 签名凭据缺失时，自动把上述提示追加到 GitHub Release 正文，避免用户下载后才遇到拦截。
 

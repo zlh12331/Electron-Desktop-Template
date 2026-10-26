@@ -16,6 +16,11 @@
       "file": "src/main/diagnostics.test.ts",
       "signals": ["better-sqlite3"],
       "reason": "真实 DB 验证诊断包导出设置脱敏落包 + zip 组装；单模块（非链路型，保留）"
+    },
+    {
+      "file": "src/main/infra/notes/notes-repository.test.ts",
+      "signals": ["better-sqlite3", "new Database"],
+      "reason": "真实内存 SQLite 验证 notes 仓储（搜索/排序/限制/更新/删除）；存储域单模块（非链路型，随示例删除）"
     }
   ]
 }
