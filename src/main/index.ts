@@ -50,6 +50,7 @@ import { isQuitting, setCloseConfirmed, setQuitting } from './quit-state';
 import { applyCspToSession } from './security/csp';
 import { disposeServices, recoverFromCrash, serviceContainer } from './service-container';
 import { createTray } from './tray';
+import { isDevTestEnvEnabled, resolveEnvFileToLoad } from './utils/dev-test-env';
 import { reportError, reportMessage } from './utils/error-report';
 import { flushPendingLogs, initLogger, logger, registerGlobalErrorHandlers } from './utils/logger';
 import { flushTelemetryOnFatal } from './utils/telemetry-flush';
@@ -58,10 +59,16 @@ import { bringMainWindowToFront } from './window-show';
 import { syncTitleBarOverlayFromTheme } from './window-theme';
 
 // 环境文件必须先于 userData/CDP/Sentry 解析；空路径用于隔离验收，禁止继承本机后端配置。
-const envFile = process.env['APP_ENV_FILE'];
-if (process.env['NODE_ENV'] !== 'test' && envFile !== '') {
+// 只允许 dev/test 读取；打包态即使设置了 APP_ENV_FILE 也不加载。
+const envFile = resolveEnvFileToLoad({
+  isPackaged: app.isPackaged,
+  nodeEnv: process.env['NODE_ENV'],
+  envFile: process.env['APP_ENV_FILE'],
+  defaultPath: join(__dirname, '../../.env'),
+});
+if (envFile !== null) {
   try {
-    process.loadEnvFile(envFile ?? join(__dirname, '../../.env'));
+    process.loadEnvFile(envFile);
   } catch {}
 }
 
@@ -180,7 +187,7 @@ app
         serviceContainer.getUpdateService().start({
           autoCheckEnabled: isAutoCheckEnabled,
           allowPrereleaseEnabled: isAllowPrereleaseEnabled,
-          devUpdateEnabled: process.env['APP_DEV_UPDATE'] === '1',
+          devUpdateEnabled: isDevTestEnvEnabled(app.isPackaged, 'APP_DEV_UPDATE'),
         });
 
         applyCspToSession(session.defaultSession, !app.isPackaged);

@@ -7,6 +7,7 @@ import type { ZodType } from 'zod';
 import { withSpan } from '../infra/telemetry/otel';
 import { type IpcFailureClass, recordIpcRequest } from '../infra/telemetry/otel-metrics';
 import { isAllowedRendererUrl, rendererEntryFileUrl } from '../security/renderer-url';
+import { getDevRendererUrl } from '../utils/dev-test-env';
 import { reportError } from '../utils/error-report';
 import { logger } from '../utils/logger';
 
@@ -19,7 +20,7 @@ function isAllowedSenderUrl(rawUrl: string): boolean {
   return isAllowedRendererUrl(
     rawUrl,
     rendererEntryFileUrl(app.getAppPath()),
-    process.env['ELECTRON_RENDERER_URL'],
+    getDevRendererUrl(app.isPackaged),
   );
 }
 

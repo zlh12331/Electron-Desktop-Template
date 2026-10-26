@@ -13,6 +13,7 @@ import { expect, test } from '@playwright/test';
 import { _electron as electron } from 'playwright';
 
 import { closeElectronApp } from './helpers/close-electron';
+import { buildElectronEnv } from './helpers/electron-env';
 import { recordStartupMeasurement } from './helpers/startup-history';
 
 // 产物名取自品牌真源（app.config.json → brand.ts），与 electron-builder.yml 的
@@ -67,19 +68,22 @@ function resolvePackagedExecutable(): string {
 const EXECUTABLE_PATH = resolvePackagedExecutable();
 
 /** 启动打包产物并返回 DOM 就绪的首窗；可执行文件缺失时抛出带构建提示的错误 */
-async function launchPackagedApp(): Promise<{ app: ElectronApplication; page: Page }> {
+async function launchPackagedApp(
+  extraEnv: Readonly<Record<string, string>> = {},
+): Promise<{ app: ElectronApplication; page: Page }> {
   if (!existsSync(EXECUTABLE_PATH)) {
     throw new Error(`可执行文件不存在：${EXECUTABLE_PATH}\n请先执行 pnpm build:dist 生成打包产物`);
   }
 
   const app = await electron.launch({
     executablePath: EXECUTABLE_PATH,
-    // 生产构建不经 ELECTRON_RENDERER_URL，主进程 loadFile 加载打包内的 renderer（src/main/window.ts）
-    env: {
-      ...process.env,
+    // buildElectronEnv 会剥离 IDE/Agent 终端注入的 ELECTRON_RUN_AS_NODE；
+    // 生产构建即使被塞入 ELECTRON_RENDERER_URL 也必须 loadFile 加载打包内的 renderer。
+    env: buildElectronEnv({
       // 压成 production：避免 runner 继承的 NODE_ENV=test 影响被测应用的环境判定
       NODE_ENV: 'production',
-    },
+      ...extraEnv,
+    }),
   });
 
   const page = await app.firstWindow();
@@ -111,6 +115,16 @@ test.describe('生产构建冒烟测试', () => {
       return root?.childElementCount ?? 0;
     });
     expect(rootChildCount).toBeGreaterThan(0);
+  });
+
+  test('打包态忽略 dev/test 环境变量：ELECTRON_RENDERER_URL 不得改写加载源', async () => {
+    ({ app, page } = await launchPackagedApp({
+      ELECTRON_RENDERER_URL: 'https://example.com',
+      APP_SKIP_CLOSE_GUARD: '1',
+    }));
+
+    expect(page.url()).toMatch(/^file:\/\//);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 15_000 });
   });
 
   test('window.api 全部域已注入（preload 正常加载）', async () => {
