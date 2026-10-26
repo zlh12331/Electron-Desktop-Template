@@ -2,10 +2,35 @@
 
 ## [0.3.0](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.2.1...v0.3.0) (2026-10-26)
 
+<!-- changelog:polished -->
+
+> 0.3.0 增加一条可整体删除的完整业务样本，并收紧安装包体积与全屏浮层的运行内存；底座契约、派生验收与文档同步对齐。
 
 ### 新增
 
-* 交付 Notes 参考切片与体积/内存加固 ([#39](https://github.com/zlh12331/Electron-Desktop-Template/issues/39)) ([283f43d](https://github.com/zlh12331/Electron-Desktop-Template/commit/283f43d59b878395bf14f9f5f48dbc2fba3146cd))
+- **Local Notes 参考切片**：新增从 zod 契约、SQLite 迁移、IPC handler、Query 缓存/失效到列表/编辑器/搜索/导入导出/深链的完整示例，并配有独立设计文档与浏览器/Electron 测试。
+- **派生初始化默认移除示例**：`init:template` 默认删除 Notes 代码与迁移，`--keep-example` 可保留；已有项目可用 `pnpm remove:notes-example`，默认保留 `notes` 表，`--drop-table` 才生成清表迁移。
+- **状态细节完善**：笔记“搜索无结果”与“空库”分开提示；设置、命令面板、快捷键帮助的懒加载浮层有统一加载占位。
+
+### 修复
+
+- **派生验收修复**：初始化后自动用 Biome 重排；清理 Sidebar/mock-api 中仅示例使用的 import；示例测试与营销站断言在派生副本中正确跳过；失效域文档与实际生产者对齐。
+- **数据所有权文档**：补记 `notes` 表、写入方与失效责任，并明确“词表声明不等于已接线”。
+
+### 性能
+
+- **安装包体积**：Windows x64 NSIS 从 134.89 MB 降至 112.19 MB（-16.8%）；裁剪 Electron 语言包、better-sqlite3 全平台预编译与 Sentry 调试符号，`app.asar` 减少约 41%。
+- **运行内存**：命令面板移除全屏 `backdrop-filter` 模糊层；设置页全屏 Sheet 移除不可见遮罩和阴影；本机打包产物设置页 GPU private 约 316 → 270 MB，关闭后仍保持下降。
+
+### 内部改进
+
+- IPC 规范同步至 14 域 / 55 通道；派生验收覆盖示例移除、迁移与文档计数同步。
+- 模板定位明确为一次性起点：不提供上游同步机制，派生项目自行维护。
+
+### 已知限制
+
+- 三平台仍为未签名包；自动更新「安装 → 更新 → 卸载」尚未完成真实演练。
+- 本机 Windows 存在 `app.asar` 文件锁，六平台打包与 production smoke 由 CD 验证。
 
 ## 0.2.1 (2026-10-26)
 
