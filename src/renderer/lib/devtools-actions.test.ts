@@ -22,8 +22,8 @@ describe('devtools-actions', () => {
     expect(openMock).toHaveBeenCalledWith({ mode: 'detach' });
   });
 
-  it('no bridge throws [NO_BRIDGE]', async () => {
+  it('no bridge throws [BRIDGE_UNAVAILABLE]', async () => {
     removeBridge();
-    await expect(openDevTools('right')).rejects.toThrow(/\[NO_BRIDGE\]/);
+    await expect(openDevTools('right')).rejects.toThrow(/\[BRIDGE_UNAVAILABLE\]/);
   });
 });

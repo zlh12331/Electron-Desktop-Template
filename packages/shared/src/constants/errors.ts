@@ -23,6 +23,8 @@ export const ErrorCode = {
   /** 调用来源非法：发送方窗口已不存在，或其 URL 不在白名单（wrap() 在进 handler 前拒绝） */
   IPC_SENDER_INVALID: 'IPC_SENDER_INVALID',
   IPC_CHANNEL_NOT_FOUND: 'IPC_CHANNEL_NOT_FOUND',
+  /** 渲染层未注入 preload（浏览器预览或打包异常），window.api 不存在 */
+  BRIDGE_UNAVAILABLE: 'BRIDGE_UNAVAILABLE',
   /** 主进程 handler 返回结构不符合契约（resSchema 校验失败） */
   INVALID_RESPONSE: 'INVALID_RESPONSE',
 
@@ -75,6 +77,11 @@ export const ERROR_META: Readonly<Record<ErrorCode, ErrorMeta>> = {
   // ── IPC 边界 ────────────────────────────────────────
   IPC_SENDER_INVALID: { userMessage: 'IPC 调用来源无效', retryable: false, severity: 'error' },
   IPC_CHANNEL_NOT_FOUND: { userMessage: 'IPC 通道不存在', retryable: false, severity: 'error' },
+  BRIDGE_UNAVAILABLE: {
+    userMessage: '应用桥接不可用',
+    retryable: false,
+    severity: 'warn',
+  },
   INVALID_RESPONSE: {
     userMessage: '主进程响应不符合契约',
     retryable: false,

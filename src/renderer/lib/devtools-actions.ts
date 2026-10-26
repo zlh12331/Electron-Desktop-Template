@@ -1,6 +1,6 @@
 import type { OpenDevToolsRes } from '@code-agent/shared/renderer';
 
-import { hasIpcBridge, unwrap } from '@/lib/ipc';
+import { bridgeUnavailableError, hasIpcBridge, unwrap } from '@/lib/ipc';
 
 /** DevTools 停靠模式（与 shared OpenDevToolsReq.mode 对齐） */
 export type DevToolsDockMode = 'detach' | 'right' | 'bottom';
@@ -12,7 +12,7 @@ export type DevToolsDockMode = 'detach' | 'right' | 'bottom';
  */
 export async function openDevTools(mode: DevToolsDockMode): Promise<OpenDevToolsRes> {
   if (!hasIpcBridge()) {
-    throw new Error('[NO_BRIDGE] window.api unavailable');
+    throw bridgeUnavailableError();
   }
   return unwrap(await window.api.devtools.open({ mode }));
 }

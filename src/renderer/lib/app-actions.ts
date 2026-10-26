@@ -1,6 +1,6 @@
 import type { AppInfoRes } from '@code-agent/shared/renderer';
 
-import { hasIpcBridge, unwrap } from '@/lib/ipc';
+import { bridgeUnavailableError, hasIpcBridge, unwrap } from '@/lib/ipc';
 
 /**
  * 拉取应用信息（版本/平台/路径）
@@ -9,7 +9,7 @@ import { hasIpcBridge, unwrap } from '@/lib/ipc';
  */
 export async function fetchAppInfo(): Promise<AppInfoRes> {
   if (!hasIpcBridge()) {
-    throw new Error('[NO_BRIDGE] window.api unavailable');
+    throw bridgeUnavailableError();
   }
   return unwrap(await window.api.app.getInfo());
 }

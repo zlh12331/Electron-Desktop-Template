@@ -10,6 +10,7 @@
     "INVALID_RESPONSE": "Invalid response data",
     "IPC_CHANNEL_NOT_FOUND": "IPC channel not found",
     "IPC_SENDER_INVALID": "Invalid IPC sender",
+    "BRIDGE_UNAVAILABLE": "Application bridge unavailable",
     "NOT_FOUND": "Resource not found",
     "RATE_LIMITED": "Too many requests",
     "BACKUP_INVALID": "Backup file is invalid or missing",

@@ -34,9 +34,9 @@ describe('app-actions', () => {
       await expect(fetchAppInfo()).resolves.toEqual(info);
     });
 
-    it('no bridge throws [NO_BRIDGE]', async () => {
+    it('no bridge throws [BRIDGE_UNAVAILABLE]', async () => {
       removeBridge();
-      await expect(fetchAppInfo()).rejects.toThrow(/\[NO_BRIDGE\]/);
+      await expect(fetchAppInfo()).rejects.toThrow(/\[BRIDGE_UNAVAILABLE\]/);
     });
 
     it('IPC error response throws [CODE]', async () => {

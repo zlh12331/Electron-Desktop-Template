@@ -14,6 +14,7 @@ describe('ErrorCode', () => {
     expect(ErrorCode.RATE_LIMITED).toBe('RATE_LIMITED');
     expect(ErrorCode.IPC_SENDER_INVALID).toBe('IPC_SENDER_INVALID');
     expect(ErrorCode.IPC_CHANNEL_NOT_FOUND).toBe('IPC_CHANNEL_NOT_FOUND');
+    expect(ErrorCode.BRIDGE_UNAVAILABLE).toBe('BRIDGE_UNAVAILABLE');
     expect(ErrorCode.FS_READ_FAILED).toBe('FS_READ_FAILED');
     expect(ErrorCode.FS_WRITE_FAILED).toBe('FS_WRITE_FAILED');
     expect(ErrorCode.FS_DISK_FULL).toBe('FS_DISK_FULL');
