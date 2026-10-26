@@ -23,6 +23,21 @@ describe('UI wrappers', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('标题')).toBeInTheDocument();
     expect(screen.getByText('描述')).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="sheet-overlay"]')).not.toBeNull();
+  });
+
+  it('withOverlay=false 不渲染全屏遮罩（省合成层）', () => {
+    render(
+      <Sheet open>
+        <SheetContent withOverlay={false}>
+          <SheetTitle>标题</SheetTitle>
+          <SheetDescription>描述</SheetDescription>
+        </SheetContent>
+      </Sheet>,
+    );
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="sheet-overlay"]')).toBeNull();
   });
 
   it('Toaster 在主题 provider 下可渲染', () => {

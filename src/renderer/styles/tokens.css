@@ -125,7 +125,6 @@
   --overlay-bg: rgba(0, 0, 0, 0.25);
   /* 命令/代码块深色背景（双主题一致，终端风格） */
   --code-block-bg: #070A0E;
-  --overlay-blur: 8px;
   --glass-bg: rgba(255, 255, 255, 0.85);
   /* 滚动条令牌 */
   --scrollbar-thumb: rgba(115, 115, 115, 0.15);

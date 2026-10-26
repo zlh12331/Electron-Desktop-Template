@@ -37,14 +37,18 @@ export function SheetOverlay({
 export function SheetContent({
   className,
   children,
+  withOverlay = true,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content>): React.ReactElement {
+}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+  /** 全屏页面型抽屉可关闭遮罩：内容本身已铺满窗口，遮罩只增加一层合成层 */
+  readonly withOverlay?: boolean;
+}): React.ReactElement {
   return (
     <DialogPrimitive.Portal data-slot="sheet-portal">
-      <SheetOverlay />
+      {withOverlay && <SheetOverlay />}
       <DialogPrimitive.Content
         data-slot="sheet-content"
-        className={cn('bg-background fixed inset-0 z-popover h-full w-full shadow-lg', className)}
+        className={cn('bg-background fixed inset-0 z-popover h-full w-full', className)}
         {...props}
       >
         {children}

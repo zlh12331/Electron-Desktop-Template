@@ -50,7 +50,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps): Rea
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="bg-card flex h-full w-full max-w-none flex-col gap-0 border-l p-0">
+      <SheetContent
+        withOverlay={false}
+        className="bg-card flex h-full w-full max-w-none flex-col gap-0 border-l p-0"
+      >
         <SheetTitle className="sr-only">{t('settings.title')}</SheetTitle>
         <SheetDescription className="sr-only">{t('settings.desc')}</SheetDescription>
 

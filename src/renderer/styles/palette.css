@@ -1,8 +1,9 @@
 .palette-overlay {
   position: fixed;
   inset: 0;
+  /* 刻意不用 backdrop-filter：全屏模糊层在 1.5x DPR 下额外占用约 20MB GPU 内存，
+     半透明遮罩已足够区分层级。 */
   background: var(--overlay-bg);
-  backdrop-filter: blur(var(--overlay-blur));
   display: none;
   align-items: flex-start;
   justify-content: center;
