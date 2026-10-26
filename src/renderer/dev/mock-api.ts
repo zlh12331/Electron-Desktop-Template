@@ -2,15 +2,15 @@
 //
 // 为什么需要：dev:web 不经 Electron，没有 preload 注入的 window.api。本文件提供
 // 与 IPC 契约同形的假实现，使渲染层能在浏览器里独立调试（Vite HMR 比 Electron 快）。
-// 边界：只实现模板保留的通用域（app/window/dialog/settings/system/logs/devtools/
-// backup/update/proxy/invalidation）；新增业务域时在此补对应 mock。
+// 边界：只实现当前模板保留的域（通用域与随模板保留的示例域）；新增业务域时在此补对应 mock。
 import {
   IPC_PROTOCOL_VERSION,
   type IpcApi,
+  type Note,
   type UpdateStatusPayload,
 } from '@code-agent/shared/renderer';
 
-import { ipcOk } from '@/lib/ipc-factories';
+import { ipcErr, ipcOk } from '@/lib/ipc-factories';
 
 /** 浏览器模式下内存态的假设置（不落库，刷新即重置） */
 const memorySettings = new Map<string, unknown>([
@@ -31,6 +31,98 @@ const mockBackups = [
     healthy: true,
   },
 ];
+
+// notes-example:start
+/** 浏览器模式的笔记内存库（刷新即重置） */
+let mockNotes: Note[] = [
+  {
+    id: 'mock-note-welcome',
+    title: '欢迎使用 Local Notes',
+    body: '这是浏览器模式的示例笔记。\n\n在 Electron 模式中，笔记会写入 SQLite 并在重启后保留。',
+    createdAt: Date.now() - 60_000,
+    updatedAt: Date.now() - 60_000,
+  },
+];
+
+function mockNoteSummary(note: Note) {
+  return {
+    id: note.id,
+    title: note.title,
+    preview: note.body.replace(/\s+/g, ' ').trim().slice(0, 160),
+    updatedAt: note.updatedAt,
+  };
+}
+
+/** 浏览器模式的 notes 域假实现（内存态，与 IPC 契约同形） */
+function createMockNotesApi(): IpcApi['notes'] {
+  return {
+    list: async (input) => {
+      const keyword = input?.query?.trim().toLowerCase() ?? '';
+      const notes = mockNotes
+        .filter(
+          (note) =>
+            keyword === '' ||
+            note.title.toLowerCase().includes(keyword) ||
+            note.body.toLowerCase().includes(keyword),
+        )
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .map(mockNoteSummary);
+      return ipcOk({ notes });
+    },
+    get: async (input) => {
+      const note = mockNotes.find((item) => item.id === input.id);
+      if (note === undefined) {
+        return ipcErr('NOT_FOUND', `note not found: ${input.id}`);
+      }
+      return ipcOk({ note });
+    },
+    create: async (input) => {
+      const now = Date.now();
+      const note: Note = {
+        id: crypto.randomUUID(),
+        title: input.title,
+        body: input.body,
+        createdAt: now,
+        updatedAt: now,
+      };
+      mockNotes = [note, ...mockNotes];
+      return ipcOk({ note });
+    },
+    update: async (input) => {
+      const note = mockNotes.find((item) => item.id === input.id);
+      if (note === undefined) {
+        return ipcErr('NOT_FOUND', `note not found: ${input.id}`);
+      }
+      const next: Note = {
+        ...note,
+        ...(input.title !== undefined ? { title: input.title } : {}),
+        ...(input.body !== undefined ? { body: input.body } : {}),
+        updatedAt: Date.now(),
+      };
+      mockNotes = mockNotes.map((item) => (item.id === next.id ? next : item));
+      return ipcOk({ note: next });
+    },
+    delete: async (input) => {
+      mockNotes = mockNotes.filter((item) => item.id !== input.id);
+      return ipcOk({ ok: true });
+    },
+    importFile: async (input) => {
+      const now = Date.now();
+      const filename = input.path.split(/[\\/]/).pop() ?? 'Imported note';
+      const note: Note = {
+        id: crypto.randomUUID(),
+        title: filename.replace(/\.md$/i, ''),
+        body: '浏览器模式不读取真实文件。',
+        createdAt: now,
+        updatedAt: now,
+      };
+      mockNotes = [note, ...mockNotes];
+      return ipcOk({ note });
+    },
+    exportFile: async () => ipcOk({ saved: false }),
+  };
+}
+// notes-example:end
 
 /** 浏览器模式下的假凭据库（内存态；掩码算法与主进程 maskSecret 保持一致） */
 const memorySecrets = new Map<string, string>();
@@ -217,6 +309,9 @@ export function createMockApi(): IpcApi {
     invalidation: {
       subscribeDomains: () => () => {},
     },
+    // notes-example:start
+    notes: createMockNotesApi(),
+    // notes-example:end
     update: {
       check: async () => ipcOk({ status: 'checking' as const }),
       install: async () => ipcOk({ ok: true }),

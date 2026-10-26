@@ -47,7 +47,8 @@ test('冷启动深链：渲染层就绪后从主进程取走暂存并导航', as
   try {
     const page = await waitForMainWindow(app);
     await page.waitForLoadState('domcontentloaded');
-    await expect(page).toHaveURL(/#\/about$/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/#\/notes\/e2e-deep-link$/, { timeout: 15_000 });
+    await expect(page.getByText('笔记不存在')).toBeVisible();
   } finally {
     await closeElectronApp(app);
   }

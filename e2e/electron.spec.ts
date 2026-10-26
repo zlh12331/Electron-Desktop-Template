@@ -153,6 +153,9 @@ test.describe('Electron 应用 E2E 测试', () => {
       'secrets',
       'invalidation',
       'telemetry',
+      // notes-example:start
+      'notes',
+      // notes-example:end
     ]) {
       expect(apiKeys).toContain(domain);
     }
@@ -255,6 +258,57 @@ test.describe('Electron 应用 E2E 测试', () => {
       rmSync(userData, { recursive: true, force: true });
     }
   });
+
+  // notes-example:start
+  test('Notes 参考切片：新建笔记跨重启持久化', async () => {
+    mkdirSync(E2E_USER_DATA, { recursive: true });
+    const userData = mkdtempSync(join(E2E_USER_DATA, 'notes-persistence-'));
+    const title = `E2E 笔记 ${Date.now()}`;
+    let ownedApp: ElectronApplication | undefined;
+    let ownedProcess: ReturnType<ElectronApplication['process']> | undefined;
+
+    try {
+      ({ app, page } = await launchElectron(userData));
+      ownedApp = app;
+      ownedProcess = app.process();
+
+      await page.getByRole('button', { name: /笔记|Notes/ }).click();
+      await expect(page.getByRole('heading', { name: 'Local Notes' })).toBeVisible();
+      await page
+        .getByRole('button', { name: /新建笔记|New note/ })
+        .first()
+        .click();
+      await expect(page).toHaveURL(/#\/notes\/[0-9a-f-]+$/);
+
+      await page.getByLabel(/^(标题|Title)$/).fill(title);
+      await page.getByLabel(/^(正文|Body)$/).fill('跨重启持久化验证');
+      await page.getByRole('button', { name: /保存|Save/ }).click();
+      await expect(page.getByText(/笔记已保存|Note saved/)).toBeVisible();
+      await expect(page.getByRole('complementary').getByText(title)).toBeVisible();
+
+      await closeElectronApp(app);
+      await expectProcessExited(ownedProcess);
+
+      ({ app, page } = await launchElectron(userData));
+      ownedApp = app;
+      ownedProcess = app.process();
+
+      await page.getByRole('button', { name: /笔记|Notes/ }).click();
+      const list = page.getByRole('complementary');
+      await expect(list.getByText(title)).toBeVisible();
+      await list.getByText(title).click();
+      await expect(page.getByLabel(/^(正文|Body)$/)).toHaveValue('跨重启持久化验证');
+    } finally {
+      if (ownedApp !== undefined) {
+        await closeElectronApp(ownedApp);
+      }
+      if (ownedProcess !== undefined) {
+        await expectProcessExited(ownedProcess);
+      }
+      rmSync(userData, { recursive: true, force: true });
+    }
+  });
+  // notes-example:end
 
   test('IPC 全链路：system/getStatus 返回运行时状态', async () => {
     ({ app, page } = await launchElectron());
