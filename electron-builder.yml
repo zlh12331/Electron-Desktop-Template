@@ -35,6 +35,14 @@ directories:
 # asar 打包（设计文档 §3 Electron 安全基线）
 # - asar: true 把源码打包成 app.asar，避免直接暴露 .js 源文件
 asar: true
+# 只保留应用实际使用的语言包（模板 UI 只有 zh-CN / en）。
+# Electron 默认带 55 个 locale（本机实测 48.3MB），全量分发没有收益。
+electronLanguages:
+  - en-US
+  - zh-CN
+# 打包后裁剪运行时用不到的原生构建产物（预编译平台矩阵、调试符号、C/C++ 源码）。
+# 钩子按目标平台/架构保留唯一可加载的二进制；详见 scripts/after-pack-prune.cjs。
+afterPack: scripts/after-pack-prune.cjs
 # asar 完整性校验（防篡改）：electron-builder 26.x 默认启用 asar 内容 SHA-256 校验，
 # 应用启动时 Electron 验证校验和，被篡改则拒绝启动（2026-09-04 供应链加固）。
 # 26.x 移除了顶层 asarIntegrity 键（schema 校验报 unknown property），默认即开启；
@@ -99,6 +107,34 @@ files:
   # 运行时不读 asar 内的 map，整体排除（构建机 out/ 保留供本地排障；CI 在打包前通过
   # sentry:sourcemaps 上传，凭据缺失时脚本显式跳过）。
   - "!**/*.map"
+  # 运行时不需要 TypeScript 源码/声明（Node 不执行 .ts/.cts/.mts）；本机实测 5.35MB
+  - "!node_modules/**/*.{ts,cts,mts}"
+  # Sentry 的 bundler 插件与 oxc 解析器只在构建期做 sourcemap 上传，主进程入口不加载；
+  # 它们及其平台绑定（约 20.8MB packed + 3.0MB unpacked）不应进入安装包。
+  - "!node_modules/sentry/**"
+  - "!node_modules/@sentry/bundler-plugins/**"
+  - "!node_modules/oxc-parser/**"
+  - "!node_modules/@oxc-parser/**"
+  # better-sqlite3 v13 运行时优先加载 prebuilds/<platform>-<arch>.node；C/C++ 源码、
+  # deps/ 与 build/ 工程文件只在编译期使用（本机实测约 9.8MB，压缩后仍占空间）。
+  - "!node_modules/better-sqlite3/deps/**"
+  - "!node_modules/better-sqlite3/src/**"
+  - "!node_modules/better-sqlite3/build/**"
+  - "!node_modules/better-sqlite3/binding.gyp"
+  # Sentry 原生栈回溯在 Electron 下走 build/Release/stack-trace.node；其余 ABI/平台
+  # 预编译与调试符号由 afterPack 钩子按目标主机裁剪。
+  - "!node_modules/@sentry/node-native-stacktrace/bin/**"
+  - "!node_modules/@sentry/node-native-stacktrace/lib/stack-trace-*.node"
+  - "!node_modules/@sentry/node-native-stacktrace/build/Release/*.iobj"
+  - "!node_modules/@sentry/node-native-stacktrace/build/Release/*.ipdb"
+  - "!node_modules/@sentry/node-native-stacktrace/build/Release/*.tlog"
+  - "!node_modules/@sentry/node-native-stacktrace/build/Release/obj/**"
+  # 依赖包附带的文档不参与运行（undici 文档约 0.41MB）
+  - "!node_modules/undici/docs/**"
+  # Sentry 的 ESM 构建刻意保留：当前主进程走 CJS，但未来改成 ESM 导入时需要它；
+  # 排除只能再省 <1MB 安装包，不值得把「导入方式」变成包内容的隐式契约。
+  # OTel 包保留 esm（主进程）与 src（CJS 消费者），esnext 是旧版构建分支，无引用
+  - "!node_modules/@opentelemetry/**/build/esnext/**"
 
 # 额外资源（不打入 asar，部署到 process.resourcesPath）
 extraResources:
