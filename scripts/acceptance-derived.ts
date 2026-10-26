@@ -150,6 +150,14 @@ async function main(): Promise<void> {
       }
     });
 
+    stage('模板营销站按默认策略移除', () => {
+      const leftovers = [join(copyRoot, 'site'), join(copyRoot, '.github/workflows/static.yml')];
+      const remaining = leftovers.filter((path) => existsSync(path));
+      if (remaining.length > 0) {
+        throw new Error(`默认 init:template 未移除模板营销站：${remaining.join(', ')}`);
+      }
+    });
+
     stage('重链内部 workspace 包', () => {
       // scope 重写会改包名/依赖/锁文件；用 frozen 校验锁文件自洽，ignore-scripts 避免重复原生安装
       runPnpm(['install', '--frozen-lockfile', '--ignore-scripts'], copyRoot, {

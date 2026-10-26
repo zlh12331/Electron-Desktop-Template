@@ -59,7 +59,10 @@ pnpm init:template --name "演示应用" --executable demo-app \
   --app-id com.demo.app --protocol demoapp --owner demo --repo demo --scope demo
 ```
 
+默认移除模板自带的 GitHub Pages 营销站（`site/` 与 `.github/workflows/static.yml`）。需要保留站点时加 `--keep-site`：产品名、品牌名、仓库链接与版本号会同步改写，但页面里的模板营销文案仍需按产品人工调整。
+
 之后：
+0. 替换 `resources/icons/icon.png`（1024×1024），再重跑 `scripts/generate-tray-assets.py` 生成托盘图（模板图标不会自动替换）
 1. 替换 `src/renderer/routes/home.tsx` 为你的首屏
 2. 按需接入业务：新增 IPC 域、数据表、设置分区、页面，方法见 AGENTS.md「扩展点速查」
 

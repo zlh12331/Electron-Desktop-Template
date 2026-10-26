@@ -138,16 +138,17 @@ tools/           → 独立 TS 子包（depcruise / typedoc）
 
 ## 扩展点速查
 
-| 要做的事                    | 改哪里                                                                     |
-| --------------------------- | -------------------------------------------------------------------------- |
-| 改品牌（产品名/appId/协议） | `app.config.json` → `pnpm brand:sync`                                      |
-| 加一个 IPC 方法             | `ipc/meta.ts` + `ipc/domains/<domain>.ts` + `main/ipc/<domain>.handler.ts` |
-| 加一个 IPC 域               | 新建 domain 文件 + `ipc/domains/index.ts` 登记 + main 侧 handler           |
-| 加一个数据表                | `storage/tables/<domain>.ts` + `schema.ts` 登记 + `drizzle-kit generate`   |
-| 加一个页面                  | `lib/constants.ts` + `router.tsx` + `routes/<page>.tsx`                    |
-| 加一个设置分区              | `lib/settings-sections.ts` + `settings/sections/registry.tsx` + 分区组件   |
-| 加一个主进程服务            | `infra/<domain>/` + `service-container.ts`（accessor + dispose）           |
-| 加一个桥接 hook             | `hooks/` + `components/layout/bridges.ts`                                  |
+| 要做的事                         | 改哪里                                                                                                                |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 改品牌（产品名/appId/协议/图标） | `app.config.json` → `pnpm brand:sync`；图标另替换 `resources/icons/icon.png` 并重跑 `scripts/generate-tray-assets.py` |
+| 派生项目站点                     | `init:template` 默认移除 `site/` + `static.yml`；`--keep-site` 保留并改写品牌/仓库                                    |
+| 加一个 IPC 方法                  | `ipc/meta.ts` + `ipc/domains/<domain>.ts` + `main/ipc/<domain>.handler.ts`；`scaffold:ipc` 自动同步 19-ipc-spec 计数  |
+| 加一个 IPC 域                    | 新建 domain 文件 + `ipc/domains/index.ts` 登记 + main 侧 handler                                                      |
+| 加一个数据表                     | `storage/tables/<domain>.ts` + `schema.ts` 登记 + `drizzle-kit generate`                                              |
+| 加一个页面                       | `lib/constants.ts` + `router.tsx` + `routes/<page>.tsx`                                                               |
+| 加一个设置分区                   | `lib/settings-sections.ts` + `settings/sections/registry.tsx` + 分区组件                                              |
+| 加一个主进程服务                 | `infra/<domain>/` + `service-container.ts`（accessor + dispose）                                                      |
+| 加一个桥接 hook                  | `hooks/` + `components/layout/bridges.ts`                                                                             |
 
 ## 外部服务 / 凭据
 

@@ -34,6 +34,8 @@ git diff HEAD...template/main -- scripts/ .github/ docs/
 - `electron-builder.yml` / `package.json` 里已改过的产品名、appId、仓库坐标
 - `src/renderer/i18n/locales/*/common.json` 中已替换的产品文案
 - `CHANGELOG.md` 的版本段与 `.release-please-manifest.json`
+- `site/` 与 `.github/workflows/static.yml`（模板营销站；派生项目默认已在初始化时移除，若保留请独立维护）
+- `resources/icons/`（派生项目应替换为自己的图标，不要同步模板图标）
 
 ## 3. 合并策略
 

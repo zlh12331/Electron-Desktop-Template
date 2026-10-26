@@ -165,6 +165,35 @@ function checkInstallerProtocol(issues: BrandIssue[], brand: BrandSource): void 
 }
 
 /**
+ * 校验保留的模板营销站与品牌真源一致
+ *
+ * 站点是可选资产：派生项目默认在 init:template 时移除；使用 --keep-site 时
+ * 必须同步产品名、品牌名与仓库 URL，防止把上游链接发布到派生项目的 Pages。
+ */
+function checkSite(issues: BrandIssue[], brand: BrandSource): void {
+  const file = 'site/electron-desktop-template-website.html';
+  const text = readIfExists(file);
+  if (text === null) {
+    return;
+  }
+  expectContains(issues, file, text, `<title>${brand.productName}`, 'site title');
+  expectContains(
+    issues,
+    file,
+    text,
+    `<span class="brand-name">${brand.productName}</span>`,
+    'site brand-name',
+  );
+  expectContains(
+    issues,
+    file,
+    text,
+    `https://github.com/${brand.repo.owner}/${brand.repo.name}`,
+    'site repo URL',
+  );
+}
+
+/**
  * 校验运行时脚本与 GitHub 自动化里没有写死本仓库坐标与产物名
  *
  * workflow 与 CI 脚本通过「Use this template」/ fork 分发后不再改写；任何写死的
@@ -236,6 +265,7 @@ function main(): void {
   checkIndexHtml(issues, brand);
   checkDevAppUpdate(issues, brand);
   checkInstallerProtocol(issues, brand);
+  checkSite(issues, brand);
   checkRuntimeCoords(issues, brand);
   if (issues.length === 0) {
     console.log(`[check-brand] ✅ 品牌一致（${BRAND_SOURCE}）`);
