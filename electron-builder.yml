@@ -62,17 +62,21 @@ disableAsarIntegrity: false
 # - enableEmbeddedAsarIntegrityValidation: true
 #   显式开启 asar 内容完整性校验（Windows electron>=30 / macOS >=16 支持）。
 #
-# 其余 fuse 保持默认；如 evaluate（以下）逐项评估：
-#   - enableCookieEncryption：需评估现有 cookie 存储（单向迁移，开启后旧明文
-#     cookie 会在写入时加密；我们主要持久化在 SQLite，暂不启用以免影响既有用户）
-#   - enableNodeCliInspectArguments：主进程调试依赖 --inspect（dev 用 remote-debugging-port
-#     而非该开关），但为保留排障能力暂不关闭
-#   - enableNodeOptionsEnvironmentVariable：引擎子进程曾依赖 NODE_OPTIONS 置空，
-#     保持默认以兼容
+# 其余 fuse 的取值与理由：
+#   - enableCookieEncryption：保持默认 false。应用不依赖 Chromium cookie（设置持久化在
+#     SQLite），暂不启用以免影响既有用户的一次性迁移。
+#   - enableNodeCliInspectArguments: false
+#     打包态不接受 --inspect / --inspect-brk；本地调试走 dev 的 remote-debugging-port，
+#     发布包不再暴露调试器入口。
+#   - enableNodeOptionsEnvironmentVariable: false
+#     模板已无依赖 NODE_OPTIONS 的子进程（原引擎子进程已移除）；关闭后外部环境变量
+#     无法向主进程注入 Node 选项。
 electronFuses:
   runAsNode: false
   onlyLoadAppFromAsar: true
   enableEmbeddedAsarIntegrityValidation: true
+  enableNodeCliInspectArguments: false
+  enableNodeOptionsEnvironmentVariable: false
 
 # 需要打入 asar 的文件白名单（out/ 是 electron-vite 构建产物）
 # 排除：测试文件、配置文件、源码、文档、缓存
