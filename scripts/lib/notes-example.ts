@@ -79,6 +79,7 @@ const MARKED_FILES = [
   'docs/guides/template-acceptance.md',
   'README.md',
   'AGENTS.md',
+  'scripts/init-template.test.ts',
 ] as const;
 
 /** i18n 资源：删除 notes 命名空间与侧栏入口 */

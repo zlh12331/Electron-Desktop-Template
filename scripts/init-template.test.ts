@@ -69,6 +69,7 @@ function copyToTemp(): string {
     'packages/tsconfig',
     'tsconfig.json',
     'scripts/test-boundary-exempt.json',
+    'scripts/init-template.test.ts',
     'pnpm-lock.yaml',
     'CONTRIBUTING.md',
     'SECURITY.md',
