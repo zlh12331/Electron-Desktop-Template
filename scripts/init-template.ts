@@ -15,7 +15,7 @@ import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'no
 import { extname, join, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { renderBrandModule } from './generate-brand.mjs';
-import { formatWorkspace } from './lib/format-workspace';
+import { formatWorkspaceOrWarn } from './lib/format-workspace';
 import { removeNotesExample } from './lib/notes-example';
 import { type ParsedArgs, parseArgs, rejectPositionals, requireValue } from './scaffold/lib/args';
 
@@ -890,9 +890,7 @@ function main(): void {
   console.log('');
 
   const results = runInitTemplate(input, dryRun, REPO_ROOT, { keepSite, keepExample });
-  if (!dryRun && !formatWorkspace(REPO_ROOT)) {
-    console.log('  ⚠ 未找到 Biome，安装依赖后运行 pnpm lint:fix');
-  }
+  formatWorkspaceOrWarn(REPO_ROOT, dryRun);
   const changed = results.filter((r) => r.changed);
   for (const r of changed) {
     console.log(`  ${dryRun ? '将改动' : '已改动'}  ${r.file}`);

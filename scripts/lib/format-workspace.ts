@@ -29,3 +29,16 @@ export function formatWorkspace(root: string): boolean {
   });
   return result.status === 0;
 }
+
+/**
+ * dry-run 不落盘；无 Biome 时提示手动格式化（不阻断初始化）
+ *
+ * @param root 仓库根
+ * @param dryRun true = 跳过格式化
+ */
+export function formatWorkspaceOrWarn(root: string, dryRun: boolean): void {
+  if (dryRun || formatWorkspace(root)) {
+    return;
+  }
+  console.log('  ⚠ 未找到 Biome，安装依赖后运行 pnpm lint:fix');
+}
