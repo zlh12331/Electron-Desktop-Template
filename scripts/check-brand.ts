@@ -224,10 +224,33 @@ function checkRuntimeCoords(issues: BrandIssue[], brand: BrandSource): void {
   }
 }
 
-/** 需要扫描的运行时文件（workflow + 非测试脚本；测试里的固定桩不受品牌真源约束） */
-function collectRuntimeFiles(): string[] {
+/** 递归收集脚本目录下的非测试 TS 文件（相对仓库根，统一使用 /） */
+function collectScriptFiles(root: string, relativeDir: string): string[] {
+  const abs = join(root, relativeDir);
+  if (!existsSync(abs)) {
+    return [];
+  }
   const files: string[] = [];
-  const workflows = join(ROOT, '.github', 'workflows');
+  for (const entry of readdirSync(abs, { withFileTypes: true })) {
+    const relativePath = `${relativeDir}/${entry.name}`;
+    if (entry.isDirectory()) {
+      files.push(...collectScriptFiles(root, relativePath));
+    } else if (/\.ts$/.test(entry.name) && !/\.test\.ts$/.test(entry.name)) {
+      files.push(relativePath);
+    }
+  }
+  return files;
+}
+
+/**
+ * 需要扫描的运行时文件（workflow + 非测试脚本；测试里的固定桩不受品牌真源约束）
+ *
+ * @param root 仓库根（测试可注入临时目录）
+ * @returns 仓库相对路径列表
+ */
+export function collectRuntimeFiles(root: string = ROOT): string[] {
+  const files: string[] = [];
+  const workflows = join(root, '.github', 'workflows');
   if (existsSync(workflows)) {
     for (const name of readdirSync(workflows)) {
       if (/\.ya?ml$/.test(name)) {
@@ -235,14 +258,7 @@ function collectRuntimeFiles(): string[] {
       }
     }
   }
-  const scripts = join(ROOT, 'scripts');
-  if (existsSync(scripts)) {
-    for (const name of readdirSync(scripts)) {
-      if (/\.ts$/.test(name) && !/\.test\.ts$/.test(name)) {
-        files.push(`scripts/${name}`);
-      }
-    }
-  }
+  files.push(...collectScriptFiles(root, 'scripts'));
   return files;
 }
 
