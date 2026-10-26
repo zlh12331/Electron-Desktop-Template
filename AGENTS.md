@@ -63,7 +63,7 @@ pnpm tokens:build           # Style Dictionary 生成 tokens.css
 
 `check:static` 覆盖：tokens + i18n + comments（过期注释/失效文件引用）+ tsdoc（export 符号 TSDoc 棘轮）+ file-size（净行 ≤600）+ functions（形参 ≤4 / 函数体 ≤200）+ complexity（认知复杂度 ≤15）+ coverage-floors + observability-config（变量注册表/文档/CI 一致）+ observability-slo（SLO 定义与指标名/手册一致）+ docs + docs-scripts + docs-contracts（IPC 计数/门禁数/ErrorCode/路径引用）+ test-boundary + csp-hash + css-vars + animations + ui-consistency + brand，全部棘轮只收紧。
 
-上列「形状门禁」的扫描范围（如实）：`check:file-size` = `src/**` + `packages/*/src/**`；`check:complexity` / `check:tsdoc` = `src/**`；`check:functions`（形参 / 函数体）= `src/main` + `src/renderer`。`scripts/`、`e2e/`、`tests/` 不在其中——门禁脚本自身靠 `pnpm test:scripts`（规则核单测）看住正确性，E2E 靠 Playwright 套件。
+上列「形状门禁」的扫描范围（如实）：`check:file-size` = `src/**` + `packages/*/src/**` + `scripts/**`；`check:complexity` = `src/**` + `scripts/**`；`check:functions`（形参 / 函数体）= `src/main` + `src/renderer` + `scripts/**`；`check:tsdoc` = `src/**`。测试文件（`*.test.*` / `__tests__`）不计入上述门禁；`e2e/`、`tests/` 不在形状门禁内——门禁脚本自身靠 `pnpm test:scripts`（规则核单测）看住正确性，E2E 靠 Playwright 套件。`scripts/` 首次纳入时的存量超限（如 `init-template.ts` 净行、19 个复杂度文件）已登记在 `scripts/*.baseline.json`，棘轮只允许收紧。
 
 本地全量验证：`pnpm verify:local`（质量层）/ `pnpm verify:local:full`（追加构建与打包）。
 

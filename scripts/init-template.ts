@@ -682,6 +682,11 @@ function rewriteEmbeddedSvgBrand(
   );
 }
 
+interface SiteRewriteContext {
+  readonly previous: PreviousBrand;
+  readonly previousVersion: string;
+}
+
 /**
  * 保留模板营销站时改写品牌位点
  *
@@ -690,8 +695,7 @@ function rewriteEmbeddedSvgBrand(
 function writeSite(
   root: string,
   input: InitInput,
-  previous: PreviousBrand,
-  previousVersion: string,
+  context: SiteRewriteContext,
   dryRun: boolean,
 ): RewriteResult {
   return rewriteText(
@@ -700,13 +704,13 @@ function writeSite(
     (text) =>
       rewriteEmbeddedSvgBrand(
         text
-          .replaceAll(previous.productName, input.productName)
+          .replaceAll(context.previous.productName, input.productName)
           .replaceAll(
-            `github.com/${previous.owner}/${previous.repo}`,
+            `github.com/${context.previous.owner}/${context.previous.repo}`,
             `github.com/${input.owner}/${input.repo}`,
           )
-          .replaceAll(`v${previousVersion}`, 'v0.0.0'),
-        previous.productName,
+          .replaceAll(`v${context.previousVersion}`, 'v0.0.0'),
+        context.previous.productName,
         input.productName,
       ),
     dryRun,
@@ -802,7 +806,7 @@ export function runInitTemplate(
     writeCodeowners(root, input, previous, dryRun),
     ...writeRepoUrls(root, input, previous, dryRun),
     ...(options.keepSite === true
-      ? [writeSite(root, input, previous, previousVersion, dryRun)]
+      ? [writeSite(root, input, { previous, previousVersion }, dryRun)]
       : removeTemplateSite(root, dryRun)),
     ...resetReleaseState(root, dryRun),
   ];

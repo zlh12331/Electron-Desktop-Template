@@ -1,7 +1,83 @@
 {
-  "src/main/infra/storage/db.ts": {
+  "scripts/acceptance-derived.ts": {
+    "count": 1,
+    "max": 26
+  },
+  "scripts/check-bundle.ts": {
+    "count": 1,
+    "max": 16
+  },
+  "scripts/check-docs-scripts.ts": {
+    "count": 1,
+    "max": 33
+  },
+  "scripts/check-functions.ts": {
+    "count": 2,
+    "max": 22
+  },
+  "scripts/check-i18n.ts": {
+    "count": 2,
+    "max": 39
+  },
+  "scripts/check-release-anchor.ts": {
+    "count": 2,
+    "max": 88
+  },
+  "scripts/check-test-boundary.ts": {
+    "count": 1,
+    "max": 26
+  },
+  "scripts/lib/animations.ts": {
+    "count": 1,
+    "max": 17
+  },
+  "scripts/lib/comments-rules.ts": {
+    "count": 4,
+    "max": 23
+  },
+  "scripts/lib/critical-coverage.ts": {
+    "count": 1,
+    "max": 20
+  },
+  "scripts/lib/file-metrics.ts": {
+    "count": 1,
+    "max": 17
+  },
+  "scripts/lib/function-metrics.ts": {
+    "count": 1,
+    "max": 25
+  },
+  "scripts/lib/i18n-hardcoded-scan.ts": {
+    "count": 2,
+    "max": 25
+  },
+  "scripts/lib/native-arch.ts": {
+    "count": 1,
+    "max": 27
+  },
+  "scripts/lib/ratchet.ts": {
+    "count": 1,
+    "max": 17
+  },
+  "scripts/lib/token-rules.ts": {
+    "count": 2,
+    "max": 46
+  },
+  "scripts/lib/tsdoc-rules.ts": {
+    "count": 1,
+    "max": 41
+  },
+  "scripts/lib/ui-consistency-rules.ts": {
+    "count": 2,
+    "max": 53
+  },
+  "scripts/scaffold/lib/args.ts": {
     "count": 1,
     "max": 19
+  },
+  "src/main/infra/storage/db.ts": {
+    "count": 1,
+    "max": 16
   },
   "src/main/infra/telemetry/memory-monitor.ts": {
     "count": 1,

@@ -1,1 +1,5 @@
-{}
+{
+  "scripts/init-template.ts": {
+    "net": 735
+  }
+}

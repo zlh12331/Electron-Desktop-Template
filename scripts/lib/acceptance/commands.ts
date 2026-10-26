@@ -72,24 +72,30 @@ export function cleanEnv(
   return next;
 }
 
+/** 一次命令调用目标 */
+export interface CommandTarget {
+  /** 可执行文件路径 */
+  readonly command: string;
+  /** 参数数组 */
+  readonly args: readonly string[];
+  /** 工作目录 */
+  readonly cwd: string;
+}
+
 /**
  * 执行一次命令；非零退出码/启动失败/超时均抛错
  *
  * @param label 日志名称
- * @param command 可执行文件
- * @param args 参数数组
- * @param cwd 工作目录
+ * @param target 可执行文件、参数与工作目录
  * @param options 执行选项
  */
 export function runCommand(
   label: string,
-  command: string,
-  args: readonly string[],
-  cwd: string,
+  target: CommandTarget,
   options: RunOptions = {},
 ): CommandOutput {
-  const result = spawnSync(command, [...args], {
-    cwd,
+  const result = spawnSync(target.command, [...target.args], {
+    cwd: target.cwd,
     env: options.env ?? process.env,
     encoding: 'utf8',
     stdio: options.capture === true ? ['ignore', 'pipe', 'pipe'] : 'inherit',
@@ -119,7 +125,7 @@ export function runPnpm(
   cwd: string,
   options: RunOptions = {},
 ): CommandOutput {
-  return runCommand(`pnpm ${args[0] ?? ''}`, resolvePnpmCommand(), args, cwd, options);
+  return runCommand(`pnpm ${args[0] ?? ''}`, { command: resolvePnpmCommand(), args, cwd }, options);
 }
 
 /**

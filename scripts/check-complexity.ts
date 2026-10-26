@@ -8,6 +8,7 @@
 // 必须唯一，直接用内置规则 lint/complexity/noExcessiveCognitiveComplexity
 // 数据通路：check:complexity 先产出 Biome JSON 报告，本脚本从标准输入读取
 // （脚本内不起子进程；管道以末命令退出码为准，跨平台成立）
+// 范围：src/** + scripts/**（测试文件不计；scripts 于 2026-10-26 纳入，存量见 baseline）
 // 运行：pnpm check:complexity [--update-baseline]
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';

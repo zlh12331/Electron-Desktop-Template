@@ -46,55 +46,48 @@ function readIfExists(rel: string): string | null {
   }
 }
 
-/** 断言文本包含期望值 */
+/**
+ * 为一份文件内容创建断言函数
+ *
+ * @param issues 问题收集器
+ * @param file 展示用文件路径
+ * @param text 文件内容（null = 不存在）
+ * @returns (needle, label) => void
+ */
 function expectContains(
   issues: BrandIssue[],
   file: string,
   text: string | null,
-  needle: string,
-  label: string,
-): void {
-  if (text === null) {
-    issues.push({ file, detail: `文件不存在，无法校验 ${label}` });
-    return;
-  }
-  if (!text.includes(needle)) {
-    issues.push({ file, detail: `${label} 应为 "${needle}"，实际未找到（真源 ${BRAND_SOURCE}）` });
-  }
+): (needle: string, label: string) => void {
+  return (needle, label): void => {
+    if (text === null) {
+      issues.push({ file, detail: `文件不存在，无法校验 ${label}` });
+      return;
+    }
+    if (!text.includes(needle)) {
+      issues.push({
+        file,
+        detail: `${label} 应为 "${needle}"，实际未找到（真源 ${BRAND_SOURCE}）`,
+      });
+    }
+  };
 }
 
 /** 校验 electron-builder.yml 的 appId / productName / 协议 / 可执行名 / artifactName 前缀 */
 function checkElectronBuilder(issues: BrandIssue[], brand: BrandSource): void {
   const file = 'electron-builder.yml';
   const text = readIfExists(file);
-  expectContains(issues, file, text, `appId: ${brand.appId}`, 'appId');
-  expectContains(issues, file, text, `productName: ${brand.productName}`, 'productName');
-  expectContains(issues, file, text, `executableName: ${brand.executableName}`, 'executableName');
-  expectContains(issues, file, text, `name: ${brand.protocol}`, 'protocols.name');
-  expectContains(issues, file, text, `schemes:\n        - ${brand.protocol}`, 'protocols.schemes');
-  expectContains(issues, file, text, `synopsis: ${brand.productName}`, 'linux.synopsis');
-  expectContains(issues, file, text, `description: ${brand.description}`, 'linux.description');
-  expectContains(
-    issues,
-    file,
-    text,
-    `artifactName: ${brand.artifactBaseName}-Windows-`,
-    'nsis.artifactName',
-  );
-  expectContains(
-    issues,
-    file,
-    text,
-    `artifactName: ${brand.artifactBaseName}-macOS-`,
-    'mac.artifactName',
-  );
-  expectContains(
-    issues,
-    file,
-    text,
-    `artifactName: ${brand.artifactBaseName}-Linux-`,
-    'linux.artifactName',
-  );
+  const expectInFile = expectContains(issues, file, text);
+  expectInFile(`appId: ${brand.appId}`, 'appId');
+  expectInFile(`productName: ${brand.productName}`, 'productName');
+  expectInFile(`executableName: ${brand.executableName}`, 'executableName');
+  expectInFile(`name: ${brand.protocol}`, 'protocols.name');
+  expectInFile(`schemes:\n        - ${brand.protocol}`, 'protocols.schemes');
+  expectInFile(`synopsis: ${brand.productName}`, 'linux.synopsis');
+  expectInFile(`description: ${brand.description}`, 'linux.description');
+  expectInFile(`artifactName: ${brand.artifactBaseName}-Windows-`, 'nsis.artifactName');
+  expectInFile(`artifactName: ${brand.artifactBaseName}-macOS-`, 'mac.artifactName');
+  expectInFile(`artifactName: ${brand.artifactBaseName}-Linux-`, 'linux.artifactName');
 }
 
 /** 校验 package.json 的 name / description / author / repository */
@@ -139,29 +132,26 @@ function checkPackageJson(issues: BrandIssue[], brand: BrandSource): void {
 function checkIndexHtml(issues: BrandIssue[], brand: BrandSource): void {
   const file = 'src/renderer/index.html';
   const text = readIfExists(file);
-  expectContains(issues, file, text, `<title>${brand.productName}</title>`, 'title');
-  expectContains(
-    issues,
-    file,
-    text,
-    `localStorage.getItem('${brand.storagePrefix}:theme')`,
-    '首帧主题存储键',
-  );
+  const expectInFile = expectContains(issues, file, text);
+  expectInFile(`<title>${brand.productName}</title>`, 'title');
+  expectInFile(`localStorage.getItem('${brand.storagePrefix}:theme')`, '首帧主题存储键');
 }
 
 /** 校验 dev-app-update.yml 的仓库坐标 */
 function checkDevAppUpdate(issues: BrandIssue[], brand: BrandSource): void {
   const file = 'dev-app-update.yml';
   const text = readIfExists(file);
-  expectContains(issues, file, text, `owner: ${brand.repo.owner}`, 'repo.owner');
-  expectContains(issues, file, text, `repo: ${brand.repo.name}`, 'repo.name');
+  const expectInFile = expectContains(issues, file, text);
+  expectInFile(`owner: ${brand.repo.owner}`, 'repo.owner');
+  expectInFile(`repo: ${brand.repo.name}`, 'repo.name');
 }
 
 /** 校验 NSIS 安装宏里的 Windows 协议（electron-builder 的 protocols 仅 macOS） */
 function checkInstallerProtocol(issues: BrandIssue[], brand: BrandSource): void {
   const file = 'resources/installer.nsh';
   const text = readIfExists(file);
-  expectContains(issues, file, text, `!define APP_PROTOCOL "${brand.protocol}"`, 'NSIS 协议');
+  const expectInFile = expectContains(issues, file, text);
+  expectInFile(`!define APP_PROTOCOL "${brand.protocol}"`, 'NSIS 协议');
 }
 
 /**
@@ -173,24 +163,13 @@ function checkInstallerProtocol(issues: BrandIssue[], brand: BrandSource): void 
 function checkSite(issues: BrandIssue[], brand: BrandSource): void {
   const file = 'site/electron-desktop-template-website.html';
   const text = readIfExists(file);
+  const expectInFile = expectContains(issues, file, text);
   if (text === null) {
     return;
   }
-  expectContains(issues, file, text, `<title>${brand.productName}`, 'site title');
-  expectContains(
-    issues,
-    file,
-    text,
-    `<span class="brand-name">${brand.productName}</span>`,
-    'site brand-name',
-  );
-  expectContains(
-    issues,
-    file,
-    text,
-    `https://github.com/${brand.repo.owner}/${brand.repo.name}`,
-    'site repo URL',
-  );
+  expectInFile(`<title>${brand.productName}`, 'site title');
+  expectInFile(`<span class="brand-name">${brand.productName}</span>`, 'site brand-name');
+  expectInFile(`https://github.com/${brand.repo.owner}/${brand.repo.name}`, 'site repo URL');
 }
 
 /**
