@@ -30,6 +30,8 @@ import { parseArgs } from './scaffold/lib/args';
 const REPO_ROOT = join(import.meta.dirname, '..');
 const SITE_FILE = 'site/electron-desktop-template-website.html';
 const STATIC_WORKFLOW = '.github/workflows/static.yml';
+/** 派生项目默认已删除模板营销站：站点专属断言在派生副本中跳过 */
+const HAS_SITE = existsSync(join(REPO_ROOT, SITE_FILE));
 
 /** 复制单个文件/目录到临时副本（保留相对路径） */
 function copyPath(dir: string, rel: string): void {
@@ -240,10 +242,10 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
     expect(results).toContainEqual({ file: 'src/main/security/csp.ts', changed: true });
     expect(results).toContainEqual({ file: 'resources/installer.nsh', changed: true });
     expect(files.map((file) => readFileSync(join(dir, file), 'utf8'))).toEqual(before);
-    expect(existsSync(join(dir, SITE_FILE))).toBe(true);
+    expect(existsSync(join(dir, SITE_FILE))).toBe(HAS_SITE);
   });
 
-  it('默认移除模板营销站与 Pages workflow', () => {
+  it.skipIf(!HAS_SITE)('默认移除模板营销站与 Pages workflow', () => {
     const results = runIn(dir);
 
     expect(results).toContainEqual({ file: 'site', changed: true });
@@ -252,7 +254,7 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
     expect(existsSync(join(dir, STATIC_WORKFLOW))).toBe(false);
   });
 
-  it('默认移除只删模板站点文件：目录内有自建内容时保留 Pages workflow', () => {
+  it.skipIf(!HAS_SITE)('默认移除只删模板站点文件：目录内有自建内容时保留 Pages workflow', () => {
     writeFileSync(join(dir, 'site', 'custom.html'), 'custom', 'utf8');
     const results = runIn(dir);
 
@@ -262,7 +264,7 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
     expect(results).not.toContainEqual({ file: STATIC_WORKFLOW, changed: true });
   });
 
-  it('--keep-site：保留站点并改写品牌、仓库与版本', () => {
+  it.skipIf(!HAS_SITE)('--keep-site：保留站点并改写品牌、仓库与版本', () => {
     const before = readFileSync(join(dir, SITE_FILE), 'utf8');
     const results = runIn(dir, false, { keepSite: true });
     const site = readFileSync(join(dir, SITE_FILE), 'utf8');
@@ -278,7 +280,7 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
     expect(results).toContainEqual({ file: SITE_FILE, changed: true });
   });
 
-  it('--keep-site：内嵌 SVG favicon 的产品名也被改写', () => {
+  it.skipIf(!HAS_SITE)('--keep-site：内嵌 SVG favicon 的产品名也被改写', () => {
     runIn(dir, false, { keepSite: true });
     const site = readFileSync(join(dir, SITE_FILE), 'utf8');
     const encoded = /href="data:image\/svg\+xml;base64,([^"]+)"/.exec(site)?.[1];
