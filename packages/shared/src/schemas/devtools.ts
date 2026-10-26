@@ -31,7 +31,7 @@ export type OpenDevToolsReq = z.infer<typeof OpenDevToolsReqSchema>;
 /**
  * devtools:open 响应 payload
  *
- * mode 回传实际生效值，供渲染层反馈状态文案（见 src/renderer/lib/devtools-actions.ts）。
+ * mode 回传实际生效值，供渲染层反馈状态文案。
  */
 export interface OpenDevToolsRes {
   /** 是否成功打开 DevTools；唯一失败路径是 sender 窗口已不存在（handler 未对「已打开」特殊处理，重复调用照常返回 true，故 ok=true 不代表新开了窗口） */
