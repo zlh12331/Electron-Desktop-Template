@@ -8,6 +8,13 @@
       "when": 1792495096265,
       "tag": "0000_fat_absorbing_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793013262035,
+      "tag": "0001_lazy_mad_thinker",
+      "breakpoints": true
     }
   ]
 }

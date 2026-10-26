@@ -9,6 +9,9 @@ import { devtoolsDomain } from './devtools';
 import { dialogDomain } from './dialog';
 import { invalidationDomain } from './invalidation';
 import { logsDomain } from './logs';
+// notes-example:start
+import { notesDomain } from './notes';
+// notes-example:end
 import { proxyDomain } from './proxy';
 import { secretsDomain } from './secrets';
 import { settingsDomain } from './settings';
@@ -26,6 +29,9 @@ export const IPC_DOMAINS = {
   system: systemDomain,
   logs: logsDomain,
   telemetry: telemetryDomain,
+  // notes-example:start
+  notes: notesDomain,
+  // notes-example:end
   devtools: devtoolsDomain,
   backup: backupDomain,
   update: updateDomain,

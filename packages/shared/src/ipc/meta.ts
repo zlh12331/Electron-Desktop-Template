@@ -132,6 +132,18 @@ export const IPC_META = {
     subscribeDomains: event('invalidation:event:domains'),
   },
 
+  // notes-example:start
+  notes: {
+    list: request('notes:list'),
+    get: request('notes:get'),
+    create: request('notes:create'),
+    update: request('notes:update'),
+    delete: request('notes:delete'),
+    importFile: request('notes:importFile'),
+    exportFile: request('notes:exportFile'),
+  },
+  // notes-example:end
+
   update: {
     check: request('update:check'),
     install: request('update:install'),

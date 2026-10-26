@@ -39,4 +39,8 @@ export const INVALIDATION_DOMAINS = {
   backups: 'backups',
   /** 更新域：更新状态变化后刷新缓存信息 */
   update: 'update',
+  // notes-example:start
+  /** Local Notes 参考切片：写路径变更后刷新笔记列表/详情 */
+  notes: 'notes',
+  // notes-example:end
 } as const;
