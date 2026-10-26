@@ -122,8 +122,8 @@ describe('wrap', () => {
     }
     failure = new Error('private raw error');
     await handler(allowedEvent, undefined);
-    expect(Object.values(ErrorCode)).toHaveLength(14);
-    await expectMetricClasses({ none: 1, validation: 2, business: 4, system: 9 });
+    expect(Object.values(ErrorCode)).toHaveLength(15);
+    await expectMetricClasses({ none: 1, validation: 2, business: 4, system: 10 });
   });
 
   it('sender、入参校验和响应契约失败各记一次对应分类', async () => {
