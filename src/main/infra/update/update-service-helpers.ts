@@ -1,5 +1,6 @@
 import type { UpdateErrorKind } from '@code-agent/shared/main';
 import { logger } from '../../utils/logger';
+import type { BaselinePruneResult } from './update-cache';
 
 /** electron-updater 日志接口的最小结构，便于测试注入。 */
 export interface UpdaterLoggerLike {
@@ -7,6 +8,31 @@ export interface UpdaterLoggerLike {
   warn(message?: unknown, ...params: unknown[]): void;
   error(message?: unknown, ...params: unknown[]): void;
   debug?(message?: unknown, ...params: unknown[]): void;
+}
+
+/** 差分基线一致性检查结果（skipped=无缓存目录，error=解析/修剪异常） */
+export type BaselineEnsureResult = 'skipped' | BaselinePruneResult | 'error';
+
+/**
+ * 执行差分基线一致性检查（缓存目录解析与修剪均可注入，便于单测异常分支）
+ *
+ * @param resolveCacheDir 解析 updater 缓存目录；null 表示当前环境无从检查
+ * @param prune 对缓存目录执行陈旧 blockmap 修剪
+ * @returns skipped / pruned / consistent / absent / error
+ */
+export async function ensureBaselineConsistency(
+  resolveCacheDir: () => Promise<string | null>,
+  prune: (cacheDir: string) => Promise<BaselinePruneResult>,
+): Promise<BaselineEnsureResult> {
+  try {
+    const cacheDir = await resolveCacheDir();
+    if (cacheDir === null) {
+      return 'skipped';
+    }
+    return await prune(cacheDir);
+  } catch {
+    return 'error';
+  }
 }
 
 /** 将更新错误归类为稳定的低基数原因。 */

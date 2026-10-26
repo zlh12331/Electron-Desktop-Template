@@ -29,6 +29,7 @@ import { pruneStaleDifferentialBaseline, resolveUpdaterCacheDir } from './update
 import {
   classifyUpdateError,
   createUpdaterLogger,
+  ensureBaselineConsistency,
   toReleaseNotes,
   type UpdaterLoggerLike,
 } from './update-service-helpers';
@@ -424,19 +425,17 @@ export class UpdateService implements IUpdateService {
   }
 
   private async ensureDifferentialBaseline(): Promise<void> {
-    try {
-      const cacheDir = await this.resolveUpdateCacheDir();
-      if (cacheDir === null) {
-        return;
-      }
-      if ((await pruneStaleDifferentialBaseline(cacheDir)) === 'pruned') {
-        logger.info(
-          { scope: 'auto-updater' },
-          '基准块图与基准安装包版本不一致，已剔除陈旧块图（改从 release 取匹配基准，避免差分失败回退全量）',
-        );
-      }
-    } catch (err) {
-      logger.warn({ scope: 'auto-updater', error: String(err) }, '差分基线一致性检查失败，跳过');
+    const result = await ensureBaselineConsistency(
+      () => this.resolveUpdateCacheDir(),
+      pruneStaleDifferentialBaseline,
+    );
+    if (result === 'pruned') {
+      logger.info(
+        { scope: 'auto-updater' },
+        '基准块图与基准安装包版本不一致，已剔除陈旧块图（改从 release 取匹配基准，避免差分失败回退全量）',
+      );
+    } else if (result === 'error') {
+      logger.warn({ scope: 'auto-updater' }, '差分基线一致性检查失败，跳过');
     }
   }
 
