@@ -279,14 +279,6 @@
     "proxyAuthSaved": "Proxy credentials saved (username: {{username}}); enter a URL with credentials to replace them",
     "proxyAuthClear": "Clear credentials"
   },
-  "home": {
-    "justNow": "Just now",
-    "minutesAgo": "{{count}} min ago",
-    "hoursAgo": "{{count}} hr ago",
-    "daysAgo": "{{count}} day(s) ago",
-    "minutesAgo_one": "{{count}} min ago",
-    "minutesAgo_other": "{{count}} min ago"
-  },
   "shortcutHelp": {
     "title": "Keyboard Shortcuts",
     "customize": "Customize shortcuts",

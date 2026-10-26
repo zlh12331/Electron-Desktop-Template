@@ -71,7 +71,7 @@
 | `motion/` | transitions / variants 集中定义 |
 | `theme-init.ts` | 首帧主题（与 index.html 内联脚本同源 key） |
 | `settings-bootstrap.ts` | 启动快照拉取 + legacy 迁移 |
-| `zoom.ts` / `format-bytes` / `format-time` / `format-intl` / `language-endonyms` / `shortcut-conflicts` / `utils` / `error-report` / `error-actions` / `app-actions` / `dialog-actions` / `devtools-actions` | 纯函数与动作封装 |
+| `zoom.ts` / `format-bytes` / `format-intl` / `language-endonyms` / `shortcut-conflicts` / `utils` / `error-report` / `error-actions` / `app-actions` / `dialog-actions` | 纯函数与动作封装 |
 
 ## 8. Providers（`providers/`）
 
