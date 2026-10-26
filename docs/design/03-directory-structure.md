@@ -39,7 +39,7 @@
 源码树内不产生成物——构建、覆盖率与缓存的落位都由工程配置显式指定：
 
 - **构建产物**：`out/`（electron-vite）、`release/`（electron-builder 安装包与 `latest*.yml`）；`pnpm build` / `pnpm build:win:x64` 再生。
-- **覆盖率产物**：`coverage/<层>/`（`main` / `renderer` / `shared` 三层，含 lcov / html / json-summary，由各层 `reportsDirectory` 指定）；`pnpm test:coverage` 再生。门禁按目录名 `coverage` 跳过，落位可整体迁移而不动扫描范围。
+- **覆盖率产物**：`coverage/<层>/`（`main` / `preload` / `renderer` / `shared` 四层，含 lcov / html / json-summary，由各层 `reportsDirectory` 指定）；`pnpm test:coverage` 再生。门禁按目录名 `coverage` 跳过，落位可整体迁移而不动扫描范围。
 - **构建与测试缓存**：`node_modules/.cache/tsbuildinfo/`（tsc 增量编译信息，每个工程一个文件）与 `node_modules/.vite/<层>/`（vitest 依赖优化缓存，按层隔离）；分别由 tsconfig 的 `tsBuildInfoFile` 与 vitest 的 `cacheDir` 显式指定，不按 root 默认解析——否则缓存会递归建进各层源码目录。
 - **运行时数据**：`.electron-user-data/`（dev）、`.e2e-user-data*/`（E2E 隔离实例）；`pnpm dev` / `pnpm test:e2e:electron` 再生。
 

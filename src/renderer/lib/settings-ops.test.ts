@@ -127,6 +127,16 @@ describe('settings-ops · 有桥路径', () => {
     api.proxy.test.mockResolvedValue(ok({ ok: true, kind: 'ok' }));
 
     await expect(testProxyConnection()).resolves.toEqual({ ok: true, kind: 'ok' });
+    expect(api.proxy.test).toHaveBeenCalledWith({});
+  });
+
+  it('testProxyConnection：传入自定义目标时透传 targetUrl', async () => {
+    api.proxy.test.mockResolvedValue(ok({ ok: true, kind: 'ok' }));
+
+    await testProxyConnection('https://example.com/generate_204');
+    expect(api.proxy.test).toHaveBeenCalledWith({
+      targetUrl: 'https://example.com/generate_204',
+    });
   });
 });
 
@@ -135,12 +145,12 @@ describe('settings-ops · 无桥兜底（浏览器模式 / preload 缺失）', (
     installApi(undefined);
   });
 
-  it('读类操作：抛 [NO_BRIDGE]，调用方可静默处理', async () => {
-    await expect(getUpdateCacheInfo()).rejects.toThrow('[NO_BRIDGE]');
-    await expect(clearUpdateCache()).rejects.toThrow('[NO_BRIDGE]');
-    await expect(resetAllSettings()).rejects.toThrow('[NO_BRIDGE]');
-    await expect(openDataDirChecked()).rejects.toThrow('[NO_BRIDGE]');
-    await expect(getLoginItemSettings()).rejects.toThrow('[NO_BRIDGE]');
+  it('读类操作：抛 [BRIDGE_UNAVAILABLE]，调用方可静默处理', async () => {
+    await expect(getUpdateCacheInfo()).rejects.toThrow('[BRIDGE_UNAVAILABLE]');
+    await expect(clearUpdateCache()).rejects.toThrow('[BRIDGE_UNAVAILABLE]');
+    await expect(resetAllSettings()).rejects.toThrow('[BRIDGE_UNAVAILABLE]');
+    await expect(openDataDirChecked()).rejects.toThrow('[BRIDGE_UNAVAILABLE]');
+    await expect(getLoginItemSettings()).rejects.toThrow('[BRIDGE_UNAVAILABLE]');
   });
 
   it('导出设置：视为用户取消（saved:false），不误报失败', async () => {

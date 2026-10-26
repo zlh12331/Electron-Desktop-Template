@@ -1,7 +1,7 @@
 import { SETTING_KEYS, type SettingKey } from '@code-agent/shared/renderer';
 import { reportError } from '@/lib/error-report';
 import { unwrap } from '@/lib/ipc';
-import { SETTINGS_STORAGE_KEY } from '@/lib/theme-init';
+import { DEFAULT_THEME, SETTINGS_STORAGE_KEY } from '@/lib/theme-init';
 import { migrateShortcuts, type Theme } from '@/stores/persistent/settings-store';
 
 /** 旧版 localStorage 持久化结构（zustand persist 的 { state, version } 形状） */
@@ -59,7 +59,7 @@ export async function bootstrapSettings(): Promise<{
       if (Object.keys(settings).length > 0) {
         const migrated = migrateShortcuts(settings);
         return {
-          theme: (migrated['theme'] as Theme | undefined) ?? 'dark',
+          theme: (migrated['theme'] as Theme | undefined) ?? DEFAULT_THEME,
           snapshot: migrated,
         };
       }
@@ -70,11 +70,11 @@ export async function bootstrapSettings(): Promise<{
           localStorage.removeItem(SETTINGS_STORAGE_KEY);
         }
         return {
-          theme: (migrated['theme'] as Theme | undefined) ?? 'dark',
+          theme: (migrated['theme'] as Theme | undefined) ?? DEFAULT_THEME,
           snapshot: migrated,
         };
       }
-      return { theme: 'dark', snapshot: {} };
+      return { theme: DEFAULT_THEME, snapshot: {} };
     } catch (error) {
       reportError(error, { tags: { scope: 'settings-bootstrap' } });
     }
@@ -87,5 +87,5 @@ export async function bootstrapSettings(): Promise<{
       snapshot: migrated,
     };
   }
-  return { theme: 'dark', snapshot: {} };
+  return { theme: DEFAULT_THEME, snapshot: {} };
 }

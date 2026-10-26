@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { unwrap } from './ipc';
+import { bridgeUnavailableError, unwrap } from './ipc';
 
 describe('unwrap', () => {
   it('成功响应：返回 data', () => {
@@ -25,5 +25,11 @@ describe('unwrap', () => {
 
   it('data 为 undefined（协议异常）：抛 INVALID_RESPONSE', () => {
     expect(() => unwrap({ data: undefined } as never)).toThrow('[INVALID_RESPONSE]');
+  });
+});
+
+describe('bridgeUnavailableError', () => {
+  it('抛带 BRIDGE_UNAVAILABLE 前缀的错误，便于统一本地化', () => {
+    expect(bridgeUnavailableError().message).toContain('[BRIDGE_UNAVAILABLE]');
   });
 });

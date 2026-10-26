@@ -1,11 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockFromWebContents } = vi.hoisted(() => ({
+const { mockFromWebContents, packagedState } = vi.hoisted(() => ({
   mockFromWebContents: vi.fn(),
+  packagedState: { value: false },
 }));
 
 vi.mock('electron', () => ({
   ['BrowserWindow']: { fromWebContents: mockFromWebContents },
+  app: {
+    get isPackaged() {
+      return packagedState.value;
+    },
+  },
 }));
 
 import { devtoolsHandlers } from './devtools.handler';
@@ -19,6 +25,7 @@ function createCtx(win: { webContents: { openDevTools: ReturnType<typeof vi.fn> 
 describe('devtools.handler', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    packagedState.value = false;
   });
 
   it('open（默认 mode）：打开 detach 模式 DevTools', async () => {
@@ -41,5 +48,14 @@ describe('devtools.handler', () => {
     const ctx = createCtx(null);
     const result = await devtoolsHandlers.open({ mode: undefined }, ctx);
     expect(result).toEqual({ ok: false, mode: 'detach' });
+  });
+
+  it('打包态拒绝打开 DevTools（与生产菜单一致）', async () => {
+    packagedState.value = true;
+    const openDevTools = vi.fn();
+    const ctx = createCtx({ webContents: { openDevTools } });
+    const result = await devtoolsHandlers.open({ mode: 'right' }, ctx);
+    expect(openDevTools).not.toHaveBeenCalled();
+    expect(result).toEqual({ ok: false, mode: 'right' });
   });
 });

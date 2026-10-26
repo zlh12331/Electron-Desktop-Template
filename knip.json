@@ -7,9 +7,7 @@
         "src/renderer/dev/mock-api.ts",
         "src/renderer/test/setup.ts",
         "src/renderer/test/setup-lang.ts",
-        "src/**/*.test.{ts,tsx}",
-        "tests/**/*.test.{ts,tsx}",
-        "**/vitest.config.ts",
+        "src/**/vitest.config.ts",
         "scripts/**/*.ts",
         "e2e/**/*.ts",
         "*.config.{js,ts}",
@@ -31,6 +29,10 @@
   "ignoreBinaries": ["gitleaks", "reg.exe"],
   "ignoreDependencies": ["@electron/rebuild", "@sentry/cli", "tslib"],
   "ignoreIssues": {
-    "src/renderer/components/ui/**": ["exports"]
+    "src/renderer/components/ui/**": ["exports"],
+    "src/renderer/lib/dialog-actions.ts": ["files"],
+    "src/renderer/components/common/EmptyState.tsx": ["files"],
+    "src/renderer/components/common/MotionReveal.tsx": ["files"],
+    "src/main/infra/invalidation/invalidation.ts": ["files"]
   }
 }

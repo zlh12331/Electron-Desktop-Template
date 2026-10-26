@@ -12,6 +12,7 @@ import { bindStartupWindow, recordStartupReady } from './infra/telemetry/startup
 import { isCloseConfirmed, isQuitting } from './quit-state';
 import { isAllowedRendererUrl, isHttpUrl, rendererEntryFileUrl } from './security/renderer-url';
 import { notifyMinimizedToTray } from './tray';
+import { getDevRendererUrl, isDevTestEnvEnabled } from './utils/dev-test-env';
 import { reportError, reportMessage } from './utils/error-report';
 import { logger } from './utils/logger';
 import { markMaximizeOnNextShow } from './window-show';
@@ -78,7 +79,7 @@ export function createWindow(): BrowserWindow {
 
   // 导航白名单：只允许 dev server origin 或产物 index.html 的完全匹配，其余一律拦下
   // （配合主进程对 defaultSession 的 CSP/XFO 注入，构成三层外站拦截的第一层）
-  const navRendererUrl = process.env['ELECTRON_RENDERER_URL'];
+  const navRendererUrl = getDevRendererUrl(app.isPackaged);
   const rendererEntryUrl = rendererEntryFileUrl(app.getAppPath());
   win.webContents.on('will-navigate', (event, url) => {
     if (!isAllowedRendererUrl(url, rendererEntryUrl, navRendererUrl)) {
@@ -116,8 +117,8 @@ export function createWindow(): BrowserWindow {
   );
 
   bindStartupWindow(win.webContents.id);
-  const rendererUrl = process.env['ELECTRON_RENDERER_URL'];
-  if (rendererUrl) {
+  const rendererUrl = getDevRendererUrl(app.isPackaged);
+  if (rendererUrl !== undefined && rendererUrl.length > 0) {
     void win.loadURL(rendererUrl);
   } else {
     void win.loadFile(join(__dirname, '../renderer/index.html'));
@@ -141,7 +142,11 @@ export function createWindow(): BrowserWindow {
   win.on('close', (event) => {
     // 关窗协商：已确认退出 / 善后中 / E2E 豁免 → 放行；macOS 关窗语义是只关窗口（应用留存）
     // 非 macOS 按 closeAction 分流：minimize → 隐藏到托盘；quit → 继续关闭并由 before-quit 善后
-    if (isQuitting() || isCloseConfirmed() || process.env['APP_SKIP_CLOSE_GUARD'] === '1') {
+    if (
+      isQuitting() ||
+      isCloseConfirmed() ||
+      isDevTestEnvEnabled(app.isPackaged, 'APP_SKIP_CLOSE_GUARD')
+    ) {
       return;
     }
     if (process.platform === 'darwin') {

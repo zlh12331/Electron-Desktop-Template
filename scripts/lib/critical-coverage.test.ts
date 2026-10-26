@@ -32,6 +32,7 @@ describe('evaluateCriticalCoverage', () => {
     const parsed = parseLcovCoverage(lcov);
     const coverage = {
       main: parsed,
+      preload: new Map(),
       renderer: new Map(),
       shared: new Map(),
     };

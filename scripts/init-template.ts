@@ -5,11 +5,12 @@
 // 手工改 8 类位点必然漏；漏掉的位点在 check:brand 之外，CI 也不会报。
 // 用法：pnpm init:template --name "My App" --app-id com.me.myapp --protocol myapp \
 //         --owner me --repo myapp [--scope myorg] [--author "Me"] [--description "..."] \
-//         [--artifact-base My-App] [--executable my-app] [--dry-run]
+//         [--artifact-base My-App] [--executable my-app] [--keep-site] [--dry-run]
 // 幂等：重复执行同一组参数不产生额外改动（每步都是「替换已知旧值」或「写定值」）。
+// 营销站：默认移除 site/ 与 .github/workflows/static.yml；--keep-site 保留并改写品牌/仓库。
 
 import { createHash } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { extname, join, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { renderBrandModule } from './generate-brand.mjs';
@@ -76,6 +77,12 @@ export interface InitInput {
   readonly description: string;
   /** 内部 workspace scope（不含 @；包名形如 @scope/shared） */
   readonly internalScope: string;
+}
+
+/** 初始化行为选项 */
+export interface InitOptions {
+  /** 保留模板营销站（site/ + static.yml），并改写站点内的品牌/仓库坐标 */
+  readonly keepSite?: boolean;
 }
 
 /** 一处改写结果 */
@@ -212,6 +219,20 @@ function readIfExists(root: string, rel: string): string | null {
   return existsSync(abs) ? readFileSync(abs, 'utf8') : null;
 }
 
+/** 读当前 package.json 版本（站点版本号跟随派生项目的 0.0.0 基线） */
+function readPackageVersion(root: string): string {
+  const raw = readIfExists(root, 'package.json');
+  if (raw === null) {
+    return '0.0.0';
+  }
+  try {
+    const parsed = JSON.parse(raw) as { version?: unknown };
+    return typeof parsed.version === 'string' ? parsed.version : '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
+
 /** 写文件（内容未变则跳过，保证幂等且不触发无谓的 mtime 变化） */
 function writeIfChanged(root: string, rel: string, next: string, dryRun: boolean): RewriteResult {
   const current = readIfExists(root, rel);
@@ -222,6 +243,50 @@ function writeIfChanged(root: string, rel: string, next: string, dryRun: boolean
     writeFileSync(join(root, rel), next, 'utf8');
   }
   return { file: rel, changed: true };
+}
+
+/** 删除文件/目录（不存在返回 changed=false；dry-run 只报告） */
+function removeIfExists(root: string, rel: string, dryRun: boolean): RewriteResult {
+  const abs = join(root, rel);
+  if (!existsSync(abs)) {
+    return { file: rel, changed: false };
+  }
+  if (!dryRun) {
+    rmSync(abs, { recursive: true, force: true });
+  }
+  return { file: rel, changed: true };
+}
+
+/**
+ * 移除模板营销站
+ *
+ * 只删除已知的模板站点文件；若目录里还有派生项目自建内容则保留目录与 Pages workflow，
+ * 避免重复初始化时误删使用者自己的站点。
+ */
+function removeTemplateSite(root: string, dryRun: boolean): RewriteResult[] {
+  const siteFile = 'site/electron-desktop-template-website.html';
+  const fileResult = removeIfExists(root, siteFile, dryRun);
+  if (!fileResult.changed) {
+    return [fileResult];
+  }
+  const siteDir = join(root, 'site');
+  if (!existsSync(siteDir)) {
+    return [fileResult];
+  }
+  const remaining = readdirSync(siteDir).filter(
+    (name) => name !== 'electron-desktop-template-website.html',
+  );
+  if (remaining.length > 0) {
+    return [fileResult];
+  }
+  if (!dryRun) {
+    rmSync(siteDir, { recursive: true, force: true });
+  }
+  return [
+    fileResult,
+    { file: 'site', changed: true },
+    removeIfExists(root, '.github/workflows/static.yml', dryRun),
+  ];
 }
 
 /** 对 JSON 文件做「读 → 改 → 写」；解析失败直接抛（配置文件坏了应显式暴露） */
@@ -597,6 +662,61 @@ function writeRepoUrls(
   );
 }
 
+/** 改写内嵌 SVG favicon 内的产品名（base64 编码，普通文本替换覆盖不到） */
+function rewriteEmbeddedSvgBrand(
+  text: string,
+  previousProductName: string,
+  nextProductName: string,
+): string {
+  return text.replace(
+    /(href="data:image\/svg\+xml;base64,)([^"]+)(")/,
+    (match: string, prefix: string, encoded: string, suffix: string) => {
+      try {
+        const svg = Buffer.from(encoded, 'base64').toString('utf8');
+        const rewritten = svg.replaceAll(previousProductName, nextProductName);
+        return `${prefix}${Buffer.from(rewritten, 'utf8').toString('base64')}${suffix}`;
+      } catch {
+        return match;
+      }
+    },
+  );
+}
+
+interface SiteRewriteContext {
+  readonly previous: PreviousBrand;
+  readonly previousVersion: string;
+}
+
+/**
+ * 保留模板营销站时改写品牌位点
+ *
+ * 只处理产品名/仓库坐标/版本号；页面里的「模板」营销文案仍由使用者按产品人工改写。
+ */
+function writeSite(
+  root: string,
+  input: InitInput,
+  context: SiteRewriteContext,
+  dryRun: boolean,
+): RewriteResult {
+  return rewriteText(
+    root,
+    'site/electron-desktop-template-website.html',
+    (text) =>
+      rewriteEmbeddedSvgBrand(
+        text
+          .replaceAll(context.previous.productName, input.productName)
+          .replaceAll(
+            `github.com/${context.previous.owner}/${context.previous.repo}`,
+            `github.com/${input.owner}/${input.repo}`,
+          )
+          .replaceAll(`v${context.previousVersion}`, 'v0.0.0'),
+        context.previous.productName,
+        input.productName,
+      ),
+    dryRun,
+  );
+}
+
 /** CHANGELOG 的「模板说明区」标记：派生时保留标记之间的写作约定与版本段模板 */
 const CHANGELOG_KEEP_START = '<!-- template:keep-start -->';
 const CHANGELOG_KEEP_END = '<!-- template:keep-end -->';
@@ -660,8 +780,10 @@ export function runInitTemplate(
   input: InitInput,
   dryRun: boolean,
   root: string = REPO_ROOT,
+  options: InitOptions = {},
 ): RewriteResult[] {
   const source = readBrandConfig(root);
+  const previousVersion = readPackageVersion(root);
   const previous: PreviousBrand = {
     productName: source.productName,
     protocol: source.protocol,
@@ -683,6 +805,9 @@ export function runInitTemplate(
     writeLicense(root, input, dryRun),
     writeCodeowners(root, input, previous, dryRun),
     ...writeRepoUrls(root, input, previous, dryRun),
+    ...(options.keepSite === true
+      ? [writeSite(root, input, { previous, previousVersion }, dryRun)]
+      : removeTemplateSite(root, dryRun)),
     ...resetReleaseState(root, dryRun),
   ];
 
@@ -733,9 +858,10 @@ export function assertKnownCliArgs(parsed: ParsedArgs): void {
 
 /** CLI 入口 */
 function main(): void {
-  const parsed = parseArgs(process.argv.slice(2), ['dry-run']);
+  const parsed = parseArgs(process.argv.slice(2), ['dry-run', 'keep-site']);
   assertKnownCliArgs(parsed);
   const dryRun = parsed.flags.has('dry-run');
+  const keepSite = parsed.flags.has('keep-site');
   const optional = (key: string): string | undefined => parsed.values.get(key);
 
   const input = buildInitInput({
@@ -766,9 +892,10 @@ function main(): void {
   console.log(`  安装包前缀  ${input.artifactBaseName}`);
   console.log(`  内部 scope  @${input.internalScope}`);
   console.log(`  仓库        ${input.owner}/${input.repo}`);
+  console.log(`  营销站      ${keepSite ? '保留（品牌/仓库已改写）' : '移除'}`);
   console.log('');
 
-  const results = runInitTemplate(input, dryRun);
+  const results = runInitTemplate(input, dryRun, REPO_ROOT, { keepSite });
   const changed = results.filter((r) => r.changed);
   for (const r of changed) {
     console.log(`  ${dryRun ? '将改动' : '已改动'}  ${r.file}`);
@@ -781,8 +908,14 @@ function main(): void {
   console.log('下一步：');
   console.log('  1. pnpm install --frozen-lockfile   # 重链内部 workspace 包（scope 已重写）');
   console.log('  2. pnpm check:brand   # 校验品牌位点全部对齐');
-  console.log('  3. pnpm typecheck && pnpm lint');
-  console.log('  4. 替换 src/renderer/routes/home.tsx 为你的首屏');
+  console.log(
+    '  3. 替换 resources/icons/icon.png（1024×1024），再重跑 scripts/generate-tray-assets.py 生成托盘图',
+  );
+  console.log('  4. pnpm typecheck && pnpm lint');
+  console.log('  5. 替换 src/renderer/routes/home.tsx 为你的首屏');
+  if (keepSite && !dryRun) {
+    console.log('  6. site/ 页面文案仍为模板营销内容，发布前按产品人工改写');
+  }
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {

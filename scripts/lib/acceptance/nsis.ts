@@ -113,9 +113,13 @@ async function uninstallAndVerify(
   if (!(await waitFor(() => existsSync(uninstaller), PATH_WAIT_MS))) {
     throw new Error(`未找到卸载器：${uninstaller}`);
   }
-  runCommand('NSIS 卸载', uninstaller, ['/S'], workDir, {
-    timeoutMs: INSTALL_TIMEOUT_MS,
-  });
+  runCommand(
+    'NSIS 卸载',
+    { command: uninstaller, args: ['/S'], cwd: workDir },
+    {
+      timeoutMs: INSTALL_TIMEOUT_MS,
+    },
+  );
   if (!(await waitFor(() => !existsSync(exe), UNINSTALL_WAIT_MS))) {
     throw new Error(`卸载后主程序仍存在：${exe}`);
   }
@@ -179,9 +183,17 @@ export async function runNsisLifecycle(options: NsisLifecycleOptions): Promise<v
   mkdirSync(options.workDir, { recursive: true });
   try {
     console.log(`[nsis] 静默安装 → ${installDir}`);
-    runCommand('NSIS 安装', options.installerPath, nsisInstallArgs(installDir), options.workDir, {
-      timeoutMs: INSTALL_TIMEOUT_MS,
-    });
+    runCommand(
+      'NSIS 安装',
+      {
+        command: options.installerPath,
+        args: nsisInstallArgs(installDir),
+        cwd: options.workDir,
+      },
+      {
+        timeoutMs: INSTALL_TIMEOUT_MS,
+      },
+    );
     const exe = installedExePath(installDir, options.productName);
     if (!(await waitFor(() => existsSync(exe), PATH_WAIT_MS))) {
       throw new Error(`安装后未找到可执行文件：${exe}`);

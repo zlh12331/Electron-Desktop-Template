@@ -10,11 +10,11 @@ import { join } from 'node:path';
 /** 四项覆盖率指标名（与 vitest thresholds 字段一致） */
 export const METRIC_KEYS = ['statements', 'branches', 'functions', 'lines'] as const;
 
-/** 参与门槛治理的层级（preload 无独立测试工程，不单列）。
+/** 参与门槛治理的层级（preload 自 2026-10-26 起单列，桥接层不再隐身）。
  * renderer-settings 是 settings 子集单列（JSON 治理层）：不接 vitest thresholds
  * （洼地直接开硬卡会炸 CI），由 measure-settings-coverage.ts 回填实测、
  * floor 随实测经 --tighten 抬升；硬卡关仍由 renderer 汇总 thresholds 承担。 */
-export const LAYER_KEYS = ['shared', 'main', 'renderer', 'renderer-settings'] as const;
+export const LAYER_KEYS = ['shared', 'main', 'preload', 'renderer', 'renderer-settings'] as const;
 
 /** 收紧机制（设计文档 §3.3）：新实测减去该缓冲才可作为新门槛 */
 export const MEASURE_BUFFER = 5;
@@ -279,6 +279,7 @@ export function renderFloorsTable(file: CoverageFloorsFile): string[] {
 export const LAYER_CONFIGS: Partial<Record<LayerKey, string>> = {
   shared: 'packages/shared/vitest.config.ts',
   main: 'src/main/vitest.config.ts',
+  preload: 'src/preload/vitest.config.ts',
   renderer: 'src/renderer/vitest.config.ts',
 };
 

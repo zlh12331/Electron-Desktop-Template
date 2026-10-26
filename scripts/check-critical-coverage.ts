@@ -7,20 +7,21 @@ import { join } from 'node:path';
 import { evaluateCriticalCoverage, parseLcovCoverage } from './lib/critical-coverage';
 
 const ROOT = join(import.meta.dirname, '..');
-const LCOV: Readonly<Record<'main' | 'renderer' | 'shared', string>> = {
+const LCOV: Readonly<Record<'main' | 'preload' | 'renderer' | 'shared', string>> = {
   main: 'coverage/main/lcov.info',
+  preload: 'coverage/preload/lcov.info',
   renderer: 'coverage/renderer/lcov.info',
   shared: 'coverage/shared/lcov.info',
 };
 
 function main(): number {
   const coverage = {} as Record<
-    'main' | 'renderer' | 'shared',
+    'main' | 'preload' | 'renderer' | 'shared',
     ReturnType<typeof parseLcovCoverage>
   >;
   const missing: string[] = [];
   for (const [layer, path] of Object.entries(LCOV) as Array<
-    ['main' | 'renderer' | 'shared', string]
+    ['main' | 'preload' | 'renderer' | 'shared', string]
   >) {
     const file = join(ROOT, path);
     if (!existsSync(file)) {

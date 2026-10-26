@@ -154,6 +154,10 @@
     "proxyUrlDesc": "Supports http(s) proxies; username/password in the URL are encrypted in the OS keychain and never written to settings files",
     "proxyBypassLabel": "Bypass list",
     "proxyBypassDesc": "Requests to these hosts skip the proxy (comma-separated; local addresses always connect directly)",
+    "proxyTestTargetLabel": "Test target (optional)",
+    "proxyTestTargetPlaceholder": "https://www.gstatic.com/generate_204",
+    "proxyTestTargetDesc": "Leave blank for the default 204 probe; use a reachable http(s) URL when the default is blocked",
+    "proxyTestTargetInvalid": "Test target must be a valid http(s) URL",
     "proxyTestButton": "Test connection",
     "proxyTestSuccess": "Connected: the proxy works",
     "proxyTestFailed": "Connection failed: check the proxy address or network",
@@ -274,14 +278,6 @@
     "secretsDeleteMessage": "Delete \"{key}\"? This cannot be undone.",
     "proxyAuthSaved": "Proxy credentials saved (username: {{username}}); enter a URL with credentials to replace them",
     "proxyAuthClear": "Clear credentials"
-  },
-  "home": {
-    "justNow": "Just now",
-    "minutesAgo": "{{count}} min ago",
-    "hoursAgo": "{{count}} hr ago",
-    "daysAgo": "{{count}} day(s) ago",
-    "minutesAgo_one": "{{count}} min ago",
-    "minutesAgo_other": "{{count}} min ago"
   },
   "shortcutHelp": {
     "title": "Keyboard Shortcuts",

@@ -49,6 +49,7 @@ function fixture(over: Partial<Record<keyof CoverageFloorsFile['layers'], LayerF
     layers: {
       shared: layer(),
       main: layer(),
+      preload: layer(),
       renderer: layer(),
       'renderer-settings': layer(),
       ...over,
@@ -197,6 +198,13 @@ describe('applyTighten：文本级回填，保留治理注释', () => {
     '      "measured": { "statements": 92, "branches": 91, "functions": 90, "lines": 93 },',
     '      "measuredAt": "2026-08-27"',
     '    },',
+    '    "preload": {',
+    '      "specTarget": { "statements": 90, "branches": 80, "functions": 90, "lines": 90 },',
+    '      "floor": { "statements": 90, "branches": 80, "functions": 90, "lines": 90 },',
+    '      "ratchet": { "statements": 90, "branches": 80, "functions": 90, "lines": 90 },',
+    '      "measured": { "statements": 100, "branches": 100, "functions": 100, "lines": 100 },',
+    '      "measuredAt": "2026-08-27"',
+    '    },',
     '    "renderer": {',
     '      "specTarget": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },',
     '      "floor": { "statements": 59, "branches": 50, "functions": 54, "lines": 59 },',
@@ -267,6 +275,13 @@ describe('applyTighten：文本级回填，保留治理注释', () => {
       '      "measured": { "statements": 90, "branches": 85, "functions": 88, "lines": 90 },',
       '      "measuredAt": "2026-08-27"',
       '    },',
+      '    "preload": {',
+      '      "specTarget": { "statements": 90, "branches": 80, "functions": 90, "lines": 90 },',
+      '      "floor": { "statements": 90, "branches": 80, "functions": 90, "lines": 90 },',
+      '      "ratchet": { "statements": 90, "branches": 80, "functions": 90, "lines": 90 },',
+      '      "measured": { "statements": 100, "branches": 100, "functions": 100, "lines": 100 },',
+      '      "measuredAt": "2026-08-27"',
+      '    },',
       '    "renderer": {',
       '      "specTarget": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },',
       '      "floor": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },',
@@ -317,7 +332,7 @@ describe('真实仓库接线（回归防护）', () => {
     expect(validateCoverageFloors(file, new Date())).toEqual([]);
   });
 
-  it('三张 vitest.config.ts 都从真源取门槛，且不再内联数字', () => {
+  it('四张 vitest.config.ts 都从真源取门槛，且不再内联数字', () => {
     expect(validateConfigWiring(REPO_ROOT)).toEqual([]);
   });
 

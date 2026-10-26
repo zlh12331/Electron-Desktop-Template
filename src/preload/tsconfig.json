@@ -4,5 +4,6 @@
   "compilerOptions": {
     "tsBuildInfoFile": "../../node_modules/.cache/tsbuildinfo/src-preload.tsbuildinfo"
   },
-  "include": ["**/*.ts"]
+  "include": ["**/*.ts"],
+  "exclude": ["vitest.config.ts"]
 }

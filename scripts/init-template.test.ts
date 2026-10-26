@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -10,11 +10,14 @@ import {
   deriveArtifactBaseName,
   deriveExecutableName,
   type InitInput,
+  type InitOptions,
   runInitTemplate,
 } from './init-template';
 import { parseArgs } from './scaffold/lib/args';
 
 const REPO_ROOT = join(import.meta.dirname, '..');
+const SITE_FILE = 'site/electron-desktop-template-website.html';
+const STATIC_WORKFLOW = '.github/workflows/static.yml';
 
 /** 复制到临时目录执行（避免改动真实仓库） */
 function copyToTemp(): string {
@@ -42,6 +45,7 @@ function copyToTemp(): string {
     'CONTRIBUTING.md',
     'SECURITY.md',
     'CODE_OF_CONDUCT.md',
+    'site',
   ]) {
     cpSync(join(REPO_ROOT, rel), join(dir, rel), { recursive: true });
   }
@@ -124,10 +128,10 @@ describe('buildInitInput 校验', () => {
 });
 
 describe('assertKnownCliArgs：未知参数必须显式失败', () => {
-  it('正向：登记过的参数与 --dry-run 通过', () => {
+  it('正向：登记过的参数与 --dry-run / --keep-site 通过', () => {
     const parsed = parseArgs(
-      ['--name', 'My App', '--app-id', 'com.me.app', '--scope', 'acme', '--dry-run'],
-      ['dry-run'],
+      ['--name', 'My App', '--app-id', 'com.me.app', '--scope', 'acme', '--dry-run', '--keep-site'],
+      ['dry-run', 'keep-site'],
     );
     expect(() => assertKnownCliArgs(parsed)).not.toThrow();
   });
@@ -169,8 +173,12 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
   });
 
   /** 在临时副本上跑一次（root 显式传入，不依赖 cwd） */
-  function runIn(dirPath: string, dryRun = false): ReturnType<typeof runInitTemplate> {
-    return runInitTemplate(input, dryRun, dirPath);
+  function runIn(
+    dirPath: string,
+    dryRun = false,
+    options: InitOptions = {},
+  ): ReturnType<typeof runInitTemplate> {
+    return runInitTemplate(input, dryRun, dirPath, options);
   }
 
   it('dry-run：报告将改动的文件但不落盘', () => {
@@ -187,6 +195,53 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
     expect(results).toContainEqual({ file: 'src/main/security/csp.ts', changed: true });
     expect(results).toContainEqual({ file: 'resources/installer.nsh', changed: true });
     expect(files.map((file) => readFileSync(join(dir, file), 'utf8'))).toEqual(before);
+    expect(existsSync(join(dir, SITE_FILE))).toBe(true);
+  });
+
+  it('默认移除模板营销站与 Pages workflow', () => {
+    const results = runIn(dir);
+
+    expect(results).toContainEqual({ file: 'site', changed: true });
+    expect(results).toContainEqual({ file: STATIC_WORKFLOW, changed: true });
+    expect(existsSync(join(dir, 'site'))).toBe(false);
+    expect(existsSync(join(dir, STATIC_WORKFLOW))).toBe(false);
+  });
+
+  it('默认移除只删模板站点文件：目录内有自建内容时保留 Pages workflow', () => {
+    writeFileSync(join(dir, 'site', 'custom.html'), 'custom', 'utf8');
+    const results = runIn(dir);
+
+    expect(existsSync(join(dir, SITE_FILE))).toBe(false);
+    expect(existsSync(join(dir, 'site', 'custom.html'))).toBe(true);
+    expect(existsSync(join(dir, STATIC_WORKFLOW))).toBe(true);
+    expect(results).not.toContainEqual({ file: STATIC_WORKFLOW, changed: true });
+  });
+
+  it('--keep-site：保留站点并改写品牌、仓库与版本', () => {
+    const before = readFileSync(join(dir, SITE_FILE), 'utf8');
+    const results = runIn(dir, false, { keepSite: true });
+    const site = readFileSync(join(dir, SITE_FILE), 'utf8');
+
+    expect(before).toContain('Electron Desktop Template');
+    expect(site).toContain('<title>Acme Notes');
+    expect(site).toContain('<span class="brand-name">Acme Notes</span>');
+    expect(site).toContain('https://github.com/acme/acme-notes');
+    expect(site).toContain('v0.0.0');
+    expect(site).not.toContain('zlh12331/Electron-Desktop-Template');
+    expect(site).not.toContain('Electron Desktop Template');
+    expect(existsSync(join(dir, STATIC_WORKFLOW))).toBe(true);
+    expect(results).toContainEqual({ file: SITE_FILE, changed: true });
+  });
+
+  it('--keep-site：内嵌 SVG favicon 的产品名也被改写', () => {
+    runIn(dir, false, { keepSite: true });
+    const site = readFileSync(join(dir, SITE_FILE), 'utf8');
+    const encoded = /href="data:image\/svg\+xml;base64,([^"]+)"/.exec(site)?.[1];
+
+    expect(encoded).toBeDefined();
+    const svg = Buffer.from(encoded ?? '', 'base64').toString('utf8');
+    expect(svg).toContain('Acme Notes');
+    expect(svg).not.toContain('Electron Desktop Template');
   });
 
   it('品牌改写同步首帧脚本的 CSP 哈希且不放宽策略', () => {

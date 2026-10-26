@@ -57,11 +57,35 @@ let tray: Tray | null = null;
 let deps: TrayDeps | null = null;
 
 /**
+ * 解析托盘图标目录：打包态从 extraResources 的 process.resourcesPath/icons 读取；
+ * dev 态从仓库 resources/icons 读取（此时 app.getAppPath() 是仓库根）。
+ *
+ * 打包态 app.getAppPath() 指向 .../resources/app.asar，icons 不在 asar 内，
+ * 拼 appPath/resources/icons 会得到不存在的路径并让托盘回落为空图。
+ *
+ * @param isPackaged app.isPackaged
+ * @param appPath app.getAppPath()
+ * @param resourcesPath process.resourcesPath
+ * @returns 图标目录绝对路径
+ */
+export function resolveTrayResourcesDir(
+  isPackaged: boolean,
+  appPath: string,
+  resourcesPath: string,
+): string {
+  return isPackaged ? join(resourcesPath, 'icons') : join(appPath, 'resources/icons');
+}
+
+/**
  * 构建托盘图标，三级降级：macOS template 图标（自适应明暗）→ 多分辨率 rep（1.5x/2x 保高清屏清晰）
  * → 应用图标缩到 16px → 空图（托盘仍可创建）
  */
 function createTrayImage(): Electron.NativeImage {
-  const resourcesDir = join(app.getAppPath(), 'resources/icons');
+  const resourcesDir = resolveTrayResourcesDir(
+    app.isPackaged,
+    app.getAppPath(),
+    process.resourcesPath,
+  );
 
   if (process.platform === 'darwin') {
     const template = nativeImage.createFromPath(join(resourcesDir, 'trayTemplate.png'));

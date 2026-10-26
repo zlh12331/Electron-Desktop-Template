@@ -10,6 +10,7 @@
     "INVALID_RESPONSE": "响应数据不符合约定",
     "IPC_CHANNEL_NOT_FOUND": "IPC 通道不存在",
     "IPC_SENDER_INVALID": "IPC 调用来源无效",
+    "BRIDGE_UNAVAILABLE": "应用桥接不可用",
     "NOT_FOUND": "资源不存在",
     "RATE_LIMITED": "操作过于频繁",
     "BACKUP_INVALID": "备份文件无效或不存在",

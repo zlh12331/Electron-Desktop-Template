@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { reportError } from '@/lib/error-report';
 import { bootstrapSettings } from './settings-bootstrap';
-import { SETTINGS_STORAGE_KEY } from './theme-init';
+import { DEFAULT_THEME, SETTINGS_STORAGE_KEY } from './theme-init';
 
 vi.mock('@/lib/error-report', () => ({ reportError: vi.fn() }));
 
@@ -43,6 +43,16 @@ describe('bootstrapSettings', () => {
     expect(theme).toBe('dark');
     expect(setMock).toHaveBeenCalled();
     expect(localStorage.getItem(SETTINGS_STORAGE_KEY)).toBeNull();
+  });
+
+  it('Electron：SQLite 与 legacy 都为空 → 返回 DEFAULT_THEME，而非硬编码字面量', async () => {
+    window.api.settings = {
+      getAll: vi.fn(async () => ({ data: { settings: {} } })),
+      set: vi.fn(),
+    } as never;
+    const { theme, snapshot } = await bootstrapSettings();
+    expect(theme).toBe(DEFAULT_THEME);
+    expect(snapshot).toEqual({});
   });
 
   it('window.api 未注入（浏览器模式）→ legacy localStorage 回退', async () => {

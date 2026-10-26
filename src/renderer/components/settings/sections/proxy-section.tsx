@@ -18,6 +18,16 @@ type TestResult = {
   kind: 'ok' | 'proxy-unreachable' | 'target-unreachable' | 'not-applicable';
 };
 
+/** 仅接受 http/https 的测试目标 */
+function isHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 /** 网络代理分区（通用分组：与窗口行为/系统通知同属运行环境域） */
 export function ProxySection(): ReactElement {
   const { t } = useTranslation();
@@ -26,10 +36,11 @@ export function ProxySection(): ReactElement {
   const updateProxy = useSettingsStore((s) => s.updateProxy);
 
   const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [testTarget, setTestTarget] = useState('');
 
   const testMutation = useMutation({
-    mutationFn: async (): Promise<TestResult> => {
-      const res = await testProxyConnection();
+    mutationFn: async (targetUrl?: string): Promise<TestResult> => {
+      const res = await testProxyConnection(targetUrl);
       return { ok: res.ok, kind: res.kind };
     },
     onSuccess: (result) => {
@@ -134,12 +145,38 @@ export function ProxySection(): ReactElement {
               />
             </SettingRow>
 
+            <div className="bg-card rounded-lg border px-3 py-2.5">
+              <Label className="text-foreground text-sm" htmlFor="proxy-test-target-input">
+                {t('settings.proxyTestTargetLabel')}
+              </Label>
+              <Input
+                id="proxy-test-target-input"
+                className="mt-1.5 font-mono text-xs"
+                placeholder={t('settings.proxyTestTargetPlaceholder')}
+                value={testTarget}
+                onChange={(event) => {
+                  setTestTarget(event.target.value);
+                  setTestResult(null);
+                }}
+              />
+              <p className="text-muted-foreground mt-1 text-xs leading-[1.5]">
+                {t('settings.proxyTestTargetDesc')}
+              </p>
+            </div>
+
             <div className="bg-card flex items-center gap-2.5 rounded-lg border px-3 py-2.5">
               <Button
                 variant="outline"
                 size="sm"
                 disabled={testMutation.isPending}
-                onClick={() => testMutation.mutate()}
+                onClick={() => {
+                  const target = testTarget.trim();
+                  if (target !== '' && !isHttpUrl(target)) {
+                    toast.error(t('settings.proxyTestTargetInvalid'));
+                    return;
+                  }
+                  testMutation.mutate(target === '' ? undefined : target);
+                }}
               >
                 {t('settings.proxyTestButton')}
               </Button>

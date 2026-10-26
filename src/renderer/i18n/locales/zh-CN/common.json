@@ -154,6 +154,10 @@
     "proxyUrlDesc": "支持 http(s) 代理；URL 内的用户名/密码会加密存入系统密钥库，不写入设置文件",
     "proxyBypassLabel": "绕过列表",
     "proxyBypassDesc": "这些地址不走代理（逗号分隔；本地地址始终直连）",
+    "proxyTestTargetLabel": "测试目标（可选）",
+    "proxyTestTargetPlaceholder": "https://www.gstatic.com/generate_204",
+    "proxyTestTargetDesc": "留空使用默认 204 探针；中国大陆等网络建议填写可达的 http(s) 地址",
+    "proxyTestTargetInvalid": "测试目标必须是合法的 http(s) 地址",
     "proxyTestButton": "测试连接",
     "proxyTestSuccess": "连接成功：代理可用",
     "proxyTestFailed": "连接失败：请检查代理地址或网络",
@@ -274,14 +278,6 @@
     "secretsDeleteMessage": "确定删除「{key}」？该操作不可撤销。",
     "proxyAuthSaved": "已保存代理凭据（用户名：{{username}}）；重新输入含凭据地址可替换",
     "proxyAuthClear": "清除凭据"
-  },
-  "home": {
-    "justNow": "刚刚",
-    "minutesAgo": "{{count}} 分钟前",
-    "hoursAgo": "{{count}} 小时前",
-    "daysAgo": "{{count}} 天前",
-    "minutesAgo_other": "{{count}} 分钟前",
-    "minutesAgo_one": "{{count}} 分钟前"
   },
   "shortcutHelp": {
     "title": "快捷键帮助",

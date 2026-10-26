@@ -11,15 +11,16 @@ pnpm dev:web                # 浏览器模式 dev（vite.web.config.ts，配合 
 pnpm typecheck              # tsc --build + tsc -p scripts/tsconfig.json + tsc -p tsconfig.tests.json（不要用 --noEmit）
 pnpm lint                   # biome check .（含格式/import 排序）
 pnpm lint:fix               # 自动修复
-pnpm test                   # 全部测试链式：packages → main → renderer → integration → scripts
+pnpm test                   # 全部测试链式：packages → main → renderer → preload → integration → scripts
 
 # 单层测试
 pnpm --filter @code-agent/shared run test
 pnpm test:main
 pnpm test:renderer
+pnpm test:preload
 pnpm test:integration
 pnpm test:scripts
-pnpm test:coverage          # 覆盖率 + 范围/关键模块/settings 硬门槛
+pnpm test:coverage          # 四层覆盖率 + 范围/关键模块/settings 硬门槛
 
 # E2E（@playwright/test 升级后需 npx playwright install）
 pnpm test:e2e               # 浏览器模式（含 a11y 扫描）
@@ -62,7 +63,7 @@ pnpm tokens:build           # Style Dictionary 生成 tokens.css
 
 `check:static` 覆盖：tokens + i18n + comments（过期注释/失效文件引用）+ tsdoc（export 符号 TSDoc 棘轮）+ file-size（净行 ≤600）+ functions（形参 ≤4 / 函数体 ≤200）+ complexity（认知复杂度 ≤15）+ coverage-floors + observability-config（变量注册表/文档/CI 一致）+ observability-slo（SLO 定义与指标名/手册一致）+ docs + docs-scripts + docs-contracts（IPC 计数/门禁数/ErrorCode/路径引用）+ test-boundary + csp-hash + css-vars + animations + ui-consistency + brand，全部棘轮只收紧。
 
-上列「形状门禁」的扫描范围（如实）：`check:file-size` = `src/**` + `packages/*/src/**`；`check:complexity` / `check:tsdoc` = `src/**`；`check:functions`（形参 / 函数体）= `src/main` + `src/renderer`。`scripts/`、`e2e/`、`tests/` 不在其中——门禁脚本自身靠 `pnpm test:scripts`（规则核单测）看住正确性，E2E 靠 Playwright 套件。
+上列「形状门禁」的扫描范围（如实）：`check:file-size` = `src/**` + `packages/*/src/**` + `scripts/**`；`check:complexity` = `src/**` + `scripts/**`；`check:functions`（形参 / 函数体）= `src/main` + `src/renderer` + `scripts/**`；`check:tsdoc` = `src/**`。测试文件（`*.test.*` / `__tests__`）不计入上述门禁；`e2e/`、`tests/` 不在形状门禁内——门禁脚本自身靠 `pnpm test:scripts`（规则核单测）看住正确性，E2E 靠 Playwright 套件。`scripts/` 首次纳入时的存量超限（如 `init-template.ts` 净行、19 个复杂度文件）已登记在 `scripts/*.baseline.json`，棘轮只允许收紧。
 
 本地全量验证：`pnpm verify:local`（质量层）/ `pnpm verify:local:full`（追加构建与打包）。
 
@@ -106,7 +107,7 @@ tools/           → 独立 TS 子包（depcruise / typedoc）
 - **React Compiler 已启用**（`oxc-transform-react`）：新代码默认不写 `useMemo`/`useCallback`。但 vitest 不跑 Compiler —— effect 依赖的函数身份稳定性必须用 ref 固定，不能依赖编译器。
 - **根级新增 `*.config.ts` 必须登记进 `tsconfig.configs.json`**，否则 typecheck 不覆盖。
 - **动效统一走 `src/renderer/lib/motion/`**，不散写 CSS transition。
-- **网页承载必须用 `WebContentsView`**（独立 session 分区），不能回渲染层 iframe（CSP/XFO 三层拦截）。
+- **网页承载必须用 `WebContentsView`**（独立 session 分区），不能回渲染层 iframe（CSP/XFO 三层拦截）；新 partition 必须调用 `hardenSession()` 复用 CSP/权限收口（`src/main/security/session-hardening.ts`）。
 - **dev 环境**：userData 重定向到 `.electron-user-data/`；开启 CDP 9222；`.env` 由 `process.loadEnvFile()` 加载。
 - **全新安装**：根 `postinstall` 先安装并校验 Electron 二进制，再重编 `better-sqlite3`；失败会显式退出。`pnpm dev` 报 `Electron uninstall` 说明安装钩子未执行。
 - **依赖策略**：只支持 Node 26 LTS；安全补丁、major 评审、beta 禁令与 override 生命周期见 [dependency-policy.md](docs/guides/dependency-policy.md)。
@@ -137,16 +138,17 @@ tools/           → 独立 TS 子包（depcruise / typedoc）
 
 ## 扩展点速查
 
-| 要做的事                    | 改哪里                                                                     |
-| --------------------------- | -------------------------------------------------------------------------- |
-| 改品牌（产品名/appId/协议） | `app.config.json` → `pnpm brand:sync`                                      |
-| 加一个 IPC 方法             | `ipc/meta.ts` + `ipc/domains/<domain>.ts` + `main/ipc/<domain>.handler.ts` |
-| 加一个 IPC 域               | 新建 domain 文件 + `ipc/domains/index.ts` 登记 + main 侧 handler           |
-| 加一个数据表                | `storage/tables/<domain>.ts` + `schema.ts` 登记 + `drizzle-kit generate`   |
-| 加一个页面                  | `lib/constants.ts` + `router.tsx` + `routes/<page>.tsx`                    |
-| 加一个设置分区              | `lib/settings-sections.ts` + `settings/sections/registry.tsx` + 分区组件   |
-| 加一个主进程服务            | `infra/<domain>/` + `service-container.ts`（accessor + dispose）           |
-| 加一个桥接 hook             | `hooks/` + `components/layout/bridges.ts`                                  |
+| 要做的事                         | 改哪里                                                                                                                |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 改品牌（产品名/appId/协议/图标） | `app.config.json` → `pnpm brand:sync`；图标另替换 `resources/icons/icon.png` 并重跑 `scripts/generate-tray-assets.py` |
+| 派生项目站点                     | `init:template` 默认移除 `site/` + `static.yml`；`--keep-site` 保留并改写品牌/仓库                                    |
+| 加一个 IPC 方法                  | `ipc/meta.ts` + `ipc/domains/<domain>.ts` + `main/ipc/<domain>.handler.ts`；`scaffold:ipc` 自动同步 19-ipc-spec 计数  |
+| 加一个 IPC 域                    | 新建 domain 文件 + `ipc/domains/index.ts` 登记 + main 侧 handler                                                      |
+| 加一个数据表                     | `storage/tables/<domain>.ts` + `schema.ts` 登记 + `drizzle-kit generate`                                              |
+| 加一个页面                       | `lib/constants.ts` + `router.tsx` + `routes/<page>.tsx`                                                               |
+| 加一个设置分区                   | `lib/settings-sections.ts` + `settings/sections/registry.tsx` + 分区组件                                              |
+| 加一个主进程服务                 | `infra/<domain>/` + `service-container.ts`（accessor + dispose）                                                      |
+| 加一个桥接 hook                  | `hooks/` + `components/layout/bridges.ts`                                                                             |
 
 ## 外部服务 / 凭据
 

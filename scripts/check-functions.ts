@@ -1,7 +1,8 @@
 // check-functions.ts：函数门禁——形参 ≤4（自研正则）+ 函数体 ≤200 行（Biome 度量），棘轮只允许收紧。
 // 数据通路与 check-complexity 同款：package.json 以管道把 Biome 的 JSON 诊断喂进标准输入
-// （`biome lint --only=… --reporter=json src | tsx scripts/check-functions.ts`），脚本不自起
+// （`biome lint --only=… --reporter=json src scripts | tsx scripts/check-functions.ts`），脚本不自起
 // child_process——既避开安全扫描对子进程的拦截，也避开 shell 重定向的跨平台不可移植。
+// 范围：src/main + src/renderer + scripts（测试文件不计；scripts 于 2026-10-26 纳入）。
 // 边界：本脚本只判定与报告，不代偿重构；阈值与分档真源在 scripts/limits.json，本文件只读取。
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -29,7 +30,7 @@ const ROOT = join(import.meta.dirname, '..');
 const BASELINE_PATH = join(import.meta.dirname, 'check-functions.baseline.json');
 const EXEMPT_PATH = join(import.meta.dirname, 'function-size-exempt.json');
 const LIMITS_PATH = join(import.meta.dirname, 'limits.json');
-const SCAN_DIRS = [join(ROOT, 'src', 'main'), join(ROOT, 'src', 'renderer')];
+const SCAN_DIRS = [join(ROOT, 'src', 'main'), join(ROOT, 'src', 'renderer'), join(ROOT, 'scripts')];
 const RULE = 'lint/complexity/noExcessiveLinesPerFunction';
 const METRICS = ['count', 'max', 'params'] as const;
 
@@ -157,18 +158,35 @@ function loadBaseline(): Record<string, Metrics> {
   return parseBaseline(readFileSync(BASELINE_PATH, 'utf8'), METRICS);
 }
 
+/** 一条卡关区体长分档描述 */
+interface TierBand {
+  readonly lo: number;
+  readonly hi: number;
+  readonly name: string;
+  readonly count: number;
+  readonly register?: boolean;
+}
+
 /** 构造卡关区的体长分档标签（跳过 lo > hi 的退化区间） */
 function buildTierBands(counts: Record<BodyTier, number>): Array<{ label: string }> {
   const bands: Array<{ label: string }> = [];
-  const push = (lo: number, hi: number, name: string, count: number, register = false): void => {
-    if (lo > hi) return;
-    const range = Number.isFinite(hi) ? `${lo}–${hi}` : `>${lo - 1}`;
-    bands.push({ label: `${name} ${range} 行 ${count} 处${register ? '（需登记理由）' : ''}` });
+  const push = (band: TierBand): void => {
+    if (band.lo > band.hi) return;
+    const range = Number.isFinite(band.hi) ? `${band.lo}–${band.hi}` : `>${band.lo - 1}`;
+    bands.push({
+      label: `${band.name} ${range} 行 ${band.count} 处${band.register === true ? '（需登记理由）' : ''}`,
+    });
   };
-  push(BODY_LIMIT + 1, BODY_TIERS.mild, '轻度', counts.mild);
-  push(BODY_TIERS.mild + 1, BODY_TIERS.moderate, '中度', counts.moderate);
-  push(BODY_TIERS.moderate + 1, BODY_TIERS.heavy, '重债', counts.heavy);
-  push(BODY_TIERS.heavy + 1, Number.POSITIVE_INFINITY, '极重', counts.over, true);
+  push({ lo: BODY_LIMIT + 1, hi: BODY_TIERS.mild, name: '轻度', count: counts.mild });
+  push({ lo: BODY_TIERS.mild + 1, hi: BODY_TIERS.moderate, name: '中度', count: counts.moderate });
+  push({ lo: BODY_TIERS.moderate + 1, hi: BODY_TIERS.heavy, name: '重债', count: counts.heavy });
+  push({
+    lo: BODY_TIERS.heavy + 1,
+    hi: Number.POSITIVE_INFINITY,
+    name: '极重',
+    count: counts.over,
+    register: true,
+  });
   return bands;
 }
 

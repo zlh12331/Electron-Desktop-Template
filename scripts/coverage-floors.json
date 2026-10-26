@@ -1,40 +1,48 @@
 {
   "$comment": "覆盖率门槛单一真源（禁止在各层 vitest.config.ts 内联数字）。各层字段语义：specTarget=该层规范目标；floor=当前强制门槛（vitest 读取）；ratchet=已批准的历史最高门槛（只能升不能降）；measured=最近一次真实实测（报告口径，禁止只公布最好看的数字）。",
-  "updatedAt": "2026-10-25",
+  "updatedAt": "2026-10-26",
   "maxStaleDays": 60,
   "$comment2": "校验规则（scripts/check-coverage-floors.ts）：① 各层 vitest.config.ts 不得再内联数字，只能读本文件；② floor ≥ ratchet（棘轮只能升，降级需显式改 ratchet 并说明理由）；③ measured ≥ floor（数字必须自洽，禁止美化实测）；④ measuredAt 不得超过 maxStaleDays 天，否则重跑 pnpm test:coverage 回填。",
   "layers": {
     "shared": {
-      "$comment": "契约层：2026-10-24 显式 include 后实测 91.03/81.03/82.35/91.73；原 30/40 分支/函数门槛过低，按实测−约 6pp 收紧到 85/75/75/85，防止契约层大面积回退",
-      "specTarget": { "statements": 85, "branches": 75, "functions": 75, "lines": 85 },
-      "floor": { "statements": 85, "branches": 75, "functions": 75, "lines": 85 },
-      "ratchet": { "statements": 85, "branches": 75, "functions": 75, "lines": 85 },
-      "measured": { "statements": 91.03, "branches": 81.03, "functions": 82.35, "lines": 91.73 },
-      "measuredAt": "2026-10-24"
+      "$comment": "契约层：2026-10-26 实测 91.32/81.25/82.69/92.01；按实测−3~4pp 将 specTarget/floor 从 85/75/75/85 收紧到 87/78/79/88，继续防契约层回退",
+      "specTarget": { "statements": 87, "branches": 78, "functions": 79, "lines": 88 },
+      "floor": { "statements": 87, "branches": 78, "functions": 79, "lines": 88 },
+      "ratchet": { "statements": 87, "branches": 78, "functions": 79, "lines": 88 },
+      "measured": { "statements": 91.32, "branches": 81.25, "functions": 82.69, "lines": 92.01 },
+      "measuredAt": "2026-10-26"
     },
     "main": {
-      "$comment": "主进程：floor 已达业务层规范值；2026-10-25 补托盘/URL 校验测试后实测 84.78/79.72/85.92/84.94，分支余量约 4.7pp",
-      "specTarget": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
-      "floor": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
-      "ratchet": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
-      "measured": { "statements": 84.78, "branches": 79.72, "functions": 85.92, "lines": 84.94 },
-      "measuredAt": "2026-10-25"
+      "$comment": "主进程：2026-10-26 实测 89.56/84.42/89.54/89.76（window/settings/preload 测试补齐后）；按实测−4~5pp 将 floor 从 80/75/80/80 收紧到 85/80/85/85",
+      "specTarget": { "statements": 85, "branches": 80, "functions": 85, "lines": 85 },
+      "floor": { "statements": 85, "branches": 80, "functions": 85, "lines": 85 },
+      "ratchet": { "statements": 85, "branches": 80, "functions": 85, "lines": 85 },
+      "measured": { "statements": 89.56, "branches": 84.42, "functions": 89.54, "lines": 89.76 },
+      "measuredAt": "2026-10-26"
+    },
+    "preload": {
+      "$comment": "preload 桥接层（2026-10-26 新增）：create-api/ipc-bridge 由单测覆盖（实测 100/100/100/100）；floor 从 90/80/90/90 收紧到 95/90/95/95，保留单分支回归缓冲；index.ts 是 contextBridge 入口，由 Electron E2E 覆盖。",
+      "specTarget": { "statements": 95, "branches": 90, "functions": 95, "lines": 95 },
+      "floor": { "statements": 95, "branches": 90, "functions": 95, "lines": 95 },
+      "ratchet": { "statements": 95, "branches": 90, "functions": 95, "lines": 95 },
+      "measured": { "statements": 100, "branches": 100, "functions": 100, "lines": 100 },
+      "measuredAt": "2026-10-26"
     },
     "renderer": {
-      "$comment": "渲染层门槛曾显著低于业务层规范值（历史缺口：Markdown/message-item 等纯展示组件由 E2E journey 兜底；模板已有 Windows 三张视觉基线；settings 子集单列见 rendererSettings 层）。2026-08-31 P1 补测后实测 75.35/66.16/71.25/76.36；2026-09-26 direct-ipc 清迁 + memo→Compiler + lib 桥接模块补测后实测 89.56/81.93/87.42/90.32；2026-10-25 补 UI 包装组件测试并排除纯 re-export barrel 后复测 89.67/81.55/88.98/90.34，仍高于 floor。floor 按 min(规范目标, 实测−缓冲) 升至规范值 80/75/80/80（「真实下限」语义由 scripts/lib/coverage-floors.test.ts 的「floor ≤ 实测可复现上限」护栏承接，伪造仍会被拦）",
-      "specTarget": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
-      "floor": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
-      "ratchet": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
-      "measured": { "statements": 89.67, "branches": 81.55, "functions": 88.98, "lines": 90.34 },
-      "measuredAt": "2026-10-25"
+      "$comment": "渲染层：2026-10-26 实测 91.56/83.64/90.60/92.14（settings 子集见 rendererSettings 层）；按实测−5pp 将 specTarget/floor 从 80/75/80/80 收紧到 86/79/86/87，减少汇总数字对真实下限的掩盖",
+      "specTarget": { "statements": 86, "branches": 79, "functions": 86, "lines": 87 },
+      "floor": { "statements": 86, "branches": 79, "functions": 86, "lines": 87 },
+      "ratchet": { "statements": 86, "branches": 79, "functions": 86, "lines": 87 },
+      "measured": { "statements": 91.56, "branches": 83.64, "functions": 90.6, "lines": 92.14 },
+      "measuredAt": "2026-10-26"
     },
     "renderer-settings": {
-      "$comment": "settings 子集单列（2026-09-24 新增，scripts/measure-settings-coverage.ts 从 coverage-summary.json 按 components/settings 前缀聚合）：使洼地债从汇总数字中可见、可棘轮。2026-10-24 实测 82.09/75.41/81.46/82.41；test:coverage 链尾以 --check 硬卡 floor（低于即失败），不再只回填数字。specTarget 同业务层 80/75/80/80；分支按实测留 2.9pp 缓冲收到 73。",
-      "specTarget": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
-      "floor": { "statements": 80, "branches": 73, "functions": 80, "lines": 80 },
-      "ratchet": { "statements": 80, "branches": 73, "functions": 80, "lines": 80 },
-      "measured": { "statements": 82.09, "branches": 75.41, "functions": 81.46, "lines": 82.41 },
-      "measuredAt": "2026-10-24"
+      "$comment": "settings 子集单列（2026-09-24 新增，scripts/measure-settings-coverage.ts 从 coverage-summary.json 按 components/settings 前缀聚合）：2026-10-26 实测 86.62/80.95/85.62/87.04；floor 从 80/73/80/80 收紧到 82/76/82/82，继续以 --check 硬卡。",
+      "specTarget": { "statements": 82, "branches": 76, "functions": 82, "lines": 82 },
+      "floor": { "statements": 82, "branches": 76, "functions": 82, "lines": 82 },
+      "ratchet": { "statements": 82, "branches": 76, "functions": 82, "lines": 82 },
+      "measured": { "statements": 86.62, "branches": 80.95, "functions": 85.62, "lines": 87.04 },
+      "measuredAt": "2026-10-26"
     }
   }
 }

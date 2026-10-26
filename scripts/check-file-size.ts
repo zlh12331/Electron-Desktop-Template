@@ -3,7 +3,8 @@
 // 为什么原始行不卡关（2026-09-06）：本仓强制写注释，按物理行卡关等于惩罚文档化
 // 的代码——存量 7 条超限里 5 条只因注释多被永久锁死；净行（去空行与纯注释行）
 // 才是规范口径，原始行保留为告警
-// 范围：src/{main,renderer,preload} + packages/*/src（契约层曾漏在扫描外，2026-08-30 纠正）
+// 范围：src/{main,renderer,preload} + packages/*/src + scripts（测试文件不计；
+// 契约层曾漏在扫描外，2026-08-30 纠正；scripts 于 2026-10-26 纳入，存量见 baseline）
 // 运行：pnpm check:file-size [--update-baseline [--force]]
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -44,6 +45,7 @@ function scanDirs(): string[] {
     join(ROOT, 'src', 'main'),
     join(ROOT, 'src', 'renderer'),
     join(ROOT, 'src', 'preload'),
+    join(ROOT, 'scripts'),
     ...discoverPackageSrcDirs(ROOT),
   ];
 }

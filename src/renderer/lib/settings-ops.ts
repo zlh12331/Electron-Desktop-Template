@@ -12,16 +12,16 @@ import type {
   UpdateCacheInfo,
 } from '@code-agent/shared/renderer';
 
-import { hasIpcBridge, unwrap } from '@/lib/ipc';
+import { bridgeUnavailableError, hasIpcBridge, unwrap } from '@/lib/ipc';
 
 /**
  * 拉取更新缓存占用
  *
- * @throws Error 无桥（[NO_BRIDGE]）或 IPC 失败（调用方可 catch 静默）
+ * @throws Error 无桥（[BRIDGE_UNAVAILABLE]）或 IPC 失败（调用方可 catch 静默）
  */
 export async function getUpdateCacheInfo(): Promise<UpdateCacheInfo> {
   if (!hasIpcBridge()) {
-    throw new Error('[NO_BRIDGE] window.api unavailable');
+    throw bridgeUnavailableError();
   }
   return unwrap(await window.api.update.getCacheInfo());
 }
@@ -29,11 +29,11 @@ export async function getUpdateCacheInfo(): Promise<UpdateCacheInfo> {
 /**
  * 清理更新缓存
  *
- * @throws Error 无桥（[NO_BRIDGE]）或 IPC 失败
+ * @throws Error 无桥（[BRIDGE_UNAVAILABLE]）或 IPC 失败
  */
 export async function clearUpdateCache(): Promise<UpdateCacheInfo> {
   if (!hasIpcBridge()) {
-    throw new Error('[NO_BRIDGE] window.api unavailable');
+    throw bridgeUnavailableError();
   }
   return unwrap(await window.api.update.clearCache());
 }
@@ -70,11 +70,11 @@ export async function importSettingsFile(): Promise<SettingsImportRes> {
  * 调用方据此 applySettingsSnapshot({}) 回落 DEFAULT_SETTINGS。
  *
  * @returns 重置后的设置快照（空对象；形状与 settings:getAll 响应一致）
- * @throws Error 无桥（[NO_BRIDGE]）或 IPC 失败
+ * @throws Error 无桥（[BRIDGE_UNAVAILABLE]）或 IPC 失败
  */
 export async function resetAllSettings(): Promise<Record<string, unknown>> {
   if (!hasIpcBridge()) {
-    throw new Error('[NO_BRIDGE] window.api unavailable');
+    throw bridgeUnavailableError();
   }
   const res = unwrap<{ settings: Record<string, unknown> }>(await window.api.settings.resetAll({}));
   return res.settings;
@@ -83,11 +83,11 @@ export async function resetAllSettings(): Promise<Record<string, unknown>> {
 /**
  * 打开用户数据目录（返回主进程回读结果，供调用方区分成功/失败提示）
  *
- * @throws Error 无桥（[NO_BRIDGE]）或 IPC 失败
+ * @throws Error 无桥（[BRIDGE_UNAVAILABLE]）或 IPC 失败
  */
 export async function openDataDirChecked(): Promise<{ ok: boolean }> {
   if (!hasIpcBridge()) {
-    throw new Error('[NO_BRIDGE] window.api unavailable');
+    throw bridgeUnavailableError();
   }
   return unwrap(await window.api.app.openDataDir());
 }
@@ -107,11 +107,11 @@ export async function exportDiagnostics(): Promise<ExportDiagnosticsRes | null> 
 /**
  * 读取开机自启状态（OS 登录项为唯一真源）
  *
- * @throws Error 无桥（[NO_BRIDGE]）或 IPC 失败（调用方可 catch 后隐藏开关）
+ * @throws Error 无桥（[BRIDGE_UNAVAILABLE]）或 IPC 失败（调用方可 catch 后隐藏开关）
  */
 export async function getLoginItemSettings(): Promise<LoginItemSettingsRes> {
   if (!hasIpcBridge()) {
-    throw new Error('[NO_BRIDGE] window.api unavailable');
+    throw bridgeUnavailableError();
   }
   return unwrap(await window.api.app.getLoginItemSettings());
 }
@@ -147,23 +147,26 @@ export function subscribeLoginItemChanged(
 /**
  * 测试代理连接（主进程经 proxiedFetch 探测轻量端点）
  *
+ * @param targetUrl 可选测试目标（http/https）；省略使用主进程默认探针
  * @returns 无桥时返回不可测（浏览器模式 UI 可用，行为无感）
  */
-export async function testProxyConnection(): Promise<ProxyTestRes> {
+export async function testProxyConnection(targetUrl?: string): Promise<ProxyTestRes> {
   if (!hasIpcBridge()) {
     return { ok: false, kind: 'not-applicable' };
   }
-  return unwrap(await window.api.proxy.test({}));
+  return unwrap(
+    await window.api.proxy.test(targetUrl === undefined || targetUrl === '' ? {} : { targetUrl }),
+  );
 }
 
 /**
  * 清除系统 keychain 中保存的代理凭据
  *
- * @throws Error 无桥（[NO_BRIDGE]）或 IPC 失败
+ * @throws Error 无桥（[BRIDGE_UNAVAILABLE]）或 IPC 失败
  */
 export async function clearProxyAuth(): Promise<void> {
   if (!hasIpcBridge()) {
-    throw new Error('[NO_BRIDGE] window.api unavailable');
+    throw bridgeUnavailableError();
   }
   unwrap(await window.api.proxy.clearAuth());
 }

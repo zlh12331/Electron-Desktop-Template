@@ -47,9 +47,10 @@ import { createWindowHandlers } from './ipc/window.handler';
 import { broadcastLoginItemChanged, broadcastSettingChanged } from './main-events';
 import { installProductionMenu } from './menu';
 import { isQuitting, setCloseConfirmed, setQuitting } from './quit-state';
-import { applyCspToSession } from './security/csp';
+import { hardenSession } from './security/session-hardening';
 import { disposeServices, recoverFromCrash, serviceContainer } from './service-container';
 import { createTray } from './tray';
+import { isDevTestEnvEnabled, resolveEnvFileToLoad } from './utils/dev-test-env';
 import { reportError, reportMessage } from './utils/error-report';
 import { flushPendingLogs, initLogger, logger, registerGlobalErrorHandlers } from './utils/logger';
 import { flushTelemetryOnFatal } from './utils/telemetry-flush';
@@ -58,10 +59,16 @@ import { bringMainWindowToFront } from './window-show';
 import { syncTitleBarOverlayFromTheme } from './window-theme';
 
 // 环境文件必须先于 userData/CDP/Sentry 解析；空路径用于隔离验收，禁止继承本机后端配置。
-const envFile = process.env['APP_ENV_FILE'];
-if (process.env['NODE_ENV'] !== 'test' && envFile !== '') {
+// 只允许 dev/test 读取；打包态即使设置了 APP_ENV_FILE 也不加载。
+const envFile = resolveEnvFileToLoad({
+  isPackaged: app.isPackaged,
+  nodeEnv: process.env['NODE_ENV'],
+  envFile: process.env['APP_ENV_FILE'],
+  defaultPath: join(__dirname, '../../.env'),
+});
+if (envFile !== null) {
   try {
-    process.loadEnvFile(envFile ?? join(__dirname, '../../.env'));
+    process.loadEnvFile(envFile);
   } catch {}
 }
 
@@ -180,21 +187,13 @@ app
         serviceContainer.getUpdateService().start({
           autoCheckEnabled: isAutoCheckEnabled,
           allowPrereleaseEnabled: isAllowPrereleaseEnabled,
-          devUpdateEnabled: process.env['APP_DEV_UPDATE'] === '1',
+          devUpdateEnabled: isDevTestEnvEnabled(app.isPackaged, 'APP_DEV_UPDATE'),
         });
 
-        applyCspToSession(session.defaultSession, !app.isPackaged);
-        logger.info({ isPackaged: app.isPackaged }, 'CSP 策略已注入');
-
-        // 权限收口双保险：request handler 拒绝申请，check handler 拒绝权限查询/隐式授予
-        session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-          logger.warn(
-            { permission, url: webContents.getURL() },
-            '拒绝渲染层权限请求（未授权权限类型）',
-          );
-          callback(false);
-        });
-        session.defaultSession.setPermissionCheckHandler(() => false);
+        // session 级安全收口：CSP/XFO + 权限白名单。WebContentsView 的独立 partition
+        // 也必须调用 hardenSession()，否则会绕开权限策略。
+        hardenSession(session.defaultSession, !app.isPackaged);
+        logger.info({ isPackaged: app.isPackaged }, 'CSP/权限策略已注入');
 
         installProductionMenu();
 

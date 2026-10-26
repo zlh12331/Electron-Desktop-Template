@@ -1,4 +1,4 @@
-import type { IpcResponse } from '@code-agent/shared/renderer';
+import { ErrorCode, type IpcResponse } from '@code-agent/shared/renderer';
 
 /**
  * 解包 IPC 响应（discriminated union）
@@ -36,6 +36,15 @@ const ERROR_CODE_PREFIX = /^\[([A-Z_]+)\]/;
  */
 export function hasIpcBridge(): boolean {
   return typeof window !== 'undefined' && window.api !== undefined;
+}
+
+/**
+ * 构造“无桥”错误（统一错误码，供 unwrapErrorMessage 本地化）
+ *
+ * @returns 带 `[BRIDGE_UNAVAILABLE]` 前缀的错误
+ */
+export function bridgeUnavailableError(): Error {
+  return new Error(`[${ErrorCode.BRIDGE_UNAVAILABLE}] window.api unavailable`);
 }
 
 /**

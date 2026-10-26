@@ -1,6 +1,6 @@
 // devtools.handler.ts：devtools 域 IPC——渲染层主动请求打开 DevTools（快捷键入口）
 import type { InferHandlers, IPC_DEFINITIONS } from '@code-agent/shared/main';
-import { BrowserWindow } from 'electron';
+import { app, BrowserWindow } from 'electron';
 
 import { logger } from '../utils/logger';
 import type { IpcHandlerContext } from './wrap';
@@ -15,6 +15,11 @@ export const devtoolsHandlers: InferHandlers<
   open: async (input, ctx) => {
     const mode = input?.mode ?? DEFAULT_MODE;
     const win = BrowserWindow.fromWebContents(ctx.sender);
+
+    if (app.isPackaged) {
+      logger.warn({ traceId: ctx.traceId }, '打包态拒绝打开 DevTools');
+      return { ok: false, mode };
+    }
 
     if (win === null) {
       logger.warn({ traceId: ctx.traceId }, 'DevTools 打开失败：sender 窗口不存在');

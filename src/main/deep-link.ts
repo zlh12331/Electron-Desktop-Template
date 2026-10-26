@@ -10,6 +10,9 @@ import { logger } from './utils/logger';
 /** 协议 scheme（注册与提取共用；真源 app.config.json → constants/brand.ts） */
 const APP_DEEP_LINK_PROTOCOL = APP_PROTOCOL;
 
+/** 协议前缀（URL scheme 大小写不敏感，提取时按小写比较） */
+const DEEP_LINK_PREFIX = `${APP_DEEP_LINK_PROTOCOL}://`;
+
 // 实体 id 契约：URL 路径段解码后只接受常见安全字符，避免任意串进入路由/日志
 const TARGET_ID_PATTERN = /^[A-Za-z0-9._~-]{1,128}$/;
 
@@ -34,7 +37,7 @@ export function parseDeepLink(rawUrl: string): DeepLinkPayload {
   // 只有 `scheme:///open/<id>` 才落在 pathname，两种写法都要识别。
   const targetMatch =
     /\/open\/([^/?#]+)/.exec(url.pathname) ??
-    (url.host === 'open' ? /^\/([^/?#]+)/.exec(url.pathname) : null);
+    (url.host.toLowerCase() === 'open' ? /^\/([^/?#]+)/.exec(url.pathname) : null);
   const rawTargetId = targetMatch?.[1] ?? url.searchParams.get('target');
   return { targetId: normalizeTargetId(rawTargetId), url: rawUrl };
 }
@@ -75,7 +78,8 @@ export function clearPendingDeepLink(): void {
  * Windows/Linux 没有 open-url 事件，冷启动深链只能从 argv 里找
  */
 export function extractProtocolUrl(argv: readonly string[]): string | null {
-  return argv.find((a) => a.startsWith(`${APP_DEEP_LINK_PROTOCOL}://`)) ?? null;
+  const prefix = DEEP_LINK_PREFIX.toLowerCase();
+  return argv.find((arg) => arg.toLowerCase().startsWith(prefix)) ?? null;
 }
 
 /**
