@@ -27,10 +27,11 @@ describe('electron-builder.yml 安全基线', () => {
     });
   });
 
-  it('打包态关闭外部 Node 选项与调试器参数注入', () => {
+  it('打包态关闭外部 Node 选项，并保留 production smoke 所需的 inspect 参数', () => {
     const fuses = readConfig().electronFuses;
     expect(fuses?.['enableNodeOptionsEnvironmentVariable']).toBe(false);
-    expect(fuses?.['enableNodeCliInspectArguments']).toBe(false);
+    // Playwright _electron.launch 依赖 --inspect 驱动打包应用；关闭会让 6 平台 smoke 无法启动。
+    expect(fuses?.['enableNodeCliInspectArguments']).toBe(true);
   });
 
   it('asar 开启且不关闭完整性校验', () => {
