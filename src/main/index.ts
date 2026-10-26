@@ -48,6 +48,7 @@ import { broadcastLoginItemChanged, broadcastSettingChanged } from './main-event
 import { installProductionMenu } from './menu';
 import { isQuitting, setCloseConfirmed, setQuitting } from './quit-state';
 import { applyCspToSession } from './security/csp';
+import { isAllowedRendererPermission } from './security/permissions';
 import { disposeServices, recoverFromCrash, serviceContainer } from './service-container';
 import { createTray } from './tray';
 import { isDevTestEnvEnabled, resolveEnvFileToLoad } from './utils/dev-test-env';
@@ -193,15 +194,21 @@ app
         applyCspToSession(session.defaultSession, !app.isPackaged);
         logger.info({ isPackaged: app.isPackaged }, 'CSP 策略已注入');
 
-        // 权限收口双保险：request handler 拒绝申请，check handler 拒绝权限查询/隐式授予
+        // 权限收口双保险：request handler 拒绝申请，check handler 拒绝权限查询/隐式授予。
+        // 仅剪贴板写放行（复制按钮依赖），读取类权限继续全拒绝。
         session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-          logger.warn(
-            { permission, url: webContents.getURL() },
-            '拒绝渲染层权限请求（未授权权限类型）',
-          );
-          callback(false);
+          const allowed = isAllowedRendererPermission(permission);
+          if (!allowed) {
+            logger.warn(
+              { permission, url: webContents.getURL() },
+              '拒绝渲染层权限请求（未授权权限类型）',
+            );
+          }
+          callback(allowed);
         });
-        session.defaultSession.setPermissionCheckHandler(() => false);
+        session.defaultSession.setPermissionCheckHandler((_webContents, permission) =>
+          isAllowedRendererPermission(permission),
+        );
 
         installProductionMenu();
 

@@ -288,6 +288,25 @@ test.describe('Electron 应用 E2E 测试', () => {
     expect(result.ok).toBe(true);
   });
 
+  test('About 页复制诊断信息写入系统剪贴板', async () => {
+    ({ app, page } = await launchElectron());
+
+    await page.evaluate(() => {
+      window.location.hash = '#/about';
+    });
+    const copyButton = page.getByRole('button', { name: /复制诊断|Copy diagnostics/i });
+    await expect(copyButton).toBeVisible({ timeout: 15_000 });
+
+    await app.evaluate(({ clipboard }) => clipboard.clear());
+    await copyButton.click();
+
+    // 复制成功后按钮进入“已复制”反馈；失败只会弹 toast，按钮文案保持不变
+    await expect(page.getByRole('button', { name: /已复制|Copied/i })).toBeVisible();
+    await expect
+      .poll(() => app.evaluate(({ clipboard }) => clipboard.readText()), { timeout: 5_000 })
+      .toContain('Electron');
+  });
+
   test('React DevTools 扩展 hook 已注入', async () => {
     ({ app, page } = await launchElectron());
 
