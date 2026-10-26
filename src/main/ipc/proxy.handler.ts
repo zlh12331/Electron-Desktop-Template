@@ -13,7 +13,8 @@ import { broadcastSettingChanged } from '../main-events';
 import { logger } from '../utils/logger';
 import type { IpcHandlerContext } from './wrap';
 
-// 探针 3 秒超时：测试交互不等慢代理；目标默认 gstatic 204 探针（轻量、全球可达、无业务含义）
+// 探针 3 秒超时：测试交互不等慢代理；默认 gstatic 204 探针（轻量、无业务含义），
+// 中国大陆等网络可通过 input.targetUrl 指定可达目标，避免把 Google 的连通性误判成代理故障。
 const PROBE_TIMEOUT_MS = 3_000;
 const DEFAULT_PROBE_TARGET = 'https://www.gstatic.com/generate_204';
 

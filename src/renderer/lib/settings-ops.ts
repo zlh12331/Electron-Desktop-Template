@@ -147,13 +147,16 @@ export function subscribeLoginItemChanged(
 /**
  * 测试代理连接（主进程经 proxiedFetch 探测轻量端点）
  *
+ * @param targetUrl 可选测试目标（http/https）；省略使用主进程默认探针
  * @returns 无桥时返回不可测（浏览器模式 UI 可用，行为无感）
  */
-export async function testProxyConnection(): Promise<ProxyTestRes> {
+export async function testProxyConnection(targetUrl?: string): Promise<ProxyTestRes> {
   if (!hasIpcBridge()) {
     return { ok: false, kind: 'not-applicable' };
   }
-  return unwrap(await window.api.proxy.test({}));
+  return unwrap(
+    await window.api.proxy.test(targetUrl === undefined || targetUrl === '' ? {} : { targetUrl }),
+  );
 }
 
 /**

@@ -91,7 +91,34 @@ describe('ProxySection', () => {
     await waitFor(() => {
       expect(screen.getByText(t('settings.proxyTestSuccess'))).toBeDefined();
     });
-    expect(testSpy).toHaveBeenCalledTimes(1);
+    expect(testSpy).toHaveBeenCalledWith({});
+  });
+
+  it('自定义测试目标：合法 http(s) 地址透传 targetUrl', async () => {
+    useSettingsStore.setState({ proxy: { mode: 'fixed', url: 'http://p:1' } });
+    renderSection();
+
+    await userEvent.type(
+      screen.getByLabelText(t('settings.proxyTestTargetLabel')),
+      'https://example.com/generate_204',
+    );
+    await userEvent.click(screen.getByRole('button', { name: t('settings.proxyTestButton') }));
+
+    await waitFor(() => {
+      expect(testSpy).toHaveBeenCalledWith({
+        targetUrl: 'https://example.com/generate_204',
+      });
+    });
+  });
+
+  it('非法测试目标：不发请求', async () => {
+    useSettingsStore.setState({ proxy: { mode: 'fixed', url: 'http://p:1' } });
+    renderSection();
+
+    await userEvent.type(screen.getByLabelText(t('settings.proxyTestTargetLabel')), 'not-a-url');
+    await userEvent.click(screen.getByRole('button', { name: t('settings.proxyTestButton') }));
+
+    expect(testSpy).not.toHaveBeenCalled();
   });
 
   it('已保存凭据：显示用户名与清除入口，清除调用 proxy:clearAuth', async () => {

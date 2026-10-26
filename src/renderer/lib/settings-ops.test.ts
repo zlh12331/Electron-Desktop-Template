@@ -127,6 +127,16 @@ describe('settings-ops · 有桥路径', () => {
     api.proxy.test.mockResolvedValue(ok({ ok: true, kind: 'ok' }));
 
     await expect(testProxyConnection()).resolves.toEqual({ ok: true, kind: 'ok' });
+    expect(api.proxy.test).toHaveBeenCalledWith({});
+  });
+
+  it('testProxyConnection：传入自定义目标时透传 targetUrl', async () => {
+    api.proxy.test.mockResolvedValue(ok({ ok: true, kind: 'ok' }));
+
+    await testProxyConnection('https://example.com/generate_204');
+    expect(api.proxy.test).toHaveBeenCalledWith({
+      targetUrl: 'https://example.com/generate_204',
+    });
   });
 });
 
