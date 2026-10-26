@@ -1,28 +1,44 @@
 # Changelog
 
-## [0.2.0](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.1.1...v0.2.0) (2026-10-26)
+## 0.2.0 (2026-10-26)
 
+<!-- changelog:polished -->
+
+> 0.2.0 聚焦真实桌面环境的可靠性：修复复制、托盘与打包态环境隔离，补齐备份恢复和深链边界，并把质量门禁扩展到脚本层。
 
 ### 新增
 
-* **main:** 生产版改用不含 View/DevTools 的最小应用菜单 ([eb1a35e](https://github.com/zlh12331/Electron-Desktop-Template/commit/eb1a35ebe6aab1eaa5f4e4c9abe5abda0bf812b5))
-* **scripts:** init:template 支持内部 workspace scope 重命名 ([136eec0](https://github.com/zlh12331/Electron-Desktop-Template/commit/136eec0bcef6d0f29d1161bcff57f727efe8d82b))
-
+- **代理测试可指定目标**：设置页「测试连接」可填 http(s) 地址，默认仍用轻量 204 探针；默认端点不可达时可改用自己的地址。
+- **派生初始化更完整**：`init:template` 支持内部 workspace scope 重命名；默认移除模板营销站与 Pages workflow，`--keep-site` 可保留并改写品牌、仓库与版本。
 
 ### 修复
 
-* **ipc:** 允许 hash 路由的 file 入口通过 sender 校验 ([0b302cc](https://github.com/zlh12331/Electron-Desktop-Template/commit/0b302cc4a720945c3f2dfbe0b43c0b4e7666bb67))
-* **quality:** 修复剪贴板/fuses 并收紧质量门禁 ([#35](https://github.com/zlh12331/Electron-Desktop-Template/issues/35)) ([ddc48fd](https://github.com/zlh12331/Electron-Desktop-Template/commit/ddc48fd63acc5ab2f942726c1f2c4d41a15b4888))
-* **renderer:** mock API 增加编译期与运行时契约 ([72c6e51](https://github.com/zlh12331/Electron-Desktop-Template/commit/72c6e5167ff7bcf4f5812de9391e9620473b4a45))
-* **renderer:** 修复可配置快捷键的 key/code 与逗号分隔问题 ([09cd848](https://github.com/zlh12331/Electron-Desktop-Template/commit/09cd848fe7d45980260016b970ab6df03dacf918))
-* **renderer:** 弹层改为首次打开才挂载，避免启动加载设置大 chunk ([6de278b](https://github.com/zlh12331/Electron-Desktop-Template/commit/6de278be730a4e7b0c1acdcdbc541546faf34648))
-* **scripts:** postinstall 原生重编译失败时阻断安装 ([5f32f37](https://github.com/zlh12331/Electron-Desktop-Template/commit/5f32f37e8b7350abc86f67359be2a26796118194))
-* **scripts:** 修复 check:i18n 的 keyed 提取正则并补错误码双语测试 ([d03e8ce](https://github.com/zlh12331/Electron-Desktop-Template/commit/d03e8ce99dedddb2e4daa621d5e0f6ce90401ff5))
-* **scripts:** 派生验收副本保留官方 registry 配置 ([dd48f30](https://github.com/zlh12331/Electron-Desktop-Template/commit/dd48f308d1c475e59b3c1925ba5f32026f3d600d))
-* **scripts:** 补齐 protocols.name 与 Linux 包元数据的品牌同步 ([ca94ab9](https://github.com/zlh12331/Electron-Desktop-Template/commit/ca94ab93c05d828a4478b00dd7759bd4bf59f1dc))
-* **security:** 移除 Google Fonts 远程依赖并收紧 CSP ([69297b7](https://github.com/zlh12331/Electron-Desktop-Template/commit/69297b7f58f09935058e146ae552245d9b5cb8eb))
-* **security:** 精确校验渲染层 URL 与外部链接协议 ([7ed25a0](https://github.com/zlh12331/Electron-Desktop-Template/commit/7ed25a0eaf92d6375948448e1ab04e57cdde6331))
-* **security:** 识别 Linux safeStorage basic_text 并禁用凭据存储 ([d752c0f](https://github.com/zlh12331/Electron-Desktop-Template/commit/d752c0f88a723d4005b6b079c882b62b20b013ea))
+- **真实窗口复制恢复**：About「复制诊断信息」与诊断卡片此前提示「剪贴板不可用」；现在只放行剪贴板写权限，复制可用，读取剪贴板仍拒绝。
+- **托盘图标在打包版可见**：修正打包态图标路径，窗口最小化到托盘后不再出现「看不见的托盘」。
+- **打包态不再信任 dev/test 环境变量**：`ELECTRON_RENDERER_URL`、关窗豁免、dev 更新和额外 env 文件只在未打包时生效，避免外部改写加载源或 IPC 来源。
+- **备份恢复不再先删主库**：恢复时先暂存再原子替换，失败保留旧库；替换成功后清理旧 WAL/SHM。
+- **深链协议大小写**：scheme 与 `open` host 不区分大小写，系统以大写形式唤起也能正确导航。
+- **打包态关闭 DevTools 入口**：`devtools:open` 在打包版返回不可用，与生产菜单策略一致。
+- **错误提示完整**：新增 `BRIDGE_UNAVAILABLE` 与双语文案，preload 缺失时不再回落英文伪错误码。
+- **file:// 路由与设置启动**：修正 hash 路由 file 模式的 IPC sender 校验；设置弹层首次打开才挂载，减少启动加载。
+- **快捷键与品牌元数据**：修复可配置快捷键的 key/code 与逗号分隔；补齐 protocols.name 与 Linux 包元数据；移除 Google Fonts 远程依赖并收紧 CSP。
+- **凭据与 URL 边界**：Linux `basic_text` 后端不再保存凭据；渲染层 URL 与外链协议精确校验；postinstall 原生重编译失败会阻断安装。
+
+### 性能
+
+- 设置弹层懒加载，启动阶段不再加载设置大 chunk；未配置遥测时保持完整 no-op。
+
+### 内部改进
+
+- preload 独立覆盖率层 100%；`window.ts` 74/78 行、`settings.handler.ts` 60/60；关键模块按文件阈值卡关。
+- `scripts` 纳入 file-size / functions / complexity 门禁；knip 回到生产入口；覆盖率 floors 上调 3–5pp。
+- scaffold 失败回滚、品牌扫描覆盖 scripts 子目录、IPC 文档计数自动同步；备份/深链/差分更新补边界测试。
+- 维持六平台 CI 矩阵、SBOM、原生架构断言与生产 smoke；依赖树按 Renovate 非 major 批次更新到 Electron 44.9.3、TypeScript 7.0.2、Vite 8.3.5、React 19.3。
+
+### 已知限制
+
+- 当前为**三平台未签名包**：Windows 可能触发 SmartScreen；macOS 未签名/未公证需手动绕过 Gatekeeper；自动更新「安装 → 更新 → 卸载」仍未做真实演练。
+- 性能门槛覆盖 bundle 体积与启动耗时，暂无 FCP/LCP/INP 硬门槛；可观测性后端由接入方部署；SQLite 主库默认不加密。
 
 ## 0.1.1 (2026-10-25)
 
