@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import type { UpdateStatusPayload } from '@code-agent/shared/main';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -65,7 +66,10 @@ const mocks = vi.hoisted(() => {
     fakeNotification: FakeNotification,
     emptyImage,
     menuTemplates,
+    createFromPath: vi.fn((_path: string) => emptyImage),
     appQuit: vi.fn(),
+    isPackaged: false,
+    appPath: 'C:/app',
     buildFromTemplate: vi.fn((template: FakeMenuItem[]) => {
       menuTemplates.push(template);
       return { template };
@@ -79,7 +83,10 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('electron', () => ({
   app: {
-    getAppPath: () => 'C:/app',
+    get isPackaged() {
+      return mocks.isPackaged;
+    },
+    getAppPath: () => mocks.appPath,
     getName: () => 'Fixture App',
     quit: mocks.appQuit,
   },
@@ -90,7 +97,7 @@ vi.mock('electron', () => ({
   // biome-ignore lint/style/useNamingConvention: mock electron Notification export，需匹配 SDK 原名
   Notification: mocks.fakeNotification,
   nativeImage: {
-    createFromPath: () => mocks.emptyImage,
+    createFromPath: mocks.createFromPath,
     createEmpty: () => mocks.emptyImage,
   },
 }));
@@ -143,6 +150,7 @@ function createDeps(status: UpdateStatusPayload | null = null): TrayDeps {
 async function loadTray(): Promise<{
   createTray: typeof import('./tray').createTray;
   notifyMinimizedToTray: typeof import('./tray').notifyMinimizedToTray;
+  resolveTrayResourcesDir: typeof import('./tray').resolveTrayResourcesDir;
 }> {
   vi.resetModules();
   return await import('./tray');
@@ -165,6 +173,9 @@ describe('tray', () => {
     mocks.fakeNotification.instances.length = 0;
     mocks.fakeNotification.supported = true;
     mocks.menuTemplates.length = 0;
+    mocks.isPackaged = false;
+    mocks.appPath = 'C:/app';
+    mocks.createFromPath.mockClear();
     mocks.readAutostartState.mockResolvedValue({
       openAtLogin: true,
       supported: true,
@@ -300,5 +311,43 @@ describe('tray', () => {
     notifyMinimizedToTray();
     expect(mocks.fakeNotification.instances).toHaveLength(0);
     expect(mocks.writeSetting).not.toHaveBeenCalled();
+  });
+
+  it('托盘图标目录：dev 用 appPath/resources，打包态用 resourcesPath/icons', async () => {
+    const { resolveTrayResourcesDir } = await loadTray();
+
+    expect(resolveTrayResourcesDir(false, 'C:/repo', 'C:/electron/resources')).toBe(
+      join('C:/repo', 'resources/icons'),
+    );
+    expect(
+      resolveTrayResourcesDir(true, 'C:/electron/resources/app.asar', 'C:/electron/resources'),
+    ).toBe(join('C:/electron/resources', 'icons'));
+  });
+
+  it('打包态实际读取 resourcesPath/icons，不得拼进 app.asar', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(process, 'resourcesPath');
+    Object.defineProperty(process, 'resourcesPath', {
+      value: 'C:/electron/resources',
+      configurable: true,
+    });
+    try {
+      mocks.isPackaged = true;
+      mocks.appPath = 'C:/electron/resources/app.asar';
+      const { createTray } = await loadTray();
+      createTray(createDeps());
+
+      expect(mocks.createFromPath).toHaveBeenCalledWith(
+        join('C:/electron/resources', 'icons', 'tray16.png'),
+      );
+      expect(
+        mocks.createFromPath.mock.calls.some(([path]) => String(path).includes('app.asar')),
+      ).toBe(false);
+    } finally {
+      if (descriptor === undefined) {
+        Reflect.deleteProperty(process, 'resourcesPath');
+      } else {
+        Object.defineProperty(process, 'resourcesPath', descriptor);
+      }
+    }
   });
 });
