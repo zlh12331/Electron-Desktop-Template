@@ -4,7 +4,7 @@
 > 失效中枢是 `use-invalidation-bridge`（AppShell 经 `useAppBridges()` 挂载）——本文件是
 > 其实现的规范级视图；两者不一致时以代码为准并回改本文。
 >
-> 最后同步：2026-10-21（模板版：仅保留通用底座数据）
+> 最后同步：2026-10-27（模板版：通用底座 + Local Notes 参考切片）
 
 ---
 
@@ -21,11 +21,12 @@
 
 ## 二、SQLite 持久数据（真源 = 主进程库表）
 
-模板只有一张表 `app_settings`；接入业务表后按同一张表登记。
+模板保留两张表：通用 `app_settings`，以及随示例可整体删除的 `notes`；派生项目接入业务表后按同一张表登记。
 
 | 数据 | 真源 | 写入方（主进程） | 渲染层消费 | 渲染层缓存 | 失效点 |
 |---|---|---|---|---|---|
-| 应用设置 | `app_settings` 表 | `settings:set` 写穿透 | settings-store 内存镜像 | L2（内存态，非持久插件） | 启动快照 `settings:getAll` 拉取；`settings:event:changed` 广播回写 |
+| 应用设置 | `app_settings` 表 | `settings:set` 写穿透 | settings-store 内存镜像 | L2（内存态，非持久插件） | 启动快照 `settings:getAll` 拉取；主进程主动变更（托盘/导入/代理）经 `settings:event:changed` 回写，渲染层自身写路径不广播以避免回声 |
+| 笔记 | `notes` 表 | `notes:create/update/delete/importFile` | Notes 列表/详情 + 编辑器草稿 | L3：列表/详情；编辑器为 L1 草稿 | mutation 本地失效 + handler 广播 `notes` 域（带 entityId） |
 
 **事务边界**：主进程多语句写的判据见 [18-data-layer-spec.md §四](18-data-layer-spec.md)。
 
@@ -48,11 +49,13 @@
 
 ## 五、L4 推送 → L2 transient store
 
-| Store | 数据来源（推送） | 生命周期 |
+| Store / 桥 | 数据来源（推送） | 生命周期 |
 |---|---|---|
 | update-store | `update:event:status` | 应用生命周期 |
+| settings-store 镜像 | `settings:event:changed` | 应用生命周期 |
 | ui-store | 纯 UI 交互态（设置/命令面板/快捷键帮助开合） | 用户操作 |
 | confirm-dialog-store | 命令式 `confirm()` 调用 | 对话框关闭即清 |
+| use-invalidation-bridge | `invalidation:event:domains` | App 生命周期；不写 store，直接失效 L3 |
 
 接入流式业务时在此追加：每新增一个 `use-*-bridge` 订阅，登记「来源事件 → 落哪个 store → 何时清理」。
 
@@ -70,6 +73,7 @@
 
 主进程写路径声明受影响域 → `invalidation:event:domains` 广播 → 渲染层按域前缀失效 L3 缓存：
 
-1. **域词表单一真源**：`INVALIDATION_DOMAINS`（`packages/shared/src/schemas/invalidation.ts`），主进程声明侧与渲染层映射侧同源，禁散写字面量；当前为 `settings` / `backups` / `update`
-2. **前缀推导**：`lib/invalidation/invalidation.ts` 把域串按 `:` 切成 queryKey 前缀（`settings` → `['settings']`，`entity:abc` → `['entity','abc']`），非法形态跳过
-3. **新增域时三处同步**：`INVALIDATION_DOMAINS` 加词 + 主进程写路径调用广播 + 本节登记——缺一即出现「写后看到旧数据」的静默失效
+1. **域词表单一真源**：`INVALIDATION_DOMAINS`（`packages/shared/src/schemas/invalidation.ts`），主进程声明侧与渲染层映射侧同源，禁散写字面量；当前词表为 `settings` / `backups` / `update` / `notes`
+2. **当前实际生产者**：只有 Notes 写路径调用 `broadcastInvalidation`；`settings` / `update` 走各自专用事件，`backups` 由 mutation 本地失效。词表里存在不等于已接线，新写路径必须显式补生产者。
+3. **前缀推导**：`lib/invalidation/invalidation.ts` 把域串按 `:` 切成 queryKey 前缀（`settings` → `['settings']`，`entity:abc` → `['entity','abc']`），非法形态跳过
+4. **新增域时三处同步**：`INVALIDATION_DOMAINS` 加词 + 主进程写路径调用广播 + 本节登记——缺一即出现「写后看到旧数据」的静默失效
