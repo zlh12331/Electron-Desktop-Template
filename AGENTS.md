@@ -107,7 +107,7 @@ tools/           → 独立 TS 子包（depcruise / typedoc）
 - **React Compiler 已启用**（`oxc-transform-react`）：新代码默认不写 `useMemo`/`useCallback`。但 vitest 不跑 Compiler —— effect 依赖的函数身份稳定性必须用 ref 固定，不能依赖编译器。
 - **根级新增 `*.config.ts` 必须登记进 `tsconfig.configs.json`**，否则 typecheck 不覆盖。
 - **动效统一走 `src/renderer/lib/motion/`**，不散写 CSS transition。
-- **网页承载必须用 `WebContentsView`**（独立 session 分区），不能回渲染层 iframe（CSP/XFO 三层拦截）。
+- **网页承载必须用 `WebContentsView`**（独立 session 分区），不能回渲染层 iframe（CSP/XFO 三层拦截）；新 partition 必须调用 `hardenSession()` 复用 CSP/权限收口（`src/main/security/session-hardening.ts`）。
 - **dev 环境**：userData 重定向到 `.electron-user-data/`；开启 CDP 9222；`.env` 由 `process.loadEnvFile()` 加载。
 - **全新安装**：根 `postinstall` 先安装并校验 Electron 二进制，再重编 `better-sqlite3`；失败会显式退出。`pnpm dev` 报 `Electron uninstall` 说明安装钩子未执行。
 - **依赖策略**：只支持 Node 26 LTS；安全补丁、major 评审、beta 禁令与 override 生命周期见 [dependency-policy.md](docs/guides/dependency-policy.md)。
