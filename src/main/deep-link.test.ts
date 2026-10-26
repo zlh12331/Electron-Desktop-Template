@@ -56,6 +56,10 @@ describe('parseDeepLink', () => {
   it('非法 URL 保留原文但不解析出 target', () => {
     expect(parseDeepLink('not a url')).toEqual({ targetId: null, url: 'not a url' });
   });
+
+  it('URL scheme 与 host 大小写不敏感', () => {
+    expect(parseDeepLink('ELECTRON-TEMPLATE://OPEN/abc-123').targetId).toBe('abc-123');
+  });
 });
 
 describe('extractProtocolUrl', () => {
@@ -67,6 +71,12 @@ describe('extractProtocolUrl', () => {
 
   it('无协议 URL 返回 null', () => {
     expect(extractProtocolUrl(['electron.exe', 'https://example.com'])).toBeNull();
+  });
+
+  it('协议 scheme 大小写不敏感', () => {
+    expect(extractProtocolUrl(['electron.exe', 'ELECTRON-TEMPLATE://open/a'])).toBe(
+      'ELECTRON-TEMPLATE://open/a',
+    );
   });
 });
 
