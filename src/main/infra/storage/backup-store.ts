@@ -188,7 +188,11 @@ export function stageRestore(dbPath: string, name: string): void {
 }
 
 /**
- * 应用待执行恢复（initDb 启动序第一步）：清 db/-wal/-shm 后 rename 暂存文件为真身
+ * 应用待执行恢复（initDb 启动序第一步）
+ *
+ * 先把 pending 改名为同目录临时文件，再用 rename 原子覆盖主库——替换成功前旧库
+ * 始终在位；rename 失败时把临时文件改回 pending 供下次启动重试。主库替换后再清
+ * 旧 -wal/-shm，避免新库被旧 WAL 污染。
  *
  * @returns 是否执行了恢复（false = 无暂存，正常启动）
  */
@@ -198,17 +202,29 @@ export function applyPendingRestore(dbPath: string): boolean {
     return false;
   }
   logger.warn({ pendingPath, dbPath }, '检测到待应用备份恢复，启动期替换主库');
-  for (const suffix of ['', '-wal', '-shm'] as const) {
+
+  const tmpPath = `${pendingPath}.tmp`;
+  renameSync(pendingPath, tmpPath);
+  try {
+    renameSync(tmpPath, dbPath);
+  } catch (error) {
+    // 覆盖失败：旧库未动，把临时文件还原为 pending，下次启动仍可重试。
+    try {
+      renameSync(tmpPath, pendingPath);
+    } catch {}
+    throw error;
+  }
+
+  for (const suffix of ['-wal', '-shm'] as const) {
     try {
       rmSync(`${dbPath}${suffix}`, { force: true });
     } catch (error) {
       logger.error(
         { suffix, error: error instanceof Error ? error.message : String(error) },
-        '恢复应用：清理旧库文件失败',
+        '恢复应用：清理旧库伴生文件失败',
       );
     }
   }
-  renameSync(pendingPath, dbPath);
   restrictBackupPermissions(dbPath);
   logger.warn({ dbPath }, '备份恢复已应用（本次启动使用恢复点数据）');
   return true;

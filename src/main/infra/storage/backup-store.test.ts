@@ -217,11 +217,16 @@ describe('applyPendingRestore（启动期应用）', () => {
     } finally {
       db.close();
     }
+    // 模拟旧库遗留的 WAL/SHM：替换后必须清理，否则新库会读到旧 WAL。
+    writeFileSync(`${dbPath}-wal`, 'stale-wal');
+    writeFileSync(`${dbPath}-shm`, 'stale-shm');
 
     const applied = applyPendingRestore(dbPath);
 
     expect(applied).toBe(true);
     expect(existsSync(join(dirname(dbPath), RESTORE_PENDING_FILENAME))).toBe(false);
+    expect(existsSync(`${dbPath}-wal`)).toBe(false);
+    expect(existsSync(`${dbPath}-shm`)).toBe(false);
     expect(readMarker(dbPath)).toBe('recovered');
     expect(applyPendingRestore(dbPath)).toBe(false);
   });
