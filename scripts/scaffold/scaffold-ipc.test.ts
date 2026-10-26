@@ -1,11 +1,19 @@
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { IPC_META } from '@code-agent/shared/ipc/meta';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { checkIpcSpec, countIpcMeta } from '../lib/docs-contracts';
-import { type MethodSpec, nextIpcCounts, runScaffold } from './scaffold-ipc';
+import { formatLocalDate, type MethodSpec, nextIpcCounts, runScaffold } from './scaffold-ipc';
 
 const REPO_ROOT = join(import.meta.dirname, '../..');
 const DOCS = 'docs/design/19-ipc-spec.md';
@@ -59,6 +67,12 @@ describe('nextIpcCounts', () => {
     expect(next.domains).toBe(current.domains);
     expect(next.requests).toBe(current.requests + 1);
     expect(next.domainNames).toEqual(current.domainNames);
+  });
+});
+
+describe('formatLocalDate', () => {
+  it('使用本地日期而非 UTC（本地凌晨不会退到前一天）', () => {
+    expect(formatLocalDate(new Date(2026, 0, 2, 0, 30))).toBe('2026-01-02');
   });
 });
 
@@ -153,5 +167,28 @@ describe('runScaffold（临时副本，真实格式）', () => {
       /通道已存在/,
     );
     expect(readFileSync(join(dir, META), 'utf8')).toBe(before);
+  });
+
+  it('后续步骤失败时回滚所有已写文件，不留下半成品', () => {
+    const metaBefore = readFileSync(join(dir, META), 'utf8');
+    const domainIndexBefore = readFileSync(join(dir, DOMAIN_INDEX), 'utf8');
+    const docsBefore = readDocs(dir);
+    const mainIndexPath = join(dir, MAIN_INDEX);
+    const corruptedMainIndex = readFileSync(mainIndexPath, 'utf8').replace(
+      'registerIpcHandlers({',
+      'registerIpcHandlersMissing({',
+    );
+    writeFileSync(mainIndexPath, corruptedMainIndex, 'utf8');
+
+    expect(() => runScaffold(spec, { root: dir, meta: IPC_META, today: '2026-10-26' })).toThrow(
+      /registerIpcHandlers|未找到调用块/,
+    );
+
+    expect(readFileSync(join(dir, META), 'utf8')).toBe(metaBefore);
+    expect(readFileSync(join(dir, DOMAIN_INDEX), 'utf8')).toBe(domainIndexBefore);
+    expect(readDocs(dir)).toBe(docsBefore);
+    expect(readFileSync(mainIndexPath, 'utf8')).toBe(corruptedMainIndex);
+    expect(existsSync(handlerPath(dir, 'notes'))).toBe(false);
+    expect(existsSync(join(dir, 'packages/shared/src/ipc/domains/notes.ts'))).toBe(false);
   });
 });

@@ -3,7 +3,7 @@
 // domains/<domain>.ts 插 schema 绑定（新域同时登记 domains/index.ts）、handler 骨架
 // 用法：pnpm scaffold:ipc --domain <name> --method <method> [--kind request|event]
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { IPC_META } from '@code-agent/shared/ipc/meta';
@@ -24,6 +24,9 @@ const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
 /** IPC 规范路径（文档契约的被检对象） */
 const IPC_SPEC_FILE = 'docs/design/19-ipc-spec.md';
+/** 共享域册与主进程注册入口（脚手架可能改写的固定文件） */
+const DOMAIN_INDEX_FILE = 'packages/shared/src/ipc/domains/index.ts';
+const MAIN_INDEX_FILE = 'src/main/index.ts';
 
 /** 一次脚手架请求 */
 export interface MethodSpec {
@@ -48,9 +51,53 @@ function readSource(root: string, relativePath: string): string {
   return readFileSync(abs, 'utf8');
 }
 
+/** 文件快照：null 表示文件原本不存在 */
+interface FileSnapshot {
+  readonly relativePath: string;
+  readonly content: string | null;
+}
+
+/** 在写入前记录目标文件内容，失败时整体还原（脚手架是开发者工具，不做跨文件事务） */
+function snapshotFiles(root: string, relativePaths: readonly string[]): FileSnapshot[] {
+  return relativePaths.map((relativePath) => {
+    const abs = path.join(root, relativePath);
+    return {
+      relativePath,
+      content: existsSync(abs) ? readFileSync(abs, 'utf8') : null,
+    };
+  });
+}
+
+/** 还原快照：原本不存在的新建文件删除，原有文件写回原内容 */
+function restoreSnapshots(root: string, snapshots: readonly FileSnapshot[]): void {
+  for (const { relativePath, content } of snapshots) {
+    const abs = path.join(root, relativePath);
+    try {
+      if (content === null) {
+        rmSync(abs, { force: true });
+      } else {
+        writeFileSync(abs, content, 'utf8');
+      }
+    } catch {}
+  }
+}
+
 /** 本地日期（YYYY-MM-DD），写入规范同步日期 */
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return formatLocalDate(new Date());
+}
+
+/**
+ * 把 Date 格式化为本地日期（YYYY-MM-DD）
+ *
+ * @param date 待格式化时间
+ * @returns 本地时区日期串（不是 UTC）
+ */
+export function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -389,67 +436,81 @@ export function runScaffold(spec: MethodSpec, options: ScaffoldOptions = {}): vo
   });
 
   const metaPath = 'packages/shared/src/ipc/meta.ts';
-  const metaSource = readSource(root, metaPath);
-  assertChannelAbsent(metaSource, metaPath, `('${channel}')`, channel);
-  const metaUpdated = metaSource.includes(domainHeader)
-    ? insertIntoObjectBlock(metaSource, domainHeader, metaEntryLine(spec))
-    : insertBeforeAnchor(metaSource, '} as const;', metaDomainBlock(spec));
-  if (metaUpdated === null) {
-    throw new Error(`meta.ts 插入失败：未找到块 ${domainHeader} 或锚点 '} as const;'`);
-  }
-  writeFileSync(path.join(root, metaPath), metaUpdated, 'utf8');
-  console.log(`[更新] ${metaPath}（${channel}）`);
-
-  // 域定义：已存在则块内追加，新域则建文件并登记域册
   const domainPath = `packages/shared/src/ipc/domains/${spec.domain}.ts`;
-  const domainAbs = path.join(root, domainPath);
-  if (existsSync(domainAbs)) {
-    let domainSource = readSource(root, domainPath);
-    assertChannelAbsent(
-      domainSource,
-      domainPath,
-      `IPC_META.${spec.domain}.${spec.method}`,
-      channel,
-    );
-    const anchor = `export const ${spec.domain}Domain = {`;
-    domainSource =
-      spec.kind === 'request'
-        ? ensureNamedImport(
-            ensureNamedImport(domainSource, '../with-schema', ['withSchema'], anchor),
-            '../../schemas/app',
-            ['OkResSchema'],
-            anchor,
-          )
-        : ensureNamedImport(domainSource, '../with-schema', ['withPayload'], anchor);
-    const updated = insertIntoObjectBlock(
-      domainSource,
-      anchor,
-      definitionsEntryBlock(spec),
-      '} as const;',
-    );
-    if (updated === null) {
-      throw new Error(`${domainPath} 插入失败：未找到 ${spec.domain}Domain 对象块`);
-    }
-    writeFileSync(domainAbs, updated, 'utf8');
-    console.log(`[更新] ${domainPath}（占位 schema，TODO 待替换）`);
-  } else {
-    writeFileSync(domainAbs, buildDomainFile(spec), 'utf8');
-    console.log(`[生成] ${domainPath}`);
-    registerDomainInIndex(root, spec);
-  }
-
   const handlerRelative = `src/main/ipc/${spec.domain}.handler.ts`;
-  const handlerExisted = existsSync(path.join(root, handlerRelative));
-  writeHandlerSkeleton(root, spec);
-  // 新 request 域或「原 event-only 域首次加 request」都需要补 main 注册；
-  // 已有 handler 的域由原注册方式（工厂注入等）接管，不重复插入。
-  if (spec.kind === 'request' && !handlerExisted) {
-    registerHandlerInIndex(root, spec);
-  }
+  const snapshots = snapshotFiles(root, [
+    IPC_SPEC_FILE,
+    metaPath,
+    domainPath,
+    DOMAIN_INDEX_FILE,
+    handlerRelative,
+    MAIN_INDEX_FILE,
+  ]);
 
-  if (docsUpdated !== docsSource) {
-    writeFileSync(path.join(root, IPC_SPEC_FILE), docsUpdated, 'utf8');
-    console.log(`[更新] ${IPC_SPEC_FILE}（IPC 计数与域清单）`);
+  try {
+    const metaSource = readSource(root, metaPath);
+    assertChannelAbsent(metaSource, metaPath, `('${channel}')`, channel);
+    const metaUpdated = metaSource.includes(domainHeader)
+      ? insertIntoObjectBlock(metaSource, domainHeader, metaEntryLine(spec))
+      : insertBeforeAnchor(metaSource, '} as const;', metaDomainBlock(spec));
+    if (metaUpdated === null) {
+      throw new Error(`meta.ts 插入失败：未找到块 ${domainHeader} 或锚点 '} as const;'`);
+    }
+    writeFileSync(path.join(root, metaPath), metaUpdated, 'utf8');
+    console.log(`[更新] ${metaPath}（${channel}）`);
+
+    // 域定义：已存在则块内追加，新域则建文件并登记域册
+    const domainAbs = path.join(root, domainPath);
+    if (existsSync(domainAbs)) {
+      let domainSource = readSource(root, domainPath);
+      assertChannelAbsent(
+        domainSource,
+        domainPath,
+        `IPC_META.${spec.domain}.${spec.method}`,
+        channel,
+      );
+      const anchor = `export const ${spec.domain}Domain = {`;
+      domainSource =
+        spec.kind === 'request'
+          ? ensureNamedImport(
+              ensureNamedImport(domainSource, '../with-schema', ['withSchema'], anchor),
+              '../../schemas/app',
+              ['OkResSchema'],
+              anchor,
+            )
+          : ensureNamedImport(domainSource, '../with-schema', ['withPayload'], anchor);
+      const updated = insertIntoObjectBlock(
+        domainSource,
+        anchor,
+        definitionsEntryBlock(spec),
+        '} as const;',
+      );
+      if (updated === null) {
+        throw new Error(`${domainPath} 插入失败：未找到 ${spec.domain}Domain 对象块`);
+      }
+      writeFileSync(domainAbs, updated, 'utf8');
+      console.log(`[更新] ${domainPath}（占位 schema，TODO 待替换）`);
+    } else {
+      writeFileSync(domainAbs, buildDomainFile(spec), 'utf8');
+      console.log(`[生成] ${domainPath}`);
+      registerDomainInIndex(root, spec);
+    }
+
+    const handlerExisted = existsSync(path.join(root, handlerRelative));
+    writeHandlerSkeleton(root, spec);
+    // 新 request 域或「原 event-only 域首次加 request」都需要补 main 注册；
+    // 已有 handler 的域由原注册方式（工厂注入等）接管，不重复插入。
+    if (spec.kind === 'request' && !handlerExisted) {
+      registerHandlerInIndex(root, spec);
+    }
+
+    if (docsUpdated !== docsSource) {
+      writeFileSync(path.join(root, IPC_SPEC_FILE), docsUpdated, 'utf8');
+      console.log(`[更新] ${IPC_SPEC_FILE}（IPC 计数与域清单）`);
+    }
+  } catch (error) {
+    restoreSnapshots(root, snapshots);
+    throw error;
   }
 
   printManualSteps(spec);
