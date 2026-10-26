@@ -13,12 +13,20 @@
       "measuredAt": "2026-10-24"
     },
     "main": {
-      "$comment": "主进程：floor 已达业务层规范值；2026-10-25 补托盘/URL 校验测试后实测 84.78/79.72/85.92/84.94，分支余量约 4.7pp",
+      "$comment": "主进程：floor 已达业务层规范值；2026-10-26 补 window.ts/settings.handler.ts 测试后实测 89.54/84.30/89.43/89.74，分支余量约 9.3pp",
       "specTarget": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
       "floor": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
       "ratchet": { "statements": 80, "branches": 75, "functions": 80, "lines": 80 },
-      "measured": { "statements": 84.78, "branches": 79.72, "functions": 85.92, "lines": 84.94 },
-      "measuredAt": "2026-10-25"
+      "measured": { "statements": 89.54, "branches": 84.3, "functions": 89.43, "lines": 89.74 },
+      "measuredAt": "2026-10-26"
+    },
+    "preload": {
+      "$comment": "preload 桥接层（2026-10-26 新增）：create-api/ipc-bridge 由单测覆盖（实测 100/100/100/100）；index.ts 是 contextBridge 入口，由 Electron E2E 覆盖。新增独立层是为了让 preload 不再游离于 coverage-scope 之外，而不是用 main/renderer 的平均值掩盖。",
+      "specTarget": { "statements": 90, "branches": 80, "functions": 90, "lines": 90 },
+      "floor": { "statements": 90, "branches": 80, "functions": 90, "lines": 90 },
+      "ratchet": { "statements": 90, "branches": 80, "functions": 90, "lines": 90 },
+      "measured": { "statements": 100, "branches": 100, "functions": 100, "lines": 100 },
+      "measuredAt": "2026-10-26"
     },
     "renderer": {
       "$comment": "渲染层门槛曾显著低于业务层规范值（历史缺口：Markdown/message-item 等纯展示组件由 E2E journey 兜底；模板已有 Windows 三张视觉基线；settings 子集单列见 rendererSettings 层）。2026-08-31 P1 补测后实测 75.35/66.16/71.25/76.36；2026-09-26 direct-ipc 清迁 + memo→Compiler + lib 桥接模块补测后实测 89.56/81.93/87.42/90.32；2026-10-25 补 UI 包装组件测试并排除纯 re-export barrel 后复测 89.67/81.55/88.98/90.34，仍高于 floor。floor 按 min(规范目标, 实测−缓冲) 升至规范值 80/75/80/80（「真实下限」语义由 scripts/lib/coverage-floors.test.ts 的「floor ≤ 实测可复现上限」护栏承接，伪造仍会被拦）",

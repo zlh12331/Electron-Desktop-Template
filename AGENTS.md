@@ -11,15 +11,16 @@ pnpm dev:web                # 浏览器模式 dev（vite.web.config.ts，配合 
 pnpm typecheck              # tsc --build + tsc -p scripts/tsconfig.json + tsc -p tsconfig.tests.json（不要用 --noEmit）
 pnpm lint                   # biome check .（含格式/import 排序）
 pnpm lint:fix               # 自动修复
-pnpm test                   # 全部测试链式：packages → main → renderer → integration → scripts
+pnpm test                   # 全部测试链式：packages → main → renderer → preload → integration → scripts
 
 # 单层测试
 pnpm --filter @code-agent/shared run test
 pnpm test:main
 pnpm test:renderer
+pnpm test:preload
 pnpm test:integration
 pnpm test:scripts
-pnpm test:coverage          # 覆盖率 + 范围/关键模块/settings 硬门槛
+pnpm test:coverage          # 四层覆盖率 + 范围/关键模块/settings 硬门槛
 
 # E2E（@playwright/test 升级后需 npx playwright install）
 pnpm test:e2e               # 浏览器模式（含 a11y 扫描）

@@ -9,7 +9,7 @@ export interface FileCoverage {
 
 /** 关键模块阈值 */
 export interface CriticalTarget {
-  readonly layer: 'main' | 'renderer' | 'shared';
+  readonly layer: 'main' | 'preload' | 'renderer' | 'shared';
   readonly file: string;
   readonly lines: number;
   readonly branches: number;
@@ -28,6 +28,10 @@ export const CRITICAL_TARGETS: readonly CriticalTarget[] = [
   { layer: 'main', file: 'infra/storage/keychain.ts', lines: 85, branches: 80 },
   { layer: 'main', file: 'infra/file/user-grants.ts', lines: 90, branches: 85 },
   { layer: 'main', file: 'infra/network/proxy-credentials.ts', lines: 80, branches: 75 },
+  { layer: 'main', file: 'ipc/settings.handler.ts', lines: 90, branches: 80 },
+  { layer: 'main', file: 'window.ts', lines: 80, branches: 65 },
+  { layer: 'preload', file: 'utils/create-api.ts', lines: 95, branches: 90 },
+  { layer: 'preload', file: 'utils/ipc-bridge.ts', lines: 95, branches: 90 },
   { layer: 'renderer', file: 'stores/persistent/settings-store.ts', lines: 90, branches: 85 },
   { layer: 'renderer', file: 'hooks/use-deep-link.ts', lines: 90, branches: 80 },
   { layer: 'renderer', file: 'hooks/use-install-update.ts', lines: 95, branches: 95 },
@@ -103,7 +107,7 @@ export function parseLcovCoverage(text: string, prefix?: string): Map<string, Fi
 
 /** 比较关键模块阈值；返回人类可读的问题列表 */
 export function evaluateCriticalCoverage(
-  coverage: Readonly<Record<'main' | 'renderer' | 'shared', Map<string, FileCoverage>>>,
+  coverage: Readonly<Record<'main' | 'preload' | 'renderer' | 'shared', Map<string, FileCoverage>>>,
 ): string[] {
   const issues: string[] = [];
   for (const target of CRITICAL_TARGETS) {

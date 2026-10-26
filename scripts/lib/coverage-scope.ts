@@ -7,7 +7,7 @@ import { join, relative, sep } from 'node:path';
 
 /** 覆盖率统计层（lcovPath 为仓库根相对的产物路径，产物统一在根 coverage/<层>/） */
 export interface CoverageScope {
-  readonly layer: 'main' | 'renderer' | 'shared';
+  readonly layer: 'main' | 'preload' | 'renderer' | 'shared';
   /** 源码根（相对仓库根） */
   readonly sourceRoot: string;
   /** lcov 文件（相对仓库根） */
@@ -18,12 +18,19 @@ export interface CoverageScope {
   readonly allowed: readonly string[];
 }
 
-/** 模板的三层覆盖率范围（renderer 的应用壳由 E2E 覆盖，见 vitest.config.ts 同名单） */
+/** 模板的四层覆盖率范围（renderer 的应用壳由 E2E 覆盖，见 vitest.config.ts 同名单） */
 export const COVERAGE_SCOPES: readonly CoverageScope[] = [
   {
     layer: 'main',
     sourceRoot: 'src/main',
     lcovPath: 'coverage/main/lcov.info',
+    allowed: ['index.ts'],
+  },
+  {
+    layer: 'preload',
+    sourceRoot: 'src/preload',
+    lcovPath: 'coverage/preload/lcov.info',
+    // contextBridge 入口是副作用装配，由 Electron E2E 的 window.api 注入覆盖
     allowed: ['index.ts'],
   },
   {

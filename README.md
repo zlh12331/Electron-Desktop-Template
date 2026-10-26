@@ -69,7 +69,7 @@ pnpm init:template --name "演示应用" --executable demo-app \
 
 ### 覆盖率口径
 
-`coverage.include` 已显式纳入三层源码；排除项包括入口文件（`main/index.ts`、`renderer/main.tsx`/`App.tsx`）、由 E2E 覆盖的应用壳/路由装配，以及 `providers/**`、`lib/query/**`、`SettingsDialog`/设置分区注册表这类页面级装配（由浏览器/Electron E2E 兜底）。`check:coverage-scope` 防止新源码再次隐身，`check:critical-coverage` 对 db/CSP/IPC/更新/凭据等高风险模块按文件卡关，settings 子集由 `coverage:settings --check` 硬卡。
+`coverage.include` 已显式纳入四层源码（`main` / `preload` / `renderer` / `shared`）；排除项包括入口文件（`main/index.ts`、`preload/index.ts`、`renderer/main.tsx`/`App.tsx`）、由 E2E 覆盖的应用壳/路由装配，以及 `providers/**`、`lib/query/**`、`SettingsDialog`/设置分区注册表这类页面级装配（由浏览器/Electron E2E 兜底）。`check:coverage-scope` 防止新源码再次隐身，`check:critical-coverage` 对 db/CSP/IPC/更新/凭据、preload 桥接与窗口生命周期等高风险模块按文件卡关，settings 子集由 `coverage:settings --check` 硬卡。
 
 ## 目录
 
