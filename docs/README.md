@@ -13,6 +13,9 @@
 
 - **第一次接触模板**：根 [README](../README.md) → [01 架构](design/01-architecture.md) → [03 目录结构](design/03-directory-structure.md) → [模板约束机器](design/template-architecture.md)
 - **要加一个功能**：[AGENTS.md](../AGENTS.md)「扩展点速查」→ [19 IPC](design/19-ipc-spec.md) / [18 数据层](design/18-data-layer-spec.md) / [21 状态管理](design/21-state-management-spec.md) → [32 三阶段流程](design/32-feature-workflow-spec.md)
+<!-- notes-example:start -->
+- **要看完整业务链路怎么串**：[Local Notes 参考切片](design/notes-example.md)（默认由 `init:template` 删除）
+<!-- notes-example:end -->
 - **要改界面**：[09 前端实现](design/09-ux-interaction-spec.md) → [10 组件规范](design/10-component-design-spec.md) → [08 UX 规范](design/08-ux-guidelines.md) → [11 a11y](design/11-a11y-spec.md) / [12 性能](design/12-performance-spec.md)
 - **要发版 / 改流水线**：[guides/ci-cd.md](guides/ci-cd.md) → [RELEASING.md](../RELEASING.md)
 - **要验收模板底座**：[guides/template-acceptance.md](guides/template-acceptance.md)（干净副本 → 初始化 → 启动/持久化 → 打包 smoke）

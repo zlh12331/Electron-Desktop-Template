@@ -26,6 +26,9 @@ Electron 44 + React 19 + TypeScript + Vite 8 的工程级桌面应用模板（Wi
 - **数据库静态加密边界**：SQLite 主库默认不加密（凭据单独走 safeStorage）；存 PII/敏感业务数据的派生项目需自行接 SQLCipher 或依赖 OS 全盘加密
 - **质量门禁**：类型、lint、19 项静态审计、单测、集成测试、E2E、视觉回归、覆盖率范围/关键模块阈值、死代码检测、密钥扫描
 - **品牌单一真源**：`app.config.json` 一处改产品名 / appId / 协议 / 存储前缀
+<!-- notes-example:start -->
+- **可删除的端到端业务样本**：Local Notes（SQLite + IPC + Query 失效 + 文件导入导出 + 深链）；`init:template` 默认移除，`--keep-example` 保留
+<!-- notes-example:end -->
 
 ## 快速开始
 
@@ -60,6 +63,10 @@ pnpm init:template --name "演示应用" --executable demo-app \
 ```
 
 默认移除模板自带的 GitHub Pages 营销站（`site/` 与 `.github/workflows/static.yml`）。需要保留站点时加 `--keep-site`：产品名、品牌名、仓库链接与版本号会同步改写，但页面里的模板营销文案仍需按产品人工调整。
+
+<!-- notes-example:start -->
+默认同时移除 Local Notes 参考切片及其迁移（派生项目从空白业务面开始）；想保留整套示例加 `--keep-example`。已在运行的项目可单独执行 `pnpm remove:notes-example`（默认保留 notes 表，`--drop-table` 显式清表），见 [示例说明](docs/design/notes-example.md)。
+<!-- notes-example:end -->
 
 之后：
 0. 替换 `resources/icons/icon.png`（1024×1024），再重跑 `scripts/generate-tray-assets.py` 生成托盘图（模板图标不会自动替换）

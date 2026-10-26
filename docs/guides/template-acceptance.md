@@ -86,8 +86,16 @@ pnpm test:scripts
 判定：dry-run 不落盘；正式执行得到目标状态；第二次执行 0 改动；`check:brand` 与
 `check:csp-hash` 通过；脚本测试必须能在派生状态下通过（不能依赖模板专用的 `bootstrap-sha`）。
 同时确认默认初始化移除了 `site/` 与 `.github/workflows/static.yml`；若使用 `--keep-site`，
-站点内的产品名/仓库链接应已改写，但模板营销文案仍需人工调整。图标不会被自动替换：
-发布前替换 `resources/icons/icon.png`（1024×1024）并重跑 `scripts/generate-tray-assets.py`。
+站点内的产品名/仓库链接应已改写，但模板营销文案仍需人工调整。
+
+<!-- notes-example:start -->
+默认还会移除 Local Notes 参考切片及其迁移（`src/renderer/routes/notes.tsx`、
+`src/main/infra/notes/`、`drizzle/0001_*.sql`、`docs/design/notes-example.md`），并同步
+`docs/design/19-ipc-spec.md` 的域/通道计数；需要保留示例时加 `--keep-example`。
+<!-- notes-example:end -->
+派生状态下 `pnpm typecheck && pnpm lint && pnpm check:static` 必须通过，用来证明移除后没有死引用。
+图标不会被自动替换：发布前替换 `resources/icons/icon.png`（1024×1024）并重跑
+`scripts/generate-tray-assets.py`。
 
 ### 4.3 真实启动与持久化
 

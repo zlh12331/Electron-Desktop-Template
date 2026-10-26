@@ -22,6 +22,9 @@
 | 18 | [数据层规范](18-data-layer-spec.md) | SQLite + Drizzle：schema 单一真源、迁移、事务边界 | check:schema-drift |
 | 21 | [状态管理规范](21-state-management-spec.md) | 四层架构与判定标准 | — |
 | — | [数据所有权](data-ownership.md) | 每类数据的真源、缓存与失效责任 | — |
+<!-- notes-example:start -->
+| — | [Local Notes 切片](notes-example.md) | 可删除的端到端业务样本 | typecheck / E2E |
+<!-- notes-example:end -->
 
 ## 三、渲染层与设计体系
 
