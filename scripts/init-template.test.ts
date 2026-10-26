@@ -1,7 +1,16 @@
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -13,11 +22,29 @@ import {
   type InitOptions,
   runInitTemplate,
 } from './init-template';
+// notes-example:start
+import { NOTES_EXAMPLE_PATHS } from './lib/notes-example';
+// notes-example:end
 import { parseArgs } from './scaffold/lib/args';
 
 const REPO_ROOT = join(import.meta.dirname, '..');
 const SITE_FILE = 'site/electron-desktop-template-website.html';
 const STATIC_WORKFLOW = '.github/workflows/static.yml';
+
+/** 复制单个文件/目录到临时副本（保留相对路径） */
+function copyPath(dir: string, rel: string): void {
+  const source = join(REPO_ROOT, rel);
+  if (!existsSync(source)) {
+    return;
+  }
+  const dest = join(dir, rel);
+  if (statSync(source).isDirectory()) {
+    cpSync(source, dest, { recursive: true });
+    return;
+  }
+  mkdirSync(dirname(dest), { recursive: true });
+  cpSync(source, dest);
+}
 
 /** 复制到临时目录执行（避免改动真实仓库） */
 function copyToTemp(): string {
@@ -33,22 +60,39 @@ function copyToTemp(): string {
     'release-please-config.json',
     '.github',
     'src/renderer/index.html',
-    'src/main/security/csp.ts',
     'resources/installer.nsh',
+    'src/main/security/csp.ts',
     'src/renderer/i18n/locales',
     'packages/shared/src/constants',
     'packages/shared/package.json',
     'packages/shared/tsconfig.json',
     'packages/tsconfig',
     'tsconfig.json',
+    'scripts/test-boundary-exempt.json',
     'pnpm-lock.yaml',
     'CONTRIBUTING.md',
     'SECURITY.md',
     'CODE_OF_CONDUCT.md',
     'site',
   ]) {
-    cpSync(join(REPO_ROOT, rel), join(dir, rel), { recursive: true });
+    copyPath(dir, rel);
   }
+  // notes-example:start
+  // Local Notes 触点的真实文件（移除器测试直接跑在模板的真实内容上，
+  // 但不复制整个 src/，避免 init 用例被无关文件的 scope 扫描拖慢）
+  for (const rel of [
+    ...NOTES_EXAMPLE_PATHS.dirs,
+    ...NOTES_EXAMPLE_PATHS.files,
+    ...NOTES_EXAMPLE_PATHS.marked,
+    'src/renderer/hooks/use-deep-link.ts',
+    'e2e/electron-deeplink.spec.ts',
+    'drizzle/meta/_journal.json',
+    'drizzle/0001_lazy_mad_thinker.sql',
+    'drizzle/meta/0001_snapshot.json',
+  ]) {
+    copyPath(dir, rel);
+  }
+  // notes-example:end
   return dir;
 }
 
@@ -243,6 +287,107 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
     expect(svg).toContain('Acme Notes');
     expect(svg).not.toContain('Electron Desktop Template');
   });
+
+  // notes-example:start
+  it('默认移除 Local Notes 参考切片、迁移与文档登记', () => {
+    const results = runIn(dir);
+
+    expect(results).toContainEqual({ file: 'src/renderer/routes/notes.tsx', changed: true });
+    for (const rel of [
+      'src/renderer/routes/notes.tsx',
+      'src/renderer/hooks/use-notes.ts',
+      'src/main/infra/notes',
+      'src/main/ipc/notes.handler.ts',
+      'packages/shared/src/schemas/notes.ts',
+      'packages/shared/src/ipc/domains/notes.ts',
+      'e2e/notes.spec.ts',
+      'docs/design/notes-example.md',
+      'scripts/remove-notes-example.ts',
+      'scripts/lib/notes-example.test.ts',
+      'drizzle/0001_lazy_mad_thinker.sql',
+      'drizzle/meta/0001_snapshot.json',
+    ]) {
+      expect(existsSync(join(dir, rel))).toBe(false);
+    }
+
+    const boundary = JSON.parse(
+      readFileSync(join(dir, 'scripts/test-boundary-exempt.json'), 'utf8'),
+    ) as { entries: { file: string }[] };
+    expect(boundary.entries.map((entry) => entry.file)).not.toContain(
+      'src/main/infra/notes/notes-repository.test.ts',
+    );
+
+    const meta = readFileSync(join(dir, 'packages/shared/src/ipc/meta.ts'), 'utf8');
+    expect(meta).not.toContain('notes');
+    expect(meta).not.toContain('notes-example');
+
+    const journal = JSON.parse(readFileSync(join(dir, 'drizzle/meta/_journal.json'), 'utf8')) as {
+      entries: { tag: string }[];
+    };
+    expect(journal.entries).toHaveLength(1);
+    expect(journal.entries[0]?.tag.startsWith('0001_')).toBe(false);
+
+    const doc = readFileSync(join(dir, 'docs/design/19-ipc-spec.md'), 'utf8');
+    expect(doc).toContain('13 域 48 channel');
+    expect(doc).toContain('共 43 个 request 通道 + 5 个 event 通道');
+    expect(doc).not.toContain('notes');
+    expect(doc).toContain('invalidation / proxy');
+
+    for (const locale of ['zh-CN', 'en']) {
+      const parsed = JSON.parse(
+        readFileSync(join(dir, `src/renderer/i18n/locales/${locale}/common.json`), 'utf8'),
+      ) as Record<string, unknown> & { sidebar?: { nav?: Record<string, unknown> } };
+      expect(parsed).not.toHaveProperty('notes');
+      expect(parsed.sidebar?.nav).not.toHaveProperty('notes');
+    }
+
+    const deepLink = readFileSync(join(dir, 'src/renderer/hooks/use-deep-link.ts'), 'utf8');
+    expect(deepLink).toContain('navigate(ROUTES.about);');
+    expect(deepLink).not.toContain('ROUTES.note');
+
+    const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as {
+      scripts?: Record<string, string>;
+    };
+    expect(pkg.scripts).not.toHaveProperty('remove:notes-example');
+
+    for (const rel of ['README.md', 'AGENTS.md', 'docs/README.md', 'docs/design/README.md']) {
+      const text = readFileSync(join(dir, rel), 'utf8');
+      expect(text).not.toContain('notes-example');
+      expect(text).not.toContain('Local Notes');
+    }
+  });
+
+  it('--keep-example：保留示例、迁移与文档登记', () => {
+    runIn(dir, false, { keepExample: true });
+
+    for (const rel of [
+      'src/renderer/routes/notes.tsx',
+      'src/renderer/hooks/use-notes.ts',
+      'src/main/infra/notes/notes-repository.ts',
+      'packages/shared/src/schemas/notes.ts',
+      'e2e/notes.spec.ts',
+      'docs/design/notes-example.md',
+      'scripts/remove-notes-example.ts',
+      'drizzle/0001_lazy_mad_thinker.sql',
+      'drizzle/meta/0001_snapshot.json',
+    ]) {
+      expect(existsSync(join(dir, rel))).toBe(true);
+    }
+    expect(readFileSync(join(dir, 'packages/shared/src/ipc/meta.ts'), 'utf8')).toContain(
+      'notes-example:start',
+    );
+    expect(readFileSync(join(dir, 'docs/design/19-ipc-spec.md'), 'utf8')).toContain(
+      '14 域 55 channel',
+    );
+    expect(readFileSync(join(dir, 'package.json'), 'utf8')).toContain('"remove:notes-example"');
+  });
+
+  it('--keep-example：示例保留时重复执行仍幂等', () => {
+    runIn(dir, false, { keepExample: true });
+    const second = runIn(dir, false, { keepExample: true });
+    expect(second.filter((result) => result.changed)).toEqual([]);
+  });
+  // notes-example:end
 
   it('品牌改写同步首帧脚本的 CSP 哈希且不放宽策略', () => {
     const beforeCsp = readFileSync(join(dir, 'src/main/security/csp.ts'), 'utf8');
