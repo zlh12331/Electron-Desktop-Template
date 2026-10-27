@@ -1,7 +1,11 @@
 // index.ts：应用入口与生命周期——单实例锁、whenReady 启动序列（遥测→DB→容器→IPC→窗口→托盘）、
 // 深链接管、退出协商与善后链。边界：只做装配与编排，业务实现在 infra/ 与 service-container
 import { join } from 'node:path';
-import { DEFAULT_UPDATE_SETTINGS, type DeepLinkPayload } from '@code-agent/shared/main';
+import {
+  DEFAULT_LANGUAGE_SETTING,
+  DEFAULT_UPDATE_SETTINGS,
+  type DeepLinkPayload,
+} from '@code-agent/shared/main';
 import { app, BrowserWindow, nativeTheme, session } from 'electron';
 import {
   broadcastDeepLink,
@@ -64,7 +68,7 @@ import {
   registerGlobalErrorHandlers,
 } from './utils/logger';
 import { flushTelemetryOnFatal } from './utils/telemetry-flush';
-import { createWindow, readCloseAction, readStartMinimized } from './window';
+import { createWindow, readCloseAction } from './window';
 import { bringMainWindowToFront } from './window-show';
 import { syncTitleBarOverlayFromTheme } from './window-theme';
 
@@ -165,13 +169,13 @@ app
     initTelemetry(startupTelemetryLevel);
     await withStartupObservation(
       startupStartedAt,
-      resolveStartHidden(app) || readStartMinimized() ? 'hidden' : 'foreground',
+      resolveStartHidden(app) ? 'hidden' : 'foreground',
       async () => {
         await withSpan('db.init', {}, async () => {
           initDb({ getBackupPolicy: readBackupPolicy });
         });
         applyLogLevel(isVerboseLoggingEnabled());
-        initMainI18n(readSetting('language'), app.getLocale());
+        initMainI18n(readSetting('language') ?? DEFAULT_LANGUAGE_SETTING, app.getLocale());
         await initProxyFromSettings();
         registerGlobalErrorHandlers();
         void recoverFromCrash();
@@ -238,7 +242,7 @@ app
         coldLaunchDeepLink ??= extractProtocolUrl(process.argv);
 
         await withSpan('window.create', {}, async () => {
-          createWindow({ startHidden: resolveStartHidden(app) || readStartMinimized() });
+          createWindow();
         });
         const startupDurationMs = Math.round(performance.now() - startupStartedAt);
         recordStartupMilestone('window');

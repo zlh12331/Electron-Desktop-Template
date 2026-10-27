@@ -50,7 +50,7 @@ SQLite 主库（`app_settings` 与派生业务表）默认使用标准 better-sq
 
 ## 五、渲染层安全
 
-1. **XSS**：Markdown 渲染（关于页 release notes）先 `remark-gfm` 再 `rehype-raw` + **`rehype-sanitize`**；禁止新增 `dangerouslySetInnerHTML`（确需时须评审并说明来源可信）。
+1. **XSS**：Markdown 渲染（设置关于页 release notes）先 `remark-gfm` 再 `rehype-raw` + **`rehype-sanitize`**；禁止新增 `dangerouslySetInnerHTML`（确需时须评审并说明来源可信）。
 2. **远程内容**：模板不加载远程 HTML / iframe；未来接入网页承载时使用 `WebContentsView` + 独立 session 分区，不回渲染层 iframe；新 partition 必须调用 `hardenSession()`，复用 CSP 与权限白名单。
 3. **依赖**：`pnpm audit:registry`（moderate 起卡关）、`pnpm knip`（死依赖减少攻击面）。
 4. **权限**：默认拒绝；唯一放行 `clipboard-sanitized-write`（复制按钮），`clipboard-read`、媒体、通知等保持拒绝。

@@ -26,7 +26,7 @@
 
 ### 1.3 验证方法
 
-- 自动化（强制）：`pnpm test:a11y` 用 `@axe-core/playwright` 扫描首页亮/暗双主题、关于页、设置全部分区、命令面板与快捷键帮助；规则集为 WCAG 2.0/2.1 的 A + AA（`wcag2a` / `wcag2aa` / `wcag21a` / `wcag21aa`），零违规才通过。CI 的 `e2e-browser` job 跑完整浏览器 E2E 时自动包含该用例。
+- 自动化（强制）：`pnpm test:a11y` 用 `@axe-core/playwright` 扫描首页跟随系统的亮/暗双主题、设置全部分区（含 Beta 与关于）、命令面板与快捷键帮助；规则集为 WCAG 2.0/2.1 的 A + AA（`wcag2a` / `wcag2aa` / `wcag21a` / `wcag21aa`），零违规才通过。CI 的 `e2e-browser` job 跑完整浏览器 E2E 时自动包含该用例。
 - 手工：DevTools 对比度检查器（拾色器）抽检新页面 / 新令牌；axe 覆盖不到的键盘与焦点行为按 §2、§3 清单验收。
 
 ## 二、键盘导航验收清单

@@ -6,7 +6,7 @@ import type { Session } from 'electron';
 // 代价可接受）；frame-ancestors 'none' 防被外部页面嵌套。字体只走本地系统栈，不加载远程 webfont。
 const PRODUCTION_CSP = [
   "default-src 'self'",
-  "script-src 'self' 'wasm-unsafe-eval' 'sha256-wflUFQw0AXH7W5u0ZUrT7qIVXBvSnbku/DKhBtpbKkE='",
+  "script-src 'self' 'wasm-unsafe-eval' 'sha256-q4LfoP0v0tHrqYBhA9u12bteKHGT1D3ug6YDheoynVU='",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self'",
   "connect-src 'self'",

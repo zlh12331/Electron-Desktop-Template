@@ -2,7 +2,7 @@
 // 渲染进程崩溃自愈。边界：窗口唤起在 window-show，标题栏配色在 window-theme
 import { join } from 'node:path';
 import { DEFAULT_WINDOW_SETTINGS } from '@code-agent/shared/main';
-import { app, BrowserWindow, screen, shell } from 'electron';
+import { app, BrowserWindow, nativeTheme, screen, shell } from 'electron';
 import { installExtension, REACT_DEVELOPER_TOOLS } from 'electron-devtools-installer';
 import { resolveStartHidden } from './infra/autostart/autostart';
 import { readSetting } from './infra/storage/settings-pref';
@@ -37,33 +37,11 @@ export function readCloseAction(): 'minimize' | 'quit' {
   }
 }
 
-/** 读「启动时最小化到托盘」设置（settings.window.startMinimized；缺失/损坏为 false） */
-export function readStartMinimized(): boolean {
-  try {
-    const value = readSetting('window');
-    if (typeof value !== 'object' || value === null) {
-      return DEFAULT_WINDOW_SETTINGS.startMinimized;
-    }
-    const startMinimized = (value as { startMinimized?: unknown }).startMinimized;
-    return typeof startMinimized === 'boolean'
-      ? startMinimized
-      : DEFAULT_WINDOW_SETTINGS.startMinimized;
-  } catch {
-    return DEFAULT_WINDOW_SETTINGS.startMinimized;
-  }
-}
-
-/** 创建主窗口时的可选启动行为 */
-export interface CreateWindowOptions {
-  /** 本次建窗是否隐藏；缺省按自启 argv 判定（启动时由 index.ts 叠加 startMinimized） */
-  readonly startHidden?: boolean;
-}
-
 /**
  * 创建主窗口：恢复上次窗口状态 → frameless + 安全基线 → 导航/新窗限制 → 加载渲染层 →
  * 隐藏启动判定 → 关窗协商 → 崩溃自愈 → 状态跟踪 → dev DevTools
  */
-export function createWindow(options: CreateWindowOptions = {}): BrowserWindow {
+export function createWindow(): BrowserWindow {
   const windowState: WindowState = loadWindowState(
     join(app.getPath('userData'), 'window-state.json'),
     { width: 1280, height: 800 },
@@ -84,7 +62,10 @@ export function createWindow(options: CreateWindowOptions = {}): BrowserWindow {
       ? {
           titleBarOverlay: {
             color: '#00000000',
-            symbolColor: TITLE_BAR_SYMBOL.dark,
+            // 默认主题跟随系统：建窗首帧就按 OS 明暗选图标色，不能硬编码暗色
+            symbolColor: nativeTheme.shouldUseDarkColors
+              ? TITLE_BAR_SYMBOL.dark
+              : TITLE_BAR_SYMBOL.light,
             height: 52,
           },
         }
@@ -146,7 +127,7 @@ export function createWindow(options: CreateWindowOptions = {}): BrowserWindow {
     void win.loadFile(join(__dirname, '../renderer/index.html'));
   }
 
-  const startHidden = options.startHidden ?? resolveStartHidden(app);
+  const startHidden = resolveStartHidden(app);
   if (startHidden) {
     logger.info({}, '静默启动：窗口驻留托盘不显示');
   }

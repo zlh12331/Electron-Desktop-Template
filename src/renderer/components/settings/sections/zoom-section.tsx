@@ -11,9 +11,9 @@ import {
 } from '@/components/ui/select';
 import { useTranslation } from '@/i18n/use-translation';
 import { type Theme, useSettingsStore } from '@/stores/persistent/settings-store';
-import { SegControl, SettingRow } from '../settings-controls';
+import { SettingRow } from '../settings-controls';
 
-/** 界面缩放区块（独立「外观与缩放」分区） */
+/** 外观分区：主题下拉 + 界面缩放 */
 export function ZoomSection(): ReactElement {
   const { t } = useTranslation();
   const theme = useSettingsStore((s) => s.theme);
@@ -24,15 +24,21 @@ export function ZoomSection(): ReactElement {
   return (
     <div className="flex flex-col gap-2">
       <SettingRow label={t('settings.themeTitle')} description={t('settings.themeDesc')}>
-        <SegControl
+        <Select
           value={theme}
-          options={[
-            { value: 'light', label: t('settings.themeLight') },
-            { value: 'dark', label: t('settings.themeDark') },
-            { value: 'system', label: t('settings.themeSystem') },
-          ]}
-          onChange={(value) => setTheme(value as Theme)}
-        />
+          onValueChange={(value) => {
+            setTheme(value as Theme);
+          }}
+        >
+          <SelectTrigger className="w-[130px]" aria-label={t('settings.themeTitle')}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="system">{t('settings.themeSystem')}</SelectItem>
+            <SelectItem value="light">{t('settings.themeLight')}</SelectItem>
+            <SelectItem value="dark">{t('settings.themeDark')}</SelectItem>
+          </SelectContent>
+        </Select>
       </SettingRow>
       <div className="mt-2 flex items-center gap-2">
         <ZoomIn className="text-muted-foreground size-3.5" strokeWidth={1.5} />

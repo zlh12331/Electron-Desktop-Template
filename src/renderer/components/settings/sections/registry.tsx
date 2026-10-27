@@ -1,4 +1,4 @@
-// sections/registry.tsx：设置分区的单一注册表——导航分组、图标、组件在此声明
+// sections/registry.tsx：设置分区的单一注册表——导航项、图标、组件在此声明
 // 为什么是注册表而不是 switch：分区组件与导航项此前分两处维护，新增分区要同步改多个地方，
 // 漏一处就静默失效。注册表把导航与组件绑定合一：一条注册项即一个分区。
 // 模板化用法：新增分区 = sections/<name>-section.tsx + settings-sections.ts 加 id + 本文件加一行。
@@ -7,9 +7,9 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Bell,
   Database,
+  FlaskConical,
   Info,
   Keyboard,
-  KeyRound,
   Network,
   Palette,
   Settings as SettingsIcon,
@@ -19,11 +19,11 @@ import type { ReactElement } from 'react';
 import type { SettingsSectionId } from '@/lib/settings-sections';
 
 import { AboutSection } from './about-section';
+import { BetaSection } from './beta-section';
 import { DataSection } from './data-section';
 import { GeneralSection } from './general-section';
 import { NotificationSection } from './notification-section';
 import { ProxySection } from './proxy-section';
-import { SecretsSection } from './secrets-section';
 import { ShortcutsSection } from './shortcuts-section';
 import { ZoomSection } from './zoom-section';
 
@@ -45,65 +45,39 @@ export interface SettingsSectionEntry {
   readonly component: (props: SectionRenderProps) => ReactElement;
 }
 
-/** 导航分组（组内顺序 = 展示顺序） */
-export interface SettingsNavGroup {
-  /** 分组标题 i18n key */
-  readonly labelKey: string;
-  /** 组内分区 */
-  readonly items: readonly SettingsSectionEntry[];
-}
-
-/** 设置分区注册表（模板版：通用分区；业务分区接入后在此追加） */
-export const SETTINGS_SECTIONS: readonly SettingsNavGroup[] = [
+/** 设置分区注册表（模板版：8 个通用分区） */
+export const SETTINGS_SECTIONS: readonly SettingsSectionEntry[] = [
   {
-    labelKey: 'settings.group.general',
-    items: [
-      {
-        id: 'general',
-        labelKey: 'settings.nav.general',
-        icon: SettingsIcon,
-        component: GeneralSection,
-      },
-      {
-        id: 'appearance',
-        labelKey: 'settings.nav.appearance',
-        icon: Palette,
-        component: ZoomSection,
-      },
-      {
-        id: 'notification',
-        labelKey: 'settings.nav.notification',
-        icon: Bell,
-        component: NotificationSection,
-      },
-    ],
+    id: 'general',
+    labelKey: 'settings.nav.general',
+    icon: SettingsIcon,
+    component: GeneralSection,
   },
   {
-    labelKey: 'settings.group.advanced',
-    items: [
-      { id: 'data', labelKey: 'settings.nav.data', icon: Database, component: DataSection },
-      {
-        id: 'secrets',
-        labelKey: 'settings.nav.secrets',
-        icon: KeyRound,
-        component: SecretsSection,
-      },
-      { id: 'proxy', labelKey: 'settings.nav.proxy', icon: Network, component: ProxySection },
-      {
-        id: 'shortcuts',
-        labelKey: 'settings.nav.shortcuts',
-        icon: Keyboard,
-        component: ShortcutsSection,
-      },
-    ],
+    id: 'appearance',
+    labelKey: 'settings.nav.appearance',
+    icon: Palette,
+    component: ZoomSection,
   },
   {
-    labelKey: 'settings.group.about',
-    items: [{ id: 'about', labelKey: 'settings.nav.about', icon: Info, component: AboutSection }],
+    id: 'notification',
+    labelKey: 'settings.nav.notification',
+    icon: Bell,
+    component: NotificationSection,
   },
+  { id: 'data', labelKey: 'settings.nav.data', icon: Database, component: DataSection },
+  {
+    id: 'shortcuts',
+    labelKey: 'settings.nav.shortcuts',
+    icon: Keyboard,
+    component: ShortcutsSection,
+  },
+  { id: 'proxy', labelKey: 'settings.nav.proxy', icon: Network, component: ProxySection },
+  { id: 'beta', labelKey: 'settings.nav.beta', icon: FlaskConical, component: BetaSection },
+  { id: 'about', labelKey: 'settings.nav.about', icon: Info, component: AboutSection },
 ];
 
 /** 扁平化后的分区表（id → 注册项），供渲染与查找 */
 export const SETTINGS_SECTION_MAP: ReadonlyMap<SettingsSectionId, SettingsSectionEntry> = new Map(
-  SETTINGS_SECTIONS.flatMap((group) => group.items.map((item) => [item.id, item] as const)),
+  SETTINGS_SECTIONS.map((item) => [item.id, item] as const),
 );

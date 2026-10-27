@@ -109,7 +109,7 @@ flowchart LR
 ┌──────────────────────── topbar 52px 玻璃顶栏 ────────────────────────┐
 ├──────────┬──┬────────────────────────────┬──┬──────────────────────┤
 │ sidebar  │R │         main               │R │    right-panel       │
-│ 200-400px│6 │   欢迎页 / 关于页           │6 │    260-360px         │
+│ 200-400px│6 │   欢迎页 / 业务页           │6 │    260-360px         │
 │          │px│                            │px│   （可折叠）          │
 └──────────┴──┴────────────────────────────┴──┴──────────────────────┘
 ```
@@ -129,14 +129,12 @@ flowchart LR
 ┌ [← 返回]  ⚙ 设置                        （140px 拖拽避让区）┐
 ├──────────┬───────────────────────────────────────────┤
 │ 通用     │  内容区（滚动，每分区独立错误边界）      │
-│  常规     │                                          │
-│  外观     │                                          │
-│  通知     │                                          │
-│ 高级     │                                          │
-│  数据     │                                          │
-│  凭据     │                                          │
-│  代理     │                                          │
-│  快捷键   │                                          │
+│ 外观     │                                          │
+│ 通知     │                                          │
+│ 数据     │                                          │
+│ 快捷键   │                                          │
+│ 网络代理 │                                          │
+│ Beta     │                                          │
 │ 关于     │                                          │
 ├──────────┴───────────────────────────────────────────┤
 │ 导航：160px 固定列；激活项 = accent 2px 竖条 + 加粗    │
@@ -198,14 +196,14 @@ stateDiagram-v2
 
 | 分区 | 组件 | 消费的真源 |
 |---|---|---|
-| 常规 | `general-section` | 语言 / 关窗行为 / 开机自启 / 遥测（组合页；数据目录在「数据」分区） |
-| 外观 | `zoom-section` | `appearance.zoom` → `window:applyZoom` |
+| 通用 | `general-section` | 语言 / 关窗行为 / 开机自启 / 遥测 |
+| 外观 | `zoom-section` | 主题 / `appearance.zoom` |
 | 通知 | `notification-section` | `notification.enabled` → 主进程 `tray.ts` 读取 |
-| 数据 | `data-section` | 导出/导入设置、打开数据目录、更新缓存、数据库备份 |
-| 凭据 | `secrets-section` | `secrets` 域（只见掩码） |
-| 代理 | `proxy-section` | `proxy` 设置 + `proxy:test` |
+| 数据 | `data-section` | 存储 / 备份 / 日志 / 凭据 / 设置迁移 / 重置 |
 | 快捷键 | `shortcuts-section` | `shortcuts` 设置 + 冲突检测 |
-| 关于 | `about-section` | `app:getInfo` / `system:getStatus` / 更新状态 |
+| 网络代理 | `proxy-section` | `proxy` 设置 + `proxy:test` |
+| Beta | `beta-section` | 实验功能空态（无真实 flag 时不造假开关） |
+| 关于 | `about-section` | `app:getInfo` / 更新状态 / 诊断包 / 许可 |
 
 ## 六、数据流
 
@@ -244,7 +242,7 @@ flowchart LR
 | 路由 | `routes/root.tsx`（布局+错误边界）/ `home.tsx` / `notes.tsx`（示例切片）/ `router.tsx` / `lib/constants.ts` |
 | 布局 | `components/layout/`：AppShell / Topbar / Sidebar / bridges / layout-utils / update-indicator |
 | 通用组件 | `components/common/`：AppErrorBoundary / AsyncBoundary / BrandMark / CommandPalette / DialogHost / EmptyState / MotionReveal / SectionErrorBoundary / ShortcutHelpDialog / UpdateNotice |
-| 设置 | `components/settings/`：SettingsDialog / settings-controls / shortcut-picker / sections（8 个分区） |
+| 设置 | `components/settings/`：SettingsDialog / settings-controls / shortcut-picker / sections（8 个分区：通用 / 外观 / 通知 / 数据 / 快捷键 / 网络代理 / Beta / 关于） |
 | hooks | `hooks/`：19 个（含 use-secrets / use-backups / use-system / use-update / use-telemetry 等域 hook） |
 | stores | `stores/persistent/settings-store`；`stores/transient/`：ui-store / update-store / confirm-dialog-store |
 | lib | `lib/`：ipc / ipc-factories / settings-bootstrap / settings-ops / shortcut-conflicts / theme-init / motion / invalidation / query 等 |

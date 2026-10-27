@@ -13,7 +13,7 @@ export const LANGUAGE_SETTINGS = ['system', ...SUPPORTED_LANGUAGES] as const;
 /** 设置值类型 */
 export type LanguageSetting = (typeof LANGUAGE_SETTINGS)[number];
 
-/** 无法解析时回落的中文（模板默认语言） */
+/** 无法解析时回落的最后一级语言（默认设置由 DEFAULT_LANGUAGE_SETTING 决定） */
 export const FALLBACK_LANGUAGE: SupportedLanguage = 'zh-CN';
 
 /**

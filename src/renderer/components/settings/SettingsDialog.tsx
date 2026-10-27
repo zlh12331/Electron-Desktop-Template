@@ -40,7 +40,7 @@ function handleTabNavigation(event: ReactKeyboardEvent<HTMLDivElement>): void {
 /**
  * 设置全屏页（组装层）
  *
- * 分区全部来自 sections/registry（导航分组 + 组件同源），本文件只负责壳与键盘导航。
+ * 分区全部来自 sections/registry（导航项 + 组件同源），本文件只负责壳与键盘导航。
  */
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps): ReactElement {
   const { t } = useTranslation();
@@ -82,38 +82,31 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps): Rea
             aria-orientation="vertical"
             onKeyDown={handleTabNavigation}
           >
-            {SETTINGS_SECTIONS.map((group) => (
-              <div key={group.labelKey} className="mb-1">
-                <div className="text-muted-foreground px-3 pt-2 pb-1 text-2xs font-semibold tracking-[0.08em] uppercase">
-                  {t(group.labelKey)}
-                </div>
-                {group.items.map((item) => {
-                  const isActive = activeSection === item.id;
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={isActive}
-                      id={`settings-tab-${item.id}`}
-                      aria-controls="settings-panel"
-                      tabIndex={isActive ? 0 : -1}
-                      data-nav-item="true"
-                      onClick={() => setActiveSection(item.id)}
-                      className={cn(
-                        'text-muted-foreground hover:bg-muted hover:text-foreground mb-0.5 flex w-full items-center gap-[9px] rounded-[calc(var(--radius)-1px)] border-l-2 border-l-transparent px-2.5 py-2 text-left text-sm transition-colors',
-                        isActive &&
-                          'bg-card text-foreground border-l-[color:var(--accent)] font-medium',
-                      )}
-                    >
-                      <Icon className="size-3.5 shrink-0" strokeWidth={1.5} />
-                      <span className="truncate">{t(item.labelKey)}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
+            {SETTINGS_SECTIONS.map((item) => {
+              const isActive = activeSection === item.id;
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  id={`settings-tab-${item.id}`}
+                  aria-controls="settings-panel"
+                  tabIndex={isActive ? 0 : -1}
+                  data-nav-item="true"
+                  onClick={() => setActiveSection(item.id)}
+                  className={cn(
+                    'text-muted-foreground hover:bg-muted hover:text-foreground mb-0.5 flex w-full items-center gap-[9px] rounded-[calc(var(--radius)-1px)] border-l-2 border-l-transparent px-2.5 py-2 text-left text-sm transition-colors',
+                    isActive &&
+                      'bg-card text-foreground border-l-[color:var(--accent)] font-medium',
+                  )}
+                >
+                  <Icon className="size-3.5 shrink-0" strokeWidth={1.5} />
+                  <span className="truncate">{t(item.labelKey)}</span>
+                </button>
+              );
+            })}
           </div>
 
           <div

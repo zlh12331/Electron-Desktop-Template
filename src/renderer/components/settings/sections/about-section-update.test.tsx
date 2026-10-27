@@ -29,6 +29,15 @@ vi.mock('@/hooks/use-install-update', () => ({
 vi.mock('@/hooks/use-app-info', () => ({
   useAppInfo: () => ({ version: '1.0.0', platform: 'win32', arch: 'x64', channel: 'stable' }),
 }));
+vi.mock('@/hooks/use-system', () => ({
+  useSystemStatusQuery: () => ({
+    status: 'success',
+    fetchStatus: 'idle',
+    data: { uptimeSeconds: 1, memory: { rss: 1024 } },
+    error: null,
+    refetch: vi.fn(),
+  }),
+}));
 
 import { AboutSection } from './about-section';
 

@@ -85,6 +85,7 @@ vi.mock('electron', () => ({
     getAllDisplays: () => [{ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }],
   },
   shell: { openExternal: mocks.openExternal },
+  nativeTheme: { shouldUseDarkColors: false },
 }));
 
 vi.mock('electron-devtools-installer', () => ({
@@ -157,7 +158,7 @@ function createHarness(): FakeWindow {
 }
 
 // 在 hoisted mocks 之后导入，确保 window.ts 拿到替身
-const { createWindow, readCloseAction, readStartMinimized } = await import('./window');
+const { createWindow, readCloseAction } = await import('./window');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -198,22 +199,6 @@ describe('readCloseAction', () => {
       throw new Error('db unavailable');
     });
     expect(readCloseAction()).toBe('minimize');
-  });
-});
-
-describe('readStartMinimized', () => {
-  it('仅显式 true 才返回 true；缺失/损坏/异常回落 false', () => {
-    expect(readStartMinimized()).toBe(false);
-    mocks.readSetting.mockReturnValue({ closeAction: 'minimize', startMinimized: true });
-    expect(readStartMinimized()).toBe(true);
-    mocks.readSetting.mockReturnValue({ closeAction: 'minimize', startMinimized: 'yes' });
-    expect(readStartMinimized()).toBe(false);
-    mocks.readSetting.mockReturnValue(null);
-    expect(readStartMinimized()).toBe(false);
-    mocks.readSetting.mockImplementation(() => {
-      throw new Error('db unavailable');
-    });
-    expect(readStartMinimized()).toBe(false);
   });
 });
 
@@ -301,15 +286,6 @@ describe('createWindow', () => {
   it('静默启动：ready-to-show 不显示窗口', () => {
     mocks.resolveStartHidden.mockReturnValue(true);
     const win = createHarness();
-
-    fire(win.onceHandlers.get('ready-to-show'));
-
-    expect(win.show).not.toHaveBeenCalled();
-  });
-
-  it('startHidden 选项：非自启启动也可隐藏到托盘', () => {
-    mocks.resolveStartHidden.mockReturnValue(false);
-    const win = createWindow({ startHidden: true }) as unknown as FakeWindow;
 
     fire(win.onceHandlers.get('ready-to-show'));
 

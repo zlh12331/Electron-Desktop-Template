@@ -19,8 +19,8 @@ function renderWithQuery(ui: ReactElement) {
 beforeEach(() => {
   vi.clearAllMocks();
   useSettingsStore.setState({
-    language: 'zh-CN',
-    window: { closeAction: 'minimize', startMinimized: false },
+    language: 'system',
+    window: { closeAction: 'minimize' },
   });
   Object.defineProperty(window, 'api', {
     value: {
@@ -49,34 +49,34 @@ describe('GeneralSection', () => {
     expect(screen.queryByText(t('settings.notificationTitle'))).toBeNull();
   });
 
-  it('正向：点 English → 写入 settings-store（SQLite 写穿透真源）', async () => {
+  it('默认跟随系统：下拉回显 system', () => {
     renderWithQuery(<GeneralSection />);
 
-    await userEvent.click(screen.getByRole('button', { name: /English/ }));
+    expect(screen.getByRole('combobox', { name: t('settings.language') })).toHaveTextContent(
+      t('settings.languageSystem'),
+    );
+  });
+
+  it('下拉切换到 English → 写入 settings-store（SQLite 写穿透真源）', async () => {
+    const user = userEvent.setup();
+    renderWithQuery(<GeneralSection />);
+
+    await user.click(screen.getByRole('combobox', { name: t('settings.language') }));
+    await user.click(await screen.findByRole('option', { name: /English/ }));
 
     expect(useSettingsStore.getState().language).toBe('en');
   });
 
-  it('边界：当前语言项带选中勾选（zh-CN 时简体中文高亮）', () => {
+  it('下拉切回跟随系统 → language=system', async () => {
+    const user = userEvent.setup();
+    useSettingsStore.setState({ language: 'zh-CN' });
     renderWithQuery(<GeneralSection />);
-    expect(screen.getByRole('button', { name: /简体中文/ })).toBeDefined();
-    expect(screen.getByRole('button', { name: /English/ })).toBeDefined();
-    expect(
-      screen.getByRole('button', { name: new RegExp(t('settings.languageSystem')) }),
-    ).toBeDefined();
-  });
 
-  it('跟随系统：点击 System 写入 language=system', async () => {
-    renderWithQuery(<GeneralSection />);
-    await userEvent.click(
-      screen.getByRole('button', { name: new RegExp(t('settings.languageSystem')) }),
+    await user.click(screen.getByRole('combobox', { name: t('settings.language') }));
+    await user.click(
+      await screen.findByRole('option', { name: new RegExp(t('settings.languageSystem')) }),
     );
-    expect(useSettingsStore.getState().language).toBe('system');
-  });
 
-  it('启动时最小化：开关写入 window.startMinimized', async () => {
-    renderWithQuery(<GeneralSection />);
-    await userEvent.click(screen.getByRole('switch', { name: t('settings.startMinimizedLabel') }));
-    expect(useSettingsStore.getState().window.startMinimized).toBe(true);
+    expect(useSettingsStore.getState().language).toBe('system');
   });
 });

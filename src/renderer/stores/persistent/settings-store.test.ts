@@ -11,10 +11,9 @@ import { applySettingsSnapshot, flushPendingSettings, useSettingsStore } from '.
 
 /** store 的初始默认值（DEFAULT_SETTINGS 为模块私有；此处按已知默认态复位） */
 const DEFAULTS = {
-  theme: 'dark',
-  language: 'zh-CN',
+  theme: 'system',
+  language: 'system',
   closeAction: 'minimize',
-  startMinimized: false,
 } as const;
 
 describe('settings-store.applyMainSettingChange', () => {
@@ -30,7 +29,6 @@ describe('settings-store.applyMainSettingChange', () => {
       language: DEFAULTS.language,
       window: {
         closeAction: DEFAULTS.closeAction,
-        startMinimized: DEFAULTS.startMinimized,
       },
     });
   });
@@ -55,16 +53,14 @@ describe('settings-store.applyMainSettingChange', () => {
     expect(useSettingsStore.getState().window.closeAction).toBe('quit');
   });
 
-  it('window 域的部分字段：与既有字段合并而非替换', () => {
-    useSettingsStore.setState({
-      window: { closeAction: 'minimize', ...{ futureField: 'x' } } as never,
-    });
+  it('window 域只接受 closeAction：未知字段不进入 state', () => {
+    useSettingsStore.setState({ window: { closeAction: 'minimize' } });
 
-    useSettingsStore.getState().applyMainSettingChange('window', { closeAction: 'quit' });
+    useSettingsStore
+      .getState()
+      .applyMainSettingChange('window', { closeAction: 'quit', futureField: 'x' });
 
-    const win = useSettingsStore.getState().window as unknown as Record<string, unknown>;
-    expect(win['closeAction']).toBe('quit');
-    expect(win['futureField']).toBe('x');
+    expect(useSettingsStore.getState().window).toEqual({ closeAction: 'quit' });
   });
 
   it('非对象值被忽略（不让主进程的异常 payload 污染 state）', () => {
@@ -322,14 +318,6 @@ describe('settings-store 新增设置域', () => {
     expect(useSettingsStore.getState().update).toMatchObject({
       autoCheck: false,
       allowPrerelease: false,
-    });
-  });
-
-  it('window 域：startMinimized 与 closeAction 合并', () => {
-    useSettingsStore.getState().setWindow({ startMinimized: true });
-    expect(useSettingsStore.getState().window).toEqual({
-      closeAction: 'minimize',
-      startMinimized: true,
     });
   });
 

@@ -35,6 +35,10 @@ vi.mock('./backup-block', () => ({
   // biome-ignore lint/style/useNamingConvention: 被 mock 的组件导出名是 PascalCase
   BackupBlock: () => <div data-testid="backup-block" />,
 }));
+vi.mock('./secrets-section', () => ({
+  // biome-ignore lint/style/useNamingConvention: 被 mock 的组件导出名是 PascalCase
+  SecretsSection: () => <div data-testid="secrets-section" />,
+}));
 
 import { DataSection } from './data-section';
 
@@ -55,6 +59,8 @@ const CACHE = { path: 'C:/cache', bytes: 1024, fileCount: 3 };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // 重置设置后语言回落 system，测试固定为中文，避免 jsdom 的 en-US 影响 toast 断言
+  Object.defineProperty(window.navigator, 'language', { value: 'zh-CN', configurable: true });
   mocks.confirm.mockResolvedValue(true);
   mocks.getCache.mockResolvedValue(CACHE);
   mocks.clearCache.mockResolvedValue({ path: 'C:/cache', bytes: 0, fileCount: 0 });
@@ -77,6 +83,7 @@ describe('DataSection', () => {
 
     expect(screen.getByText(t('settings.dataSection'))).toBeDefined();
     expect(screen.getByTestId('backup-block')).toBeDefined();
+    expect(screen.getByTestId('secrets-section')).toBeDefined();
     await screen.findByText(t('settings.updateCacheUsage', { size: '1.0 KB', count: '3' }));
   });
 

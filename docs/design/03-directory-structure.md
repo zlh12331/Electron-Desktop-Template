@@ -60,7 +60,7 @@ src/main/
 ├── quit-state.ts             # 退出状态位
 ├── diagnostics.ts            # 诊断包导出
 ├── infra/
-│   ├── app-info.ts           # build-info.json 读取（关于页/OTel resource/Sentry tags）
+│   ├── app-info.ts           # build-info.json 读取（设置关于页/OTel resource/Sentry tags）
 │   ├── autostart/            # 开机自启（三平台）
 │   ├── file/                 # 用户手势授权表（对话框选中的路径）
 │   ├── i18n/                 # 主进程文案（托盘等）

@@ -31,10 +31,13 @@ const { theme, snapshot } = await bootstrapSettings();
 applySettingsSnapshot(snapshot);
 applyInitialTheme(theme);
 // SQLite 是语言真源：首帧渲染前应用快照，避免先渲染默认语言再闪成用户语言。
-await changeLanguage(resolveLanguage(snapshot['language']));
+// system 必须用应用默认值解析，不能直接拿原始快照（缺键会回落成固定中文）。
+const initialLanguage = resolveLanguage(useSettingsStore.getState().language);
+await changeLanguage(initialLanguage);
 await applyZoom(useSettingsStore.getState().appearance.zoom);
 try {
-  localStorage.setItem(LANGUAGE_STORAGE_KEY, useSettingsStore.getState().language);
+  // detector 缓存只接受实际语言，不能写 system
+  localStorage.setItem(LANGUAGE_STORAGE_KEY, initialLanguage);
 } catch {}
 const rootElement = document.getElementById('root');
 if (!rootElement) {

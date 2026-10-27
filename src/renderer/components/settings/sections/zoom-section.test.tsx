@@ -18,15 +18,27 @@ beforeEach(() => {
     writable: true,
     configurable: true,
   });
-  useSettingsStore.setState({ appearance: { zoom: 1 }, theme: 'dark' });
+  useSettingsStore.setState({ appearance: { zoom: 1 }, theme: 'system' });
 });
 
 describe('ZoomSection', () => {
-  it('主题三态显式入口：dark 回显，点击 system 写入 settings-store', async () => {
+  it('主题默认跟随系统：下拉回显 system', () => {
     render(<ZoomSection />);
+
     expect(screen.getByText(t('settings.themeTitle'))).toBeDefined();
-    await userEvent.click(screen.getByRole('radio', { name: t('settings.themeSystem') }));
-    expect(useSettingsStore.getState().theme).toBe('system');
+    expect(screen.getByRole('combobox', { name: t('settings.themeTitle') })).toHaveTextContent(
+      t('settings.themeSystem'),
+    );
+  });
+
+  it('主题下拉切换到深色 → 写入 settings-store', async () => {
+    const user = userEvent.setup();
+    render(<ZoomSection />);
+
+    await user.click(screen.getByRole('combobox', { name: t('settings.themeTitle') }));
+    await user.click(await screen.findByRole('option', { name: t('settings.themeDark') }));
+
+    expect(useSettingsStore.getState().theme).toBe('dark');
     await waitFor(() => {
       const calls = setSpy.mock.calls as unknown as { key: string }[][];
       expect(calls.filter((c) => c[0]?.key === 'theme')).toHaveLength(1);

@@ -2,11 +2,11 @@
 // 这里只放平台无关的标量/对象默认值；快捷键默认依赖平台 MOD，仍在渲染层维护。
 // 边界：不引入 zod / Electron，main / renderer 出口均可安全再导出。
 
-/** 默认主题（与 settings.theme 值域一致） */
-export const DEFAULT_THEME_SETTING = 'dark' as const;
+/** 默认主题（与 settings.theme 值域一致；新安装跟随系统明暗） */
+export const DEFAULT_THEME_SETTING = 'system' as const;
 
-/** 默认界面语言（与 settings.language 值域一致） */
-export const DEFAULT_LANGUAGE_SETTING = 'zh-CN' as const;
+/** 默认界面语言（与 settings.language 值域一致；新安装跟随系统语言） */
+export const DEFAULT_LANGUAGE_SETTING = 'system' as const;
 
 /** 默认自动更新设置（settings.update） */
 export const DEFAULT_UPDATE_SETTINGS = {
@@ -18,7 +18,6 @@ export const DEFAULT_UPDATE_SETTINGS = {
 /** 默认窗口行为（settings.window） */
 export const DEFAULT_WINDOW_SETTINGS = {
   closeAction: 'minimize',
-  startMinimized: false,
 } as const;
 
 /** 默认通知设置（settings.notification） */

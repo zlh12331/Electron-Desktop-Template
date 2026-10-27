@@ -17,7 +17,7 @@ describe('ui-store（纯 UI 态，不持久化）', () => {
   });
 
   it('设置：openSettings 无参 → 打开并清空直达分区（回落默认分区）', () => {
-    useUiStore.getState().setSettingsSection('secrets');
+    useUiStore.getState().setSettingsSection('beta');
     useUiStore.getState().openSettings();
 
     expect(useUiStore.getState().settingsOpen).toBe(true);

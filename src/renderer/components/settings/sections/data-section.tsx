@@ -23,11 +23,12 @@ import {
 } from '@/stores/persistent/settings-store';
 import { confirm } from '@/stores/transient/confirm-dialog-store';
 import { useUpdateStore } from '@/stores/transient/update-store';
-import { ToggleRow } from '../settings-controls';
+import { SectionTitle, ToggleRow } from '../settings-controls';
 
 import { BackupBlock } from './backup-block';
+import { SecretsSection } from './secrets-section';
 
-/** 数据区块（设置导出/导入 + 打开数据目录 + 更新缓存 + 数据库备份） */
+/** 数据区块（存储 / 备份 / 日志 / 凭据 / 设置迁移 / 危险操作） */
 export function DataSection(): React.ReactElement {
   const { t } = useTranslation();
   const [cache, setCache] = useState<UpdateCacheInfo | null>(null);
@@ -134,25 +135,52 @@ export function DataSection(): React.ReactElement {
   };
 
   return (
-    <div className="flex flex-col gap-3 pt-2">
+    <div className="flex flex-col gap-4 pt-2">
       <div className="flex items-center gap-2">
         <Database className="size-4 text-muted-foreground" strokeWidth={1.5} />
         <Label className="font-serif text-sm tracking-wide">{t('settings.dataSection')}</Label>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={handleOpenDataDir}>
-          {t('settings.openDataDir')}
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => void handleOpenLogsDir()}>
-          {t('settings.loggingOpenDir')}
-        </Button>
+
+      <div className="flex flex-col gap-2">
+        <SectionTitle>{t('settings.storageTitle')}</SectionTitle>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={handleOpenDataDir}>
+            {t('settings.openDataDir')}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground font-sans">{t('settings.settingsDataHint')}</p>
+        {cache !== null && cache.path !== null && (
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground font-sans text-xs">
+              {t('settings.updateCacheUsage', {
+                size: formatBytes(cache.bytes),
+                count: String(cache.fileCount),
+              })}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={cache.fileCount === 0 || downloading}
+              onClick={() => void handleClearUpdateCache()}
+            >
+              {t('settings.clearUpdateCache')}
+            </Button>
+          </div>
+        )}
       </div>
-      <p className="text-xs text-muted-foreground font-sans">{t('settings.settingsDataHint')}</p>
-      <div className="border-border/60 mt-1 border-t pt-3">
-        <p className="text-foreground mb-1 text-sm font-semibold">{t('settings.loggingTitle')}</p>
-        <p className="text-muted-foreground mb-2 text-xs leading-[1.5]">
-          {t('settings.loggingHint')}
-        </p>
+
+      <div className="border-border/60 border-t pt-3">
+        <BackupBlock />
+      </div>
+
+      <div className="border-border/60 flex flex-col gap-2 border-t pt-3">
+        <SectionTitle>{t('settings.loggingTitle')}</SectionTitle>
+        <p className="text-muted-foreground text-xs leading-[1.5]">{t('settings.loggingHint')}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => void handleOpenLogsDir()}>
+            {t('settings.loggingOpenDir')}
+          </Button>
+        </div>
         <ToggleRow
           name={t('settings.loggingVerboseLabel')}
           description={t('settings.loggingVerboseDesc')}
@@ -160,37 +188,36 @@ export function DataSection(): React.ReactElement {
           onChange={(checked) => updateLogging({ verbose: checked })}
         />
       </div>
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={handleExportSettings}>
-          {t('settings.exportSettings')}
-        </Button>
-        <Button variant="outline" size="sm" onClick={handleImportSettings}>
-          {t('settings.importSettings')}
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => void handleResetAllSettings()}>
-          {t('settings.resetAllSettings')}
-        </Button>
+
+      <div className="border-border/60 border-t pt-3">
+        <SecretsSection />
       </div>
-      {cache !== null && cache.path !== null && (
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground font-sans text-xs">
-            {t('settings.updateCacheUsage', {
-              size: formatBytes(cache.bytes),
-              count: String(cache.fileCount),
-            })}
-          </span>
+
+      <div className="border-border/60 flex flex-col gap-2 border-t pt-3">
+        <SectionTitle>{t('settings.migrationTitle')}</SectionTitle>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportSettings}>
+            {t('settings.exportSettings')}
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleImportSettings}>
+            {t('settings.importSettings')}
+          </Button>
+        </div>
+      </div>
+
+      <div className="border-border/60 flex flex-col gap-2 border-t pt-3">
+        <SectionTitle>{t('settings.dangerZoneTitle')}</SectionTitle>
+        <div>
           <Button
             variant="outline"
             size="sm"
-            disabled={cache.fileCount === 0 || downloading}
-            onClick={() => void handleClearUpdateCache()}
+            onClick={() => void handleResetAllSettings()}
+            className="text-destructive hover:text-destructive"
           >
-            {t('settings.clearUpdateCache')}
+            {t('settings.resetAllSettings')}
           </Button>
         </div>
-      )}
-
-      <BackupBlock />
+      </div>
     </div>
   );
 }

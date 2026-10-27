@@ -97,7 +97,6 @@ const UpdateSettingSchema = z.object({
 /** window 域值：字段可选，主进程读取时仍有默认值兜底 */
 const WindowSettingSchema = z.object({
   closeAction: z.enum(['quit', 'minimize']).optional(),
-  startMinimized: z.boolean().optional(),
 });
 
 /** notification 域值：字段可选，缺失按开启处理 */

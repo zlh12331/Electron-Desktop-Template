@@ -1,8 +1,13 @@
 import type { LoginItemSettingsRes } from '@code-agent/shared/renderer';
-import { Check, Languages } from 'lucide-react';
 import { type ReactElement, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { SUPPORTED_LANGUAGES } from '@/i18n/config';
 import { useTranslation } from '@/i18n/use-translation';
 import { LANGUAGE_ENDONYMS } from '@/lib/language-endonyms';
@@ -11,7 +16,6 @@ import {
   setLoginItemSettings,
   subscribeLoginItemChanged,
 } from '@/lib/settings-ops';
-import { cn } from '@/lib/utils';
 import type { AppLanguage } from '@/stores/persistent/settings-store';
 import { useSettingsStore } from '@/stores/persistent/settings-store';
 import { SegControl, SettingRow, ToggleRow } from '../settings-controls';
@@ -22,37 +26,28 @@ function LanguageRow(): ReactElement {
   const { t } = useTranslation();
   const language = useSettingsStore((s) => s.language);
   const setLanguage = useSettingsStore((s) => s.setLanguage);
-  const options: readonly { readonly value: AppLanguage; readonly label: string }[] = [
-    { value: 'system', label: t('settings.languageSystem') },
-    ...SUPPORTED_LANGUAGES.map((code) => ({ value: code, label: LANGUAGE_ENDONYMS[code] })),
-  ];
 
   return (
-    <div className="flex items-center justify-between gap-2">
-      <div className="flex items-center gap-2">
-        <Languages className="text-muted-foreground size-3.5" strokeWidth={1.5} />
-        <span className="text-foreground text-sm">{t('settings.language')}</span>
-      </div>
-      <div className="flex items-center gap-1">
-        {options.map((option) => (
-          <Button
-            key={option.value}
-            variant="ghost"
-            size="sm"
-            className={cn(
-              'h-auto gap-1 rounded px-2 py-1 text-xs',
-              language === option.value
-                ? 'bg-muted text-foreground border-border'
-                : 'text-muted-foreground border-transparent',
-            )}
-            onClick={() => setLanguage(option.value)}
-          >
-            {option.label}
-            {language === option.value && <Check className="size-3" strokeWidth={2} />}
-          </Button>
-        ))}
-      </div>
-    </div>
+    <SettingRow label={t('settings.language')} description={t('settings.languageDesc')}>
+      <Select
+        value={language}
+        onValueChange={(value) => {
+          setLanguage(value as AppLanguage);
+        }}
+      >
+        <SelectTrigger className="w-[150px]" aria-label={t('settings.language')}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="system">{t('settings.languageSystem')}</SelectItem>
+          {SUPPORTED_LANGUAGES.map((code) => (
+            <SelectItem key={code} value={code}>
+              {LANGUAGE_ENDONYMS[code]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </SettingRow>
   );
 }
 
@@ -60,7 +55,6 @@ function LanguageRow(): ReactElement {
 export function GeneralSection(): ReactElement {
   const { t } = useTranslation();
   const closeAction = useSettingsStore((s) => s.window.closeAction);
-  const startMinimized = useSettingsStore((s) => s.window.startMinimized);
   const setWindow = useSettingsStore((s) => s.setWindow);
   const [autostart, setAutostart] = useState<LoginItemSettingsRes | null>(null);
 
@@ -97,7 +91,7 @@ export function GeneralSection(): ReactElement {
     <div className="flex flex-col gap-5 pt-2">
       <div>
         <h3 className="text-foreground text-sm font-semibold">{t('settings.generalTitle')}</h3>
-        <div className="border-border bg-muted/20 mt-2 rounded-md border p-3">
+        <div className="mt-2">
           <LanguageRow />
         </div>
       </div>
@@ -130,12 +124,6 @@ export function GeneralSection(): ReactElement {
             checked={autostart?.openAtLogin ?? false}
             disabled={autostart?.supported === false}
             onChange={(checked) => void handleToggleAutostart(checked)}
-          />
-          <ToggleRow
-            name={t('settings.startMinimizedLabel')}
-            description={t('settings.startMinimizedDesc')}
-            checked={startMinimized}
-            onChange={(checked) => setWindow({ startMinimized: checked })}
           />
         </div>
       </div>

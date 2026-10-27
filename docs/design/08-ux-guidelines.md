@@ -1,6 +1,6 @@
 # 08 · UX 设计规范（模板版）
 
-> 面向模板当前真实界面：应用外壳 + 欢迎页 / 关于页 + 设置 + 命令面板。
+> 面向模板当前真实界面：应用外壳 + 欢迎页 / 笔记示例 + 设置 + 命令面板。
 > 内容是「接入业务时必须守住」的体验底线，不是上游产品的功能清单。
 > 最后同步：2026-10-22（模板版重写：删除已剥离的会话/文件树/终端/审批等业务交互）
 
@@ -23,7 +23,7 @@
 │ 折叠侧栏 · 品牌/版本 …                   命令面板 · 更新指示 · 主题        │
 ├────────────┬──┬────────────────────────────────────────────┬──┬───────────┤
 │ sidebar    │R │                main                        │R │ right     │
-│ 200–400px  │6 │        欢迎页 / 关于页 / 业务页            │6 │ panel     │
+│ 200–400px  │6 │        欢迎页 / 业务页                    │6 │ panel     │
 │            │px│                                            │px│ 260–360px │
 └────────────┴──┴────────────────────────────────────────────┴──┴───────────┘
 ```
@@ -39,7 +39,7 @@
 ## 3. 设计体系
 
 - **令牌真源**：`tokens/aurora.json` → `Style Dictionary` → `styles/tokens.css`；禁止手改生成物（`tokens:check` 校验同步）。
-- **主题**：`light / dark / system` 三值，默认 `dark`；顶栏按钮与 `Ctrl/Cmd+Shift+T` 都按 `dark → light → system → dark` 循环。`ThemeProvider` 只负责给 `<html>` 切 class 并监听系统主题，组件禁止直接改 DOM。
+- **主题**：`light / dark / system` 三值，默认 `system`（跟随系统）；顶栏按钮与 `Ctrl/Cmd+Shift+T` 都按 `dark → light → system → dark` 循环。`ThemeProvider` 只负责给 `<html>` 切 class 并监听系统主题，组件禁止直接改 DOM。
 - **字号**：`--font-size-2xs(10) → 3xl(28)` 九档；正文默认 `sm/base/md`。
 - **圆角**：`--radius: 8px`，`--radius-sm/md/lg/xl` 派生。间距走 Tailwind 的 `gap-*` / `p-*`，不自定义像素阶梯。
 - **样式分区**：`tokens` / `base` / `layout` / `palette`（命令面板）/ `motion`。业务样式接入时新建文件并在 `styles/index.css` 登记，不沿用上游类名。
@@ -55,11 +55,16 @@
 
 设置分区由注册表驱动（[sections/registry.tsx](../../src/renderer/components/settings/sections/registry.tsx)），分区 id 在 `lib/settings-sections.ts`：
 
-| 分组 | 分区 | 消费真源 |
-|---|---|---|
-| 通用 | 常规 / 外观 / 通知 | 语言、开机自启、缩放、通知总开关 |
-| 高级 | 数据 / 凭据 / 代理 / 快捷键 | 导入导出与备份、safeStorage 掩码、代理三模式、快捷键冲突检测 |
-| 关于 | 关于 | 版本、运行时、更新状态、诊断包 |
+| 分区 | 消费真源 |
+|---|---|
+| 通用 | 语言、关窗行为、开机自启、遥测 |
+| 外观 | 主题、界面缩放 |
+| 通知 | 通知总开关 |
+| 数据 | 存储、备份、日志、凭据、设置迁移、危险操作 |
+| 快捷键 | 冲突检测与恢复默认 |
+| 网络代理 | 代理三模式与连接测试 |
+| Beta | 实验功能空态与风险提示 |
+| 关于 | 版本、构建、运行时、更新、诊断包、许可 |
 
 **新增分区**：`settings-sections.ts` 加 id → `sections/<name>-section.tsx` → `registry.tsx` 加一条。导航分组、图标与组件在注册表一处声明，禁止第二套 switch。
 
@@ -119,7 +124,7 @@ ready → empty（EmptyState，有 CTA 才放按钮）
 
 ## 7. 文案与国际化
 
-- 语言：`zh-CN`（默认）/ `en`，双语言 key 集合必须一致（`check:i18n --strict`）。
+- 语言：设置值 `system`（默认，按 OS locale 解析）/ `zh-CN` / `en`，双语言 key 集合必须一致（`check:i18n --strict`）。
 - 新增文案：`useTranslation` 的 `t('域.语义')`，同时在两个语言包添加；错误码文案进 `errors.json`。
 - 不翻译：快捷键键位、错误码、路径、命令等技术标识。
 

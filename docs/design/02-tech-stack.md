@@ -25,7 +25,7 @@
 | 网络 | undici | 统一 fetch 实现，代理配置注入（`infra/network/proxied-fetch`） |
 | 压缩 | adm-zip | 诊断包导出 |
 | 契约校验 | zod 4 | IPC 入参/响应；preload 与渲染层出口按进程拆分，避免 zod 进沙箱 |
-| Markdown | react-markdown + rehype | 关于页渲染 release notes（sanitize 后渲染） |
+| Markdown | react-markdown + rehype | 设置关于页渲染 release notes（sanitize 后渲染） |
 
 ## 3. 渲染层依赖
 

@@ -14,8 +14,8 @@ import { ipcErr, ipcOk } from '@/lib/ipc-factories';
 
 /** 浏览器模式下内存态的假设置（不落库，刷新即重置） */
 const memorySettings = new Map<string, unknown>([
-  ['theme', 'dark'],
-  ['language', 'zh-CN'],
+  ['theme', 'system'],
+  ['language', 'system'],
   [
     'update',
     {
@@ -24,7 +24,7 @@ const memorySettings = new Map<string, unknown>([
       skippedVersion: null,
     },
   ],
-  ['window', { closeAction: 'minimize', startMinimized: false }],
+  ['window', { closeAction: 'minimize' }],
   ['notification', { enabled: true }],
   ['proxy', { mode: 'system' }],
   ['appearance', { zoom: 1 }],

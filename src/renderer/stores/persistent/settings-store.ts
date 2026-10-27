@@ -113,8 +113,6 @@ interface UpdateSettings {
 interface WindowSettings {
   /** 点 X 的行为（默认 minimize） */
   readonly closeAction: 'quit' | 'minimize';
-  /** 启动时直接隐藏到托盘（默认 false；不影响开机自启已有的静默语义） */
-  readonly startMinimized: boolean;
 }
 
 /**
@@ -473,7 +471,8 @@ function applyMainChange(
     return;
   }
   if (key === 'window' && typeof value === 'object' && value !== null) {
-    set({ window: { ...useSettingsStore.getState().window, ...(value as WindowSettings) } });
+    const closeAction = (value as { closeAction?: unknown }).closeAction;
+    set({ window: { closeAction: closeAction === 'quit' ? 'quit' : 'minimize' } });
     return;
   }
   if (typeof value !== 'object' || value === null) {
@@ -498,9 +497,7 @@ export function applySettingsSnapshot(snapshot: Readonly<Record<string, unknown>
   const theme = asTheme(snapshot['theme']) ?? DEFAULT_SETTINGS.theme;
   const language = asLanguage(snapshot['language']) ?? DEFAULT_SETTINGS.language;
   const updateSnapshot = (snapshot['update'] as Partial<UpdateSettings> | undefined) ?? {};
-  const windowSnapshot = snapshot['window'] as
-    | { closeAction?: unknown; startMinimized?: unknown }
-    | undefined;
+  const windowSnapshot = snapshot['window'] as { closeAction?: unknown } | undefined;
   const loggingSnapshot = snapshot['logging'] as { verbose?: unknown } | undefined;
   const backupSnapshot = snapshot['backup'] as { autoBackup?: unknown; keep?: unknown } | undefined;
   const backupKeep = (BACKUP_KEEP_OPTIONS as readonly number[]).includes(
@@ -522,10 +519,6 @@ export function applySettingsSnapshot(snapshot: Readonly<Record<string, unknown>
     },
     window: {
       closeAction: windowSnapshot?.closeAction === 'quit' ? 'quit' : 'minimize',
-      startMinimized:
-        typeof windowSnapshot?.startMinimized === 'boolean'
-          ? windowSnapshot.startMinimized
-          : DEFAULT_SETTINGS.window.startMinimized,
     },
     notification: {
       ...DEFAULT_SETTINGS.notification,
