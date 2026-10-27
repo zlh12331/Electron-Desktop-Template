@@ -13,15 +13,15 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 const { mockSafeStorage, mockApp, mockLogger } = vi.hoisted(() => ({
   mockSafeStorage: {
-    isEncryptionAvailable: vi.fn(() => true),
+    isAsyncEncryptionAvailable: vi.fn(async () => true),
     getSelectedStorageBackend: vi.fn(() => 'basic_text'),
-    encryptString: vi.fn((s: string) => Buffer.from(`enc:${s}`)),
-    decryptString: vi.fn((b: Buffer) => {
+    encryptStringAsync: vi.fn(async (s: string) => Buffer.from(`enc:${s}`)),
+    decryptStringAsync: vi.fn(async (b: Buffer) => {
       const text = b.toString('utf8');
       if (!text.startsWith('enc:')) {
         throw new Error('DPAPI decrypt failed');
       }
-      return text.slice(4);
+      return { result: text.slice(4), shouldReEncrypt: false };
     }),
   },
   mockApp: { getPath: vi.fn(() => '/tmp/keychain-test') },
@@ -53,14 +53,14 @@ import {
 
 describe('加密不可用降级', () => {
   it('getSecret 返回 null 且告警仅一次（fail-silent 收口，2026-09-28）', async () => {
-    mockSafeStorage.isEncryptionAvailable.mockReturnValue(false);
+    mockSafeStorage.isAsyncEncryptionAvailable.mockResolvedValue(false);
     try {
       mockLogger.warn.mockClear();
       expect(await getSecret('deepseek-api-key')).toBeNull();
       expect(await getSecret('deepseek-api-key')).toBeNull();
       expect(mockLogger.warn).toHaveBeenCalledTimes(1);
     } finally {
-      mockSafeStorage.isEncryptionAvailable.mockReturnValue(true);
+      mockSafeStorage.isAsyncEncryptionAvailable.mockResolvedValue(true);
     }
   });
 
@@ -72,18 +72,18 @@ describe('加密不可用降级', () => {
     expect(isSecureEncryptionBackend(false, 'gnome_libsecret', 'linux')).toBe(false);
   });
 
-  it('getEncryptionStatus：Linux basic_text 报 insecure-backend，强后端报 ok', () => {
+  it('getEncryptionStatus：Linux basic_text 报 insecure-backend，强后端报 ok', async () => {
     try {
-      mockSafeStorage.isEncryptionAvailable.mockReturnValue(true);
+      mockSafeStorage.isAsyncEncryptionAvailable.mockResolvedValue(true);
       mockSafeStorage.getSelectedStorageBackend.mockReturnValue('basic_text');
-      expect(getEncryptionStatus('linux')).toEqual({
+      await expect(getEncryptionStatus('linux')).resolves.toEqual({
         available: false,
         backend: 'basic_text',
         reason: 'insecure-backend',
       });
 
       mockSafeStorage.getSelectedStorageBackend.mockReturnValue('gnome_libsecret');
-      expect(getEncryptionStatus('linux')).toEqual({
+      await expect(getEncryptionStatus('linux')).resolves.toEqual({
         available: true,
         backend: 'gnome_libsecret',
         reason: 'ok',
@@ -126,8 +126,20 @@ describe('keychain', () => {
     await setSecret('deepseek-api-key', 'sk-secret-1');
     const value = await getSecret('deepseek-api-key');
     expect(value).toBe('sk-secret-1');
-    expect(mockSafeStorage.encryptString).toHaveBeenCalledWith('sk-secret-1');
-    expect(mockSafeStorage.decryptString).toHaveBeenCalled();
+    expect(mockSafeStorage.encryptStringAsync).toHaveBeenCalledWith('sk-secret-1');
+    expect(mockSafeStorage.decryptStringAsync).toHaveBeenCalled();
+  });
+
+  it('密钥轮换：shouldReEncrypt 时重新加密并落盘', async () => {
+    await setSecret('rotate-key', 'rotate-value');
+    mockSafeStorage.encryptStringAsync.mockClear();
+    mockSafeStorage.decryptStringAsync.mockResolvedValueOnce({
+      result: 'rotate-value',
+      shouldReEncrypt: true,
+    });
+
+    expect(await getSecret('rotate-key')).toBe('rotate-value');
+    expect(mockSafeStorage.encryptStringAsync).toHaveBeenCalledWith('rotate-value');
   });
 
   it('Windows ACL：USERNAME 误导（=SYSTEM）时不锁死属主（whoami 优先）', async () => {

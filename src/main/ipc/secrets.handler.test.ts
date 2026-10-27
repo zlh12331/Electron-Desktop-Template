@@ -5,15 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { mockSafeStorage, mockApp } = vi.hoisted(() => ({
   mockSafeStorage: {
-    isEncryptionAvailable: vi.fn(() => true),
+    isAsyncEncryptionAvailable: vi.fn(async () => true),
     getSelectedStorageBackend: vi.fn(() => null),
-    encryptString: vi.fn((s: string) => Buffer.from(`enc:${s}`)),
-    decryptString: vi.fn((b: Buffer) => {
+    encryptStringAsync: vi.fn(async (s: string) => Buffer.from(`enc:${s}`)),
+    decryptStringAsync: vi.fn(async (b: Buffer) => {
       const text = b.toString('utf8');
       if (!text.startsWith('enc:')) {
         throw new Error('decrypt failed');
       }
-      return text.slice(4);
+      return { result: text.slice(4), shouldReEncrypt: false };
     }),
   },
   mockApp: { getPath: vi.fn(() => tmpdir()) },
@@ -38,7 +38,7 @@ describe('secrets.handler', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSafeStorage.isEncryptionAvailable.mockReturnValue(true);
+    mockSafeStorage.isAsyncEncryptionAvailable.mockResolvedValue(true);
     userDataDir = mkdtempSync(join(tmpdir(), 'code-agent-secrets-'));
     mockApp.getPath.mockReturnValue(userDataDir);
   });
@@ -56,7 +56,7 @@ describe('secrets.handler', () => {
       reason: 'ok',
     });
 
-    mockSafeStorage.isEncryptionAvailable.mockReturnValue(false);
+    mockSafeStorage.isAsyncEncryptionAvailable.mockResolvedValue(false);
     expect(await secretsHandlers.isAvailable(undefined, EMPTY_CTX)).toEqual({
       available: false,
       platform: process.platform,
@@ -126,7 +126,7 @@ describe('secrets.handler', () => {
   });
 
   it('加密不可用时 set 抛错（拒绝明文落盘）', async () => {
-    mockSafeStorage.isEncryptionAvailable.mockReturnValue(false);
+    mockSafeStorage.isAsyncEncryptionAvailable.mockResolvedValue(false);
     await expect(secretsHandlers.set({ key: 'k', value: 'v' }, EMPTY_CTX)).rejects.toThrow(
       /加密不可用/,
     );

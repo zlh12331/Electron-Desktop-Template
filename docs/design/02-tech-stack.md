@@ -6,12 +6,14 @@
 
 | 领域 | 选型 | 说明 |
 |---|---|---|
-| 桌面容器 | Electron 44 | 主进程 Node 侧 + Chromium 渲染侧；三平台 × x64/arm64 打包 |
+| 桌面容器 | Electron 45 | Chromium 156 / Node 24.22；主进程 Node 侧 + Chromium 渲染侧；三平台 × x64/arm64 打包 |
 | 渲染框架 | React 19 + React Compiler | 编译器经 `oxc-transform-react` 生效（`check:compiler` 断言产物痕迹） |
 | 构建 | electron-vite（Vite 8） | main / preload / renderer 三目标；preload 强制 CJS |
 | 语言 | TypeScript 7（严格模式） | `exactOptionalPropertyTypes` / `noUncheckedIndexedAccess` / `isolatedDeclarations` |
 | 路由 | React Router 8（hash router） | `file://` 下 history 路由失效，hash 兼容 dev 与生产 |
 | 状态 | Zustand + TanStack Query | 客户端状态与服务端缓存分离（见架构文档 §5） |
+
+> Electron 45 起 sandboxed preload 不再注入 Node 的 `Buffer` / `events` / `timers` / `url` shim；本模板 preload 只使用 Web Crypto + `electron` IPC。`safeStorage` 已迁移到异步 API（`encryptStringAsync` / `decryptStringAsync`），同步方法已弃用。
 
 ## 2. 主进程依赖
 

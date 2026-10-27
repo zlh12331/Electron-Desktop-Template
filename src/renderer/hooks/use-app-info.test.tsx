@@ -5,7 +5,7 @@ import { useAppInfo } from './use-app-info';
 
 const INFO = {
   version: '1.2.3',
-  electron: '44.9.3',
+  electron: '45.0.0',
   node: '26.12.1',
   chrome: '140.0.0',
   platform: 'win32',

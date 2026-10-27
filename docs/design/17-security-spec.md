@@ -25,7 +25,7 @@
 
 ## 三、密钥与凭据
 
-1. **存储**：Electron `safeStorage` 加密落 `userData/keychain.dat`（Windows DPAPI / macOS Keychain / Linux libsecret）；写入用 `0o600` 临时文件原子替换，Windows 额外用 `icacls` 断继承、仅授予当前用户（纵深防御，失败只告警）。Linux 没有可用密钥环时 Electron 会回退到 `basic_text`（硬编码密钥，官方明确称为 unprotected）——模板把该后端视为不可用，拒绝写入并把 `secrets:isAvailable` 的 `reason` 报为 `insecure-backend`，不把“混淆”冒充“加密”。
+1. **存储**：Electron `safeStorage` 异步 API（`encryptStringAsync` / `decryptStringAsync`）加密落 `userData/keychain.dat`（Windows DPAPI / macOS Keychain / Linux libsecret）；写入用 `0o600` 临时文件原子替换，Windows 额外用 `icacls` 断继承、仅授予当前用户（纵深防御，失败只告警）。Linux 没有可用密钥环时 Electron 会回退到 `basic_text`（硬编码密钥，官方明确称为 unprotected）——模板把该后端视为不可用，拒绝写入并把 `secrets:isAvailable` 的 `reason` 报为 `insecure-backend`，不把“混淆”冒充“加密”。
 2. **渲染层边界**：`secrets` 域只提供 `isAvailable / list / set / delete / getMasked`，**刻意不提供取明文方法**；业务代码在主进程内直接 `getSecret()`。
 3. **禁止硬编码**：gitleaks 默认规则集（`.gitleaks.toml` 的 `useDefault = true`）三道闸门：
    - pre-commit：`gitleaks git --staged`（软闸门，未安装则提示跳过）

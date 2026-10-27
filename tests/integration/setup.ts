@@ -64,8 +64,11 @@ vi.mock('electron', () => ({
     openPath: vi.fn(async () => ''),
   },
   safeStorage: {
-    isEncryptionAvailable: () => itState.safeStorageAvailable,
-    encryptString: (value: string) => fakeEncrypt(value),
-    decryptString: (buffer: Buffer) => fakeDecrypt(buffer),
+    isAsyncEncryptionAvailable: async () => itState.safeStorageAvailable,
+    encryptStringAsync: async (value: string) => fakeEncrypt(value),
+    decryptStringAsync: async (buffer: Buffer) => ({
+      result: fakeDecrypt(buffer),
+      shouldReEncrypt: false,
+    }),
   },
 }));

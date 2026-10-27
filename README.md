@@ -1,6 +1,6 @@
 # Electron 桌面端模板
 
-Electron 44 + React 19 + TypeScript + Vite 8 的工程级桌面应用模板（Windows / macOS / Linux）。
+Electron 45 + React 19 + TypeScript + Vite 8 的工程级桌面应用模板（Windows / macOS / Linux）。
 底座能力开箱可用，业务页面待接入。
 
 ![模板首页](docs/assets/home-dark.png)

@@ -31,11 +31,11 @@ export interface EncryptionStatus {
 /**
  * 判断 safeStorage 后端是否足以承载凭据
  *
- * Linux 没有可用密钥环时 Electron 会退回 `basic_text`：`isEncryptionAvailable()`
- * 仍可能返回 true，但数据由硬编码密码保护，官方文档明确称为 unprotected。
- * 这里把 basic_text 视为不可用，避免 UI/文档误报“已加密”。
+ * Linux 没有可用密钥环时 Electron 会退回 `basic_text`：异步可用性探测仍可能返回 true，
+ * 但数据由硬编码密码保护，官方文档明确称为 unprotected。这里把 basic_text 视为不可用，
+ * 避免 UI/文档误报“已加密”。
  *
- * @param available safeStorage.isEncryptionAvailable() 原值
+ * @param available safeStorage.isAsyncEncryptionAvailable() 原值
  * @param backend Linux 选中后端（非 Linux 传 null）
  * @param platform 当前平台（测试可注入）
  */
@@ -63,15 +63,17 @@ function readLinuxBackend(platform: NodeJS.Platform): string | null {
 }
 
 /** 当前加密能力（凭据 UI、写入与读取共用同一判据） */
-export function getEncryptionStatus(
+export async function getEncryptionStatus(
   platform: NodeJS.Platform = process.platform,
-): EncryptionStatus {
+): Promise<EncryptionStatus> {
   const backend = readLinuxBackend(platform);
-  const available = isSecureEncryptionBackend(
-    safeStorage.isEncryptionAvailable(),
-    backend,
-    platform,
-  );
+  let asyncAvailable = false;
+  try {
+    asyncAvailable = await safeStorage.isAsyncEncryptionAvailable();
+  } catch {
+    asyncAvailable = false;
+  }
+  const available = isSecureEncryptionBackend(asyncAvailable, backend, platform);
   if (available) {
     return { available: true, backend, reason: 'ok' };
   }
@@ -118,7 +120,7 @@ const ENTRY_FRAGMENT_PATTERN = /"((?:[^"\\]|\\.)+)"\s*:\s*(\[[^\][]*\])/g;
 
 // 结构级抢救：整体 JSON 解析失败后按「"键": [字节数组]」碎片正则逐条提取，
 // 能解密通过的收编——文件部分损坏时尽量少丢密钥
-function salvageEntries(raw: string): { store: KeychainStore; candidates: number } {
+async function salvageEntries(raw: string): Promise<{ store: KeychainStore; candidates: number }> {
   const store: KeychainStore = {};
   let candidates = 0;
   for (const match of raw.matchAll(ENTRY_FRAGMENT_PATTERN)) {
@@ -132,7 +134,7 @@ function salvageEntries(raw: string): { store: KeychainStore; candidates: number
       if (!isEncryptedArray(parsed)) {
         continue;
       }
-      safeStorage.decryptString(Buffer.from(parsed));
+      await safeStorage.decryptStringAsync(Buffer.from(parsed));
       store[JSON.parse(`"${rawKey}"`) as string] = parsed;
     } catch {}
   }
@@ -171,7 +173,7 @@ async function readStore(): Promise<KeychainStore> {
     }
     throw new Error('keychain.dat 结构不符合契约');
   } catch {
-    const { store: salvaged, candidates } = salvageEntries(content);
+    const { store: salvaged, candidates } = await salvageEntries(content);
     const salvagedCount = Object.keys(salvaged).length;
     const lostCount = Math.max(candidates - salvagedCount, 0);
     reportError(new Error(`keychain.dat 已损坏（salvaged=${salvagedCount}, lost=${lostCount}）`), {
@@ -218,7 +220,7 @@ async function writeStore(store: KeychainStore): Promise<void> {
 
 /** 写入密钥（加密不可用直接抛——明文落盘不可接受） */
 export async function setSecret(key: string, value: string): Promise<void> {
-  const status = getEncryptionStatus();
+  const status = await getEncryptionStatus();
   if (!status.available) {
     throw new Error(
       status.reason === 'insecure-backend'
@@ -229,7 +231,7 @@ export async function setSecret(key: string, value: string): Promise<void> {
 
   const release = await acquireLock();
   try {
-    const encrypted = safeStorage.encryptString(value);
+    const encrypted = await safeStorage.encryptStringAsync(value);
     const store = await readStore();
     store[key] = Array.from(encrypted);
     await writeStore(store);
@@ -244,7 +246,7 @@ export async function setSecret(key: string, value: string): Promise<void> {
  * ⚠️ 仅供**主进程内部**业务代码调用，不得经 IPC 暴露给渲染层。
  */
 export async function getSecret(key: string): Promise<string | null> {
-  const status = getEncryptionStatus();
+  const status = await getEncryptionStatus();
   if (!status.available) {
     if (!warnedEncryptionUnavailable) {
       warnedEncryptionUnavailable = true;
@@ -267,7 +269,21 @@ export async function getSecret(key: string): Promise<string | null> {
     }
 
     const encrypted = Buffer.from(encryptedArray);
-    return safeStorage.decryptString(encrypted);
+    const decrypted = await safeStorage.decryptStringAsync(encrypted);
+    // 密钥轮换：OS 要求重新加密时原地更新密文；失败不阻断本次读取，下次再试
+    if (decrypted.shouldReEncrypt) {
+      try {
+        const reencrypted = await safeStorage.encryptStringAsync(decrypted.result);
+        store[key] = Array.from(reencrypted);
+        await writeStore(store);
+      } catch (error) {
+        logger.warn(
+          { key, error: error instanceof Error ? error.message : String(error) },
+          '凭据重新加密失败，保留旧密文',
+        );
+      }
+    }
+    return decrypted.result;
   } finally {
     release();
   }
