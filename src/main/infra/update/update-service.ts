@@ -77,7 +77,6 @@ interface DownloadAttempt {
 export interface UpdateStartOptions {
   readonly autoCheckEnabled?: () => boolean;
   readonly autoDownloadEnabled?: () => boolean;
-  readonly autoInstallOnAppQuitEnabled?: () => boolean;
   readonly allowPrereleaseEnabled?: () => boolean;
   readonly devUpdateEnabled?: boolean;
 }
@@ -151,8 +150,6 @@ export class UpdateService implements IUpdateService {
 
   private autoDownloadEnabled: (() => boolean) | null = null;
 
-  private autoInstallOnAppQuitEnabled: (() => boolean) | null = null;
-
   constructor(
     private readonly updater: AutoUpdaterLike,
     private readonly isPackaged: () => boolean,
@@ -169,11 +166,14 @@ export class UpdateService implements IUpdateService {
     this.allowPrereleaseEnabled = options.allowPrereleaseEnabled ?? null;
     this.autoCheckEnabled = options.autoCheckEnabled ?? null;
     this.autoDownloadEnabled = options.autoDownloadEnabled ?? null;
-    this.autoInstallOnAppQuitEnabled = options.autoInstallOnAppQuitEnabled ?? null;
+    const autoDownloadEnabled = (
+      options.autoDownloadEnabled ?? (() => DEFAULT_UPDATE_SETTINGS.autoDownload)
+    )();
 
     this.updater.logger = createUpdaterLogger();
     this.updater.autoDownload = false;
-    this.updater.autoInstallOnAppQuit = this.autoInstallOnAppQuitEnabled?.() ?? autoCheckEnabled;
+    // 退出自动安装是「自动检查 + 自动下载」都开启时的联动结果，不单独暴露开关
+    this.updater.autoInstallOnAppQuit = autoCheckEnabled && autoDownloadEnabled;
     this.updater.forceDevUpdateConfig = this.devUpdateForced;
 
     this.registerListeners();
@@ -339,9 +339,8 @@ export class UpdateService implements IUpdateService {
   /** 退出前刷新「退出时自动安装」开关（用户可能在运行中改过设置，按最新值执行） */
   refreshAutoInstallOnAppQuit(): void {
     this.updater.autoInstallOnAppQuit =
-      this.autoInstallOnAppQuitEnabled?.() ??
-      this.autoCheckEnabled?.() ??
-      DEFAULT_UPDATE_SETTINGS.autoInstallOnAppQuit;
+      (this.autoCheckEnabled?.() ?? DEFAULT_UPDATE_SETTINGS.autoCheck) &&
+      (this.autoDownloadEnabled?.() ?? DEFAULT_UPDATE_SETTINGS.autoDownload);
   }
 
   dispose(): void {

@@ -143,11 +143,22 @@ describe('UpdateService', () => {
       expect(updater.checkForUpdates).not.toHaveBeenCalled();
     });
 
-    it('退出安装开关独立于自动检查：自动检查关但仍可保留退出安装', () => {
+    it('退出自动安装联动：自动检查或自动下载任一关闭 → 不自动安装', () => {
+      let autoCheck = true;
+      let autoDownload = false;
       service.start({
-        autoCheckEnabled: () => false,
-        autoInstallOnAppQuitEnabled: () => true,
+        autoCheckEnabled: () => autoCheck,
+        autoDownloadEnabled: () => autoDownload,
       });
+      expect(updater.autoInstallOnAppQuit).toBe(false);
+
+      autoCheck = false;
+      autoDownload = true;
+      service.refreshAutoInstallOnAppQuit();
+      expect(updater.autoInstallOnAppQuit).toBe(false);
+
+      autoCheck = true;
+      service.refreshAutoInstallOnAppQuit();
       expect(updater.autoInstallOnAppQuit).toBe(true);
     });
 
@@ -643,12 +654,21 @@ describe('UpdateService', () => {
     });
 
     describe('refreshAutoInstallOnAppQuit', () => {
-      it('按退出时刻的开关状态重算（运行中切换立即生效——2026-10-02 缺口回归锚）', () => {
+      it('按退出时刻的开关状态重算（自动检查/下载任一关闭即停用）', () => {
         let autoCheck = true;
-        service.start({ autoCheckEnabled: () => autoCheck });
+        let autoDownload = true;
+        service.start({
+          autoCheckEnabled: () => autoCheck,
+          autoDownloadEnabled: () => autoDownload,
+        });
         expect(updater.autoInstallOnAppQuit).toBe(true);
 
         autoCheck = false;
+        service.refreshAutoInstallOnAppQuit();
+        expect(updater.autoInstallOnAppQuit).toBe(false);
+
+        autoCheck = true;
+        autoDownload = false;
         service.refreshAutoInstallOnAppQuit();
         expect(updater.autoInstallOnAppQuit).toBe(false);
       });

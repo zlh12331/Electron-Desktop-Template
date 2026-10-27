@@ -91,7 +91,6 @@ const ShortcutsSettingSchema = z.object({
 const UpdateSettingSchema = z.object({
   autoCheck: z.boolean().optional(),
   autoDownload: z.boolean().optional(),
-  autoInstallOnAppQuit: z.boolean().optional(),
   allowPrerelease: z.boolean().optional(),
   skippedVersion: z.string().min(1).nullable().optional(),
 });

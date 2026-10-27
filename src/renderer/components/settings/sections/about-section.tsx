@@ -82,7 +82,6 @@ export function AboutSection(): ReactElement {
   const installUpdate = useInstallUpdate();
   const autoCheck = useSettingsStore((s) => s.update.autoCheck);
   const autoDownload = useSettingsStore((s) => s.update.autoDownload);
-  const autoInstallOnAppQuit = useSettingsStore((s) => s.update.autoInstallOnAppQuit);
   const allowPrerelease = useSettingsStore((s) => s.update.allowPrerelease);
   const skippedVersion = useSettingsStore((s) => s.update.skippedVersion);
   const setUpdate = useSettingsStore((s) => s.setUpdate);
@@ -202,12 +201,6 @@ export function AboutSection(): ReactElement {
         description={t('settings.aboutAutoDownloadDesc')}
         checked={autoDownload}
         onChange={(checked) => setUpdate({ autoDownload: checked })}
-      />
-      <ToggleRow
-        name={t('settings.aboutAutoInstallOnAppQuit')}
-        description={t('settings.aboutAutoInstallOnAppQuitDesc')}
-        checked={autoInstallOnAppQuit}
-        onChange={(checked) => setUpdate({ autoInstallOnAppQuit: checked })}
       />
       <ToggleRow
         name={t('settings.aboutAllowPrerelease')}

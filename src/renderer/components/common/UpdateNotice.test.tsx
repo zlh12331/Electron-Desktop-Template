@@ -43,7 +43,6 @@ describe('UpdateNotice', () => {
       update: {
         autoCheck: true,
         autoDownload: true,
-        autoInstallOnAppQuit: true,
         allowPrerelease: false,
         skippedVersion: null,
       },
@@ -78,7 +77,6 @@ describe('UpdateNotice', () => {
       update: {
         autoCheck: true,
         autoDownload: false,
-        autoInstallOnAppQuit: true,
         allowPrerelease: false,
         skippedVersion: null,
       },
@@ -152,7 +150,6 @@ describe('UpdateNotice', () => {
       update: {
         autoCheck: true,
         autoDownload: true,
-        autoInstallOnAppQuit: true,
         allowPrerelease: false,
         skippedVersion: '1.2.3',
       },
@@ -168,7 +165,6 @@ describe('UpdateNotice', () => {
       update: {
         autoCheck: true,
         autoDownload: true,
-        autoInstallOnAppQuit: true,
         allowPrerelease: false,
         skippedVersion: '1.0.0',
       },

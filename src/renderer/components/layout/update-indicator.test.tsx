@@ -27,7 +27,6 @@ beforeEach(() => {
     update: {
       autoCheck: true,
       autoDownload: true,
-      autoInstallOnAppQuit: true,
       allowPrerelease: false,
       skippedVersion: null,
     },
@@ -98,7 +97,6 @@ describe('顶栏更新指示', () => {
       update: {
         autoCheck: true,
         autoDownload: true,
-        autoInstallOnAppQuit: true,
         allowPrerelease: false,
         skippedVersion: '1.2.0',
       },
@@ -112,7 +110,6 @@ describe('顶栏更新指示', () => {
       update: {
         autoCheck: true,
         autoDownload: true,
-        autoInstallOnAppQuit: true,
         allowPrerelease: false,
         skippedVersion: '1.0.0',
       },

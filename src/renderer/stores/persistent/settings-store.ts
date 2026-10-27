@@ -78,10 +78,13 @@ export interface KeyboardShortcuts {
 interface UpdateSettings {
   /** 是否启用自动检查更新（默认 true） */
   readonly autoCheck: boolean;
-  /** 发现新版本后是否自动下载（默认 true；关闭后需手动触发下载） */
+  /**
+   * 发现新版本后是否自动下载（默认 true；关闭后需手动触发下载）
+   *
+   * 退出时自动安装不是独立设置：只有 autoCheck + autoDownload 同时开启时才自动安装，
+   * 避免用户面对互相耦合的第四个开关。
+   */
   readonly autoDownload: boolean;
-  /** 下载完成后是否在退出应用时自动安装（默认 true） */
-  readonly autoInstallOnAppQuit: boolean;
   /**
    * 是否接收预发布（beta）更新（默认 false）
    *
@@ -522,10 +525,6 @@ export function applySettingsSnapshot(snapshot: Readonly<Record<string, unknown>
         typeof updateSnapshot.autoDownload === 'boolean'
           ? updateSnapshot.autoDownload
           : DEFAULT_SETTINGS.update.autoDownload,
-      autoInstallOnAppQuit:
-        typeof updateSnapshot.autoInstallOnAppQuit === 'boolean'
-          ? updateSnapshot.autoInstallOnAppQuit
-          : DEFAULT_SETTINGS.update.autoInstallOnAppQuit,
     },
     window: {
       closeAction: windowSnapshot?.closeAction === 'quit' ? 'quit' : 'minimize',

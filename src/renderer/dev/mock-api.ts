@@ -21,7 +21,6 @@ const memorySettings = new Map<string, unknown>([
     {
       autoCheck: true,
       autoDownload: true,
-      autoInstallOnAppQuit: true,
       allowPrerelease: false,
       skippedVersion: null,
     },

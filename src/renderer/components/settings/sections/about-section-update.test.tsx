@@ -59,7 +59,6 @@ beforeEach(() => {
     update: {
       autoCheck: true,
       autoDownload: true,
-      autoInstallOnAppQuit: true,
       allowPrerelease: false,
       skippedVersion: null,
     },
@@ -80,14 +79,10 @@ describe('关于面板 · 更新区', () => {
     expect(mockUpdate.value.download).toHaveBeenCalledOnce();
   });
 
-  it('自动下载 / 退出安装开关：写入 settings 独立字段', async () => {
+  it('自动下载开关：写入 settings 独立字段', async () => {
     renderWith(null);
     await userEvent.click(screen.getByRole('switch', { name: t('settings.aboutAutoDownload') }));
     expect(useSettingsStore.getState().update.autoDownload).toBe(false);
-    await userEvent.click(
-      screen.getByRole('switch', { name: t('settings.aboutAutoInstallOnAppQuit') }),
-    );
-    expect(useSettingsStore.getState().update.autoInstallOnAppQuit).toBe(false);
   });
 
   it('下载中：渲染进度条（含 percent 语义）、取消按钮与字节详情', () => {
@@ -184,7 +179,6 @@ describe('关于面板 · 更新区', () => {
       update: {
         autoCheck: true,
         autoDownload: true,
-        autoInstallOnAppQuit: true,
         allowPrerelease: false,
         skippedVersion: '1.2.0',
       },
@@ -200,7 +194,6 @@ describe('关于面板 · 更新区', () => {
       update: {
         autoCheck: true,
         autoDownload: true,
-        autoInstallOnAppQuit: true,
         allowPrerelease: false,
         skippedVersion: '1.0.0',
       },

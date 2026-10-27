@@ -16,7 +16,6 @@ describe('settings-defaults', () => {
     expect(DEFAULT_UPDATE_SETTINGS).toEqual({
       autoCheck: true,
       autoDownload: true,
-      autoInstallOnAppQuit: true,
       allowPrerelease: false,
       skippedVersion: null,
     });

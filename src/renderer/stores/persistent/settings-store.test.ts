@@ -317,12 +317,11 @@ describe('settings-store 新增设置域', () => {
     expect(writes).toContainEqual({ key: 'backup', value: { autoBackup: true, keep: 10 } });
   });
 
-  it('update 域：autoDownload / autoInstallOnAppQuit 与既有字段合并', () => {
-    useSettingsStore.getState().setUpdate({ autoDownload: false, autoInstallOnAppQuit: false });
+  it('update 域：autoDownload 与既有字段合并', () => {
+    useSettingsStore.getState().setUpdate({ autoDownload: false });
     expect(useSettingsStore.getState().update).toMatchObject({
       autoCheck: true,
       autoDownload: false,
-      autoInstallOnAppQuit: false,
       allowPrerelease: false,
     });
   });
