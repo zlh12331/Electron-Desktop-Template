@@ -1,6 +1,6 @@
 {
   "name": "electron-desktop-template",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Electron Desktop Template - 生产级 Electron 桌面应用模板（Windows / macOS / Linux）",
   "author": "zlh12331",
   "repository": {

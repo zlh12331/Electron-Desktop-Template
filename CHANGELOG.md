@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.3.0...v0.4.0) (2026-10-27)
+
+
+### 新增
+
+* 重构设置信息架构并升级 Electron 45 ([#42](https://github.com/zlh12331/Electron-Desktop-Template/issues/42)) ([3e3c03d](https://github.com/zlh12331/Electron-Desktop-Template/commit/3e3c03d8584de4fcf7c11d47ad6d472bd1ad8d5b))
+
 ## [0.3.0](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.2.1...v0.3.0) (2026-10-26)
 
 <!-- changelog:polished -->
