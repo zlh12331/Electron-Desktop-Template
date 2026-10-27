@@ -117,7 +117,7 @@ describe('顶栏更新指示', () => {
     ).toBeTruthy();
   });
 
-  it('就绪：菜单「重启并安装」走 use-install-update（含运行中回合确认）', async () => {
+  it('就绪：菜单「重启并安装」直接走 use-install-update', async () => {
     renderWith({ phase: 'downloaded', version: '1.2.0' });
     await userEvent.click(
       screen.getByRole('button', { name: t('update.indicatorReady', { version: '1.2.0' }) }),

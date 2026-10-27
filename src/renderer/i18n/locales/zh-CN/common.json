@@ -51,8 +51,6 @@
     "cancel": "取消",
     "later": "稍后",
     "skipVersion": "跳过此版本",
-    "confirmRestartTitle": "有正在进行的任务",
-    "confirmRestartMessage": "应用将退出并打开安装向导（进度可见，装完点「完成」自动启动），正在运行的任务会被中断，是否继续？",
     "notesTitle": "更新说明",
     "notesExpand": "查看完整说明",
     "notesCollapse": "收起说明",

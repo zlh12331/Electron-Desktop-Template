@@ -51,8 +51,6 @@
     "cancel": "Cancel",
     "later": "Later",
     "skipVersion": "Skip this version",
-    "confirmRestartTitle": "A task is in progress",
-    "confirmRestartMessage": "The app will exit and open the installation wizard (progress is shown; click \"Finish\" to relaunch). Running tasks will be interrupted. Continue?",
     "notesTitle": "What's new",
     "notesExpand": "Show full notes",
     "notesCollapse": "Show less",
