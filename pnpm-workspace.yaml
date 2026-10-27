@@ -1,7 +1,3 @@
-# pnpm-workspace.yaml
-# pnpm 11 起所有非 auth/registry 配置统一在本文件声明（不再读 package.json#pnpm）
-# 参考 https://pnpm.io/settings
-
 packages:
   - "packages/*"
   - "tools/*"
@@ -50,9 +46,9 @@ packageExtensions:
 overrides:
   # 2026-09-30 升级：10.5.1 → 10.7.1（GHSA 两条 moderate：isInSubnet/isHostInSubnet
   # 子网比较错误、Address6 解析诊断信息泄漏，patched 10.7.1）
-  ip-address: 10.7.4
+  ip-address: 10.7.5
   # 2026-09-09 升级：4.12.34 → 4.13.7（CVE-2026-84363/84364/84365 系列 query/parseBody DoS，patched 4.13.5）
-  "hono@>=4.0.0": 4.13.13
+  "hono@>=4.0.0": 4.13.14
   "@hono/node-server": 2.1.5
   postcss: 8.5.31
   # 2026-10-25 升到 4.2.3（当前主版本；3.1.9 的 fast-uri 系列 advisory 修复已包含）
