@@ -121,13 +121,9 @@ flowchart LR
 
 ### 3.2 欢迎页 `/`（`routes/home.tsx`）
 
-模板首屏，也是「新增页面」的最小样板：三张能力卡片 + 两个行动按钮（打开设置 / 关于）。
+模板首屏，也是「新增页面」的最小样板：三张能力卡片 + 「打开设置」动作。
 
-### 3.3 关于页 `/about`（`routes/about.tsx`）
-
-演示两件底座能力：`AsyncBoundary`（异步五态）与 `useCopy`（统一复制反馈）；展示真实运行时信息（`system:getStatus`）。
-
-### 3.4 设置全屏页（`components/settings/SettingsDialog.tsx`）
+### 3.3 设置全屏页（`components/settings/SettingsDialog.tsx`）
 
 ```
 ┌ [← 返回]  ⚙ 设置                        （140px 拖拽避让区）┐
@@ -245,7 +241,7 @@ flowchart LR
 
 | 区域 | 文件 |
 |---|---|
-| 路由 | `routes/root.tsx`（布局+错误边界）/ `home.tsx` / `about.tsx` / `router.tsx` / `lib/constants.ts` |
+| 路由 | `routes/root.tsx`（布局+错误边界）/ `home.tsx` / `notes.tsx`（示例切片）/ `router.tsx` / `lib/constants.ts` |
 | 布局 | `components/layout/`：AppShell / Topbar / Sidebar / bridges / layout-utils / update-indicator |
 | 通用组件 | `components/common/`：AppErrorBoundary / AsyncBoundary / BrandMark / CommandPalette / DialogHost / EmptyState / MotionReveal / SectionErrorBoundary / ShortcutHelpDialog / UpdateNotice |
 | 设置 | `components/settings/`：SettingsDialog / settings-controls / shortcut-picker / sections（8 个分区） |

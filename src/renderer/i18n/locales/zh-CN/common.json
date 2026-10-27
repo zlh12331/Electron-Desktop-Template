@@ -31,8 +31,7 @@
     "protocolMismatch": "应用版本不兼容",
     "protocolMismatchDesc": "主进程与界面协议版本不一致，请重启应用以正常使用",
     "confirm": "确认",
-    "copyFailed": "复制失败：剪贴板不可用",
-    "back": "返回"
+    "copyFailed": "复制失败：剪贴板不可用"
   },
   "topbar": {
     "expandSidebar": "展开侧边栏",
@@ -78,8 +77,6 @@
     "navigate": "导航",
     "select": "选择",
     "commandPaletteShortcut": "打开命令面板",
-    "openAbout": "关于本模板",
-    "sectionNavigation": "导航",
     "themeToLight": "切换到亮色主题",
     "themeToDark": "切换到暗色主题"
   },
@@ -273,11 +270,11 @@
     "aboutLegalTitle": "许可与致谢",
     "aboutLicenseValue": "Apache-2.0 许可证",
     "aboutThanks": "基于 Electron、React、Radix UI、Tailwind CSS、Motion 等开源项目构建",
+    "back": "返回",
     "language": "语言",
     "languageSystem": "跟随系统",
     "generalTitle": "通用设置",
     "telemetryTitle": "遥测与隐私",
-    "back": "返回",
     "autostartApprovalDesc": "已在系统中注册，但需要你在系统设置的「登录项」中允许后才能生效",
     "autostartUnsupportedDesc": "仅安装版本（非开发模式）支持此开关",
     "secretsTitle": "凭据存储",
@@ -353,17 +350,8 @@
     "ariaLabel": "侧栏导航",
     "nav": {
       "notes": "笔记",
-      "about": "关于",
       "settings": "设置"
     }
-  },
-  "about": {
-    "title": "关于本模板",
-    "body": "{{product}} 是一个 Electron + React + TypeScript 桌面应用模板：IPC 定义表、设置持久化、三平台打包与自动更新均已就绪。把这里的页面替换成你的业务，即可开始。",
-    "runtime": "运行时",
-    "noRuntime": "暂无可用的运行时信息",
-    "copyDiagnostics": "复制诊断信息",
-    "copied": "已复制"
   },
   "welcome": {
     "eyebrow": "DESKTOP TEMPLATE",
@@ -383,8 +371,7 @@
       }
     },
     "action": {
-      "settings": "打开设置",
-      "about": "查看说明"
+      "settings": "打开设置"
     }
   }
 }

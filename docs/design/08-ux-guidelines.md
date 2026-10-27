@@ -50,8 +50,7 @@
 
 | 界面 | 实现 | 形态 |
 |---|---|---|
-| 欢迎页 `/` | [home.tsx](../../src/renderer/routes/home.tsx) | 品牌 + 三张能力卡片 + 「打开设置 / 关于」两个动作；接入方通常第一个替换它 |
-| 关于页 `/about` | [about.tsx](../../src/renderer/routes/about.tsx) | 运行时信息（`AsyncBoundary` 五态演示）+ 诊断信息复制 |
+| 欢迎页 `/` | [home.tsx](../../src/renderer/routes/home.tsx) | 品牌 + 三张能力卡片 + 「打开设置」动作；接入方通常第一个替换它 |
 | 设置 | [SettingsDialog.tsx](../../src/renderer/components/settings/SettingsDialog.tsx) | 全屏 Sheet，左导航 160px + 右内容区；每个分区独立错误边界 |
 
 设置分区由注册表驱动（[sections/registry.tsx](../../src/renderer/components/settings/sections/registry.tsx)），分区 id 在 `lib/settings-sections.ts`：

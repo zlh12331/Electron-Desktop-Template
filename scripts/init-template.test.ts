@@ -345,7 +345,7 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
     }
 
     const deepLink = readFileSync(join(dir, 'src/renderer/hooks/use-deep-link.ts'), 'utf8');
-    expect(deepLink).toContain('navigate(ROUTES.about);');
+    expect(deepLink).toContain('navigate(ROUTES.home);');
     expect(deepLink).not.toContain('ROUTES.note');
 
     const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as {

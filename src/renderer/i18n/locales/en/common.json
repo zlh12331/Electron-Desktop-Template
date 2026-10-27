@@ -31,8 +31,7 @@
     "protocolMismatch": "App version mismatch",
     "protocolMismatchDesc": "Main process and UI protocol versions differ. Please restart the app",
     "confirm": "Confirm",
-    "copyFailed": "Copy failed: clipboard unavailable",
-    "back": "Back"
+    "copyFailed": "Copy failed: clipboard unavailable"
   },
   "topbar": {
     "expandSidebar": "Expand sidebar",
@@ -78,8 +77,6 @@
     "navigate": "Navigate",
     "select": "Select",
     "commandPaletteShortcut": "Open command palette",
-    "openAbout": "About this template",
-    "sectionNavigation": "Navigation",
     "themeToLight": "Switch to light theme",
     "themeToDark": "Switch to dark theme"
   },
@@ -273,11 +270,11 @@
     "aboutLegalTitle": "License & acknowledgements",
     "aboutLicenseValue": "Apache-2.0 License",
     "aboutThanks": "Built with Electron, React, Radix UI, Tailwind CSS, Motion and other open-source projects",
+    "back": "Back",
     "language": "Language",
     "languageSystem": "System",
     "generalTitle": "General",
     "telemetryTitle": "Telemetry & Privacy",
-    "back": "Back",
     "autostartApprovalDesc": "Registered, but you must allow it in System Settings → Login Items before it takes effect",
     "autostartUnsupportedDesc": "Available in installed builds only (not in development mode)",
     "secretsTitle": "Credentials",
@@ -353,17 +350,8 @@
     "ariaLabel": "Sidebar navigation",
     "nav": {
       "notes": "Notes",
-      "about": "About",
       "settings": "Settings"
     }
-  },
-  "about": {
-    "title": "About this template",
-    "body": "{{product}} is an Electron + React + TypeScript desktop app template: the IPC definition table, settings persistence, three-platform packaging and auto-update are ready. Replace the pages here with your own product to get started.",
-    "runtime": "Runtime",
-    "noRuntime": "No runtime information available",
-    "copyDiagnostics": "Copy diagnostics",
-    "copied": "Copied"
   },
   "welcome": {
     "eyebrow": "DESKTOP TEMPLATE",
@@ -383,8 +371,7 @@
       }
     },
     "action": {
-      "settings": "Open settings",
-      "about": "Read more"
+      "settings": "Open settings"
     }
   }
 }

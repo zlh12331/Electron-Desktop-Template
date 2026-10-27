@@ -35,7 +35,7 @@ src/renderer/i18n/
   errors.BACKUP_RESTORE_FAILED
 ```
 
-1. **域前缀**与语言包顶层键对齐：`common` / `topbar` / `sidebar` / `settings` / `palette` / `shortcutHelp` / `update` / `welcome` / `home` / `about`（`errors` 单独命名空间）。
+1. **域前缀**与语言包顶层键对齐：`common` / `topbar` / `sidebar` / `settings` / `palette` / `shortcutHelp` / `update` / `welcome` / `home`（`errors` 单独命名空间）。
 2. **语义后缀**：名词（title / desc / label）、状态（running / ready）、动作（open / toggle）。
 3. **禁止**：动态值拼进 key、中文 / 拼音 key、编号 key；复数与变量用插值 `{{name}}` / `count`。
 4. 技术标识不翻译：错误码、快捷键键位、路径、命令。

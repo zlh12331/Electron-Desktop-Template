@@ -84,7 +84,7 @@ src/renderer/
 ├── main.tsx                  # React 挂载 + 启动快照 + 首帧主题
 ├── App.tsx                   # AppErrorBoundary + AppProviders + RouterProvider
 ├── router.tsx                # 路由表（hash router，file:// 兼容）
-├── routes/                   # 页面（home / about）
+├── routes/                   # 页面（home / notes 示例切片）
 ├── components/
 │   ├── layout/               # AppShell / Sidebar / Topbar / bridges / layout-utils
 │   ├── settings/             # 设置壳 + sections/（registry.tsx 是分区注册表）

@@ -75,13 +75,6 @@ test.describe('可访问性（WCAG 2.1 AA）', () => {
     expect(violations).toEqual([]);
   });
 
-  test('关于页', async ({ page }) => {
-    await page.goto('/#/about');
-    await expect(page.getByRole('heading', { name: '关于本模板' })).toBeVisible();
-    await settle(page);
-    expect(formatViolations('关于页', await scan(page))).toEqual([]);
-  });
-
   // notes-example:start
   test('Local Notes 参考切片', async ({ page }) => {
     await page.goto('/#/notes');

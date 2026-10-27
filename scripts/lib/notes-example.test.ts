@@ -69,7 +69,6 @@ function createFixture(): string {
     'src/renderer/lib/constants.ts',
     [
       'export const ROUTES = {',
-      "  about: '/about',",
       '  // notes-example:start',
       "  notes: '/notes',",
       '  // notes-example:end',
@@ -80,12 +79,12 @@ function createFixture(): string {
     root,
     'src/renderer/components/layout/Sidebar.tsx',
     [
-      "import { Info, NotebookPen, Settings2 } from 'lucide-react';",
+      "import { NotebookPen, Settings2 } from 'lucide-react';",
       '// notes-example:start',
       'const noteIcon = NotebookPen;',
       'void noteIcon;',
       '// notes-example:end',
-      'export { Info, Settings2 };',
+      'export { Settings2 };',
     ].join('\n'),
   );
   write(
@@ -156,7 +155,7 @@ function createFixture(): string {
         {
           update: { notesTitle: '更新说明' },
           notes: { title: 'Local Notes' },
-          sidebar: { nav: { notes: '笔记', about: '关于' } },
+          sidebar: { nav: { notes: '笔记', settings: '设置' } },
         },
         null,
         2,
@@ -348,10 +347,10 @@ describe('removeNotesExample', () => {
     expect(boundary.entries.map((entry) => entry.file)).toEqual([
       'src/main/infra/storage/backup-store.test.ts',
     ]);
-    expect(read(root, 'src/renderer/hooks/use-deep-link.ts')).toContain('navigate(ROUTES.about);');
+    expect(read(root, 'src/renderer/hooks/use-deep-link.ts')).toContain('navigate(ROUTES.home);');
     expect(read(root, 'src/renderer/hooks/use-deep-link.ts')).not.toContain('ROUTES.note');
     expect(read(root, 'src/renderer/components/layout/Sidebar.tsx')).toBe(
-      ["import { Info, Settings2 } from 'lucide-react';", 'export { Info, Settings2 };'].join('\n'),
+      ["import { Settings2 } from 'lucide-react';", 'export { Settings2 };'].join('\n'),
     );
     const mockApi = read(root, 'src/renderer/dev/mock-api.ts');
     expect(mockApi).not.toContain('type Note');
@@ -359,8 +358,8 @@ describe('removeNotesExample', () => {
     expect(mockApi).toContain("import { ipcOk } from '@/lib/ipc-factories';");
     expect(read(root, 'src/renderer/hooks/use-deep-link.test.tsx')).toBe(
       [
-        "expect(router.state.location.pathname).toBe('/about');",
-        "await waitFor(() => expect(router.state.location.pathname).toBe('/about'));",
+        "expect(router.state.location.pathname).toBe('/');",
+        "await waitFor(() => expect(router.state.location.pathname).toBe('/'));",
       ].join('\n'),
     );
     expect(read(root, 'e2e/electron-deeplink.spec.ts')).not.toContain('笔记不存在');

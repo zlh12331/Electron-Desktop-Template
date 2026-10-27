@@ -342,12 +342,15 @@ test.describe('Electron 应用 E2E 测试', () => {
     expect(result.ok).toBe(true);
   });
 
-  test('About 页复制诊断信息写入系统剪贴板', async () => {
+  test('设置关于页复制诊断信息写入系统剪贴板', async () => {
     ({ app, page } = await launchElectron());
 
-    await page.evaluate(() => {
-      window.location.hash = '#/about';
-    });
+    await page
+      .getByRole('button', { name: /打开设置|Open settings/i })
+      .first()
+      .click();
+    const settings = page.getByRole('dialog');
+    await settings.getByRole('tab', { name: /关于|About/i, exact: true }).click();
     const copyButton = page.getByRole('button', { name: /复制诊断|Copy diagnostics/i });
     await expect(copyButton).toBeVisible({ timeout: 15_000 });
 
