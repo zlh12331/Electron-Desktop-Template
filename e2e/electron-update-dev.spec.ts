@@ -82,7 +82,7 @@ async function launchElectron(
   extraEnv: Record<string, string>,
 ): Promise<{ app: ElectronApplication; page: Page }> {
   const app = await electron.launch({
-    args: [MAIN_ENTRY],
+    args: [MAIN_ENTRY, '--lang=zh-CN'],
     env: buildElectronEnv({
       NODE_ENV: 'development',
       // renderer dev server（playwright.electron.config.ts 的 webServer 起在 5173）

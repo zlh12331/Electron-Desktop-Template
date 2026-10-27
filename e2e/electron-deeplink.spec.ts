@@ -34,7 +34,7 @@ async function waitForMainWindow(app: ElectronApplication): Promise<Page> {
 
 test('冷启动深链：渲染层就绪后从主进程取走暂存并导航', async () => {
   const app = await electron.launch({
-    args: [MAIN_ENTRY, DEEP_LINK],
+    args: [MAIN_ENTRY, '--lang=zh-CN', DEEP_LINK],
     env: buildElectronEnv({
       NODE_ENV: 'development',
       ELECTRON_RENDERER_URL: 'http://localhost:5173',

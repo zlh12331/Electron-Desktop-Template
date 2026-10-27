@@ -29,6 +29,15 @@ vi.mock('@/hooks/use-install-update', () => ({
 vi.mock('@/hooks/use-app-info', () => ({
   useAppInfo: () => ({ version: '1.0.0', platform: 'win32', arch: 'x64', channel: 'stable' }),
 }));
+vi.mock('@/hooks/use-system', () => ({
+  useSystemStatusQuery: () => ({
+    status: 'success',
+    fetchStatus: 'idle',
+    data: { uptimeSeconds: 1, memory: { rss: 1024 } },
+    error: null,
+    refetch: vi.fn(),
+  }),
+}));
 
 import { AboutSection } from './about-section';
 
@@ -54,7 +63,11 @@ function renderWith(
 beforeEach(() => {
   vi.clearAllMocks();
   useSettingsStore.setState({
-    update: { autoCheck: true, allowPrerelease: false, skippedVersion: null },
+    update: {
+      autoCheck: true,
+      allowPrerelease: false,
+      skippedVersion: null,
+    },
   });
 });
 
@@ -157,7 +170,11 @@ describe('关于面板 · 更新区', () => {
 
   it('跳过态：展示已跳过并提供取消跳过（写回 settings）', async () => {
     useSettingsStore.setState({
-      update: { autoCheck: true, allowPrerelease: false, skippedVersion: '1.2.0' },
+      update: {
+        autoCheck: true,
+        allowPrerelease: false,
+        skippedVersion: '1.2.0',
+      },
     });
     renderWith({ phase: 'downloaded', version: '1.2.0' });
     expect(screen.getByText(t('settings.aboutSkipped', { version: '1.2.0' }))).toBeTruthy();
@@ -167,7 +184,11 @@ describe('关于面板 · 更新区', () => {
 
   it('跳过的是别的版本：不展示跳过态（版本号不等即失效）', () => {
     useSettingsStore.setState({
-      update: { autoCheck: true, allowPrerelease: false, skippedVersion: '1.0.0' },
+      update: {
+        autoCheck: true,
+        allowPrerelease: false,
+        skippedVersion: '1.0.0',
+      },
     });
     renderWith({ phase: 'downloaded', version: '1.2.0' });
     expect(screen.queryByText(t('settings.aboutSkipped', { version: '1.0.0' }))).toBeNull();

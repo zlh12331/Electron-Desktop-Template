@@ -135,7 +135,7 @@ describe('UpdateService', () => {
       expect(updater.autoInstallOnAppQuit).toBe(true);
     });
 
-    it('开关关闭：停用退出自动安装且不调度启动检查', async () => {
+    it('开关关闭：默认停用退出自动安装且不调度启动检查（未显式传独立开关时保持旧语义）', async () => {
       vi.useFakeTimers();
       service.start({ autoCheckEnabled: () => false });
       expect(updater.autoInstallOnAppQuit).toBe(false);
@@ -620,7 +620,7 @@ describe('UpdateService', () => {
     });
 
     describe('refreshAutoInstallOnAppQuit', () => {
-      it('按退出时刻的开关状态重算（运行中切换立即生效——2026-10-02 缺口回归锚）', () => {
+      it('按退出时刻的自动检查开关重算（运行中切换立即生效）', () => {
         let autoCheck = true;
         service.start({ autoCheckEnabled: () => autoCheck });
         expect(updater.autoInstallOnAppQuit).toBe(true);

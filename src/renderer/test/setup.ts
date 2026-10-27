@@ -134,6 +134,19 @@ declare global {
 window.ResizeObserver = MockResizeObserver;
 
 window.HTMLElement.prototype.scrollIntoView = vi.fn();
+
+// Radix Select（下拉）在 jsdom 中会调用 Pointer Capture API；jsdom 未实现这些方法，
+// 缺了会让 open 交互直接抛错。测试语义不需要真实捕获，补空实现即可。
+if (typeof window.HTMLElement.prototype.hasPointerCapture !== 'function') {
+  window.HTMLElement.prototype.hasPointerCapture = () => false;
+}
+if (typeof window.HTMLElement.prototype.setPointerCapture !== 'function') {
+  window.HTMLElement.prototype.setPointerCapture = () => {};
+}
+if (typeof window.HTMLElement.prototype.releasePointerCapture !== 'function') {
+  window.HTMLElement.prototype.releasePointerCapture = () => {};
+}
+
 globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
 
 window.matchMedia =

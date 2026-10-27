@@ -8,17 +8,15 @@
  * @example
  * ```tsx
  * // 路由声明
- * <Route path={ROUTES.about} element={<AboutPage />} />
+ * <Route path={ROUTES.home} element={<HomePage />} />
  *
  * // 导航跳转
- * navigate(ROUTES.about);
+ * navigate(ROUTES.home);
  * ```
  */
 export const ROUTES = {
   /** 首页（欢迎页） */
   home: '/',
-  /** 关于页（示例业务路由；接入真实业务时可替换或追加） */
-  about: '/about',
   // notes-example:start
   /** Local Notes 参考切片：列表页（随示例整体删除） */
   notes: '/notes',

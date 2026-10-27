@@ -25,7 +25,7 @@
 
 ## 三、密钥与凭据
 
-1. **存储**：Electron `safeStorage` 加密落 `userData/keychain.dat`（Windows DPAPI / macOS Keychain / Linux libsecret）；写入用 `0o600` 临时文件原子替换，Windows 额外用 `icacls` 断继承、仅授予当前用户（纵深防御，失败只告警）。Linux 没有可用密钥环时 Electron 会回退到 `basic_text`（硬编码密钥，官方明确称为 unprotected）——模板把该后端视为不可用，拒绝写入并把 `secrets:isAvailable` 的 `reason` 报为 `insecure-backend`，不把“混淆”冒充“加密”。
+1. **存储**：Electron `safeStorage` 异步 API（`encryptStringAsync` / `decryptStringAsync`）加密落 `userData/keychain.dat`（Windows DPAPI / macOS Keychain / Linux libsecret）；写入用 `0o600` 临时文件原子替换，Windows 额外用 `icacls` 断继承、仅授予当前用户（纵深防御，失败只告警）。Linux 没有可用密钥环时 Electron 会回退到 `basic_text`（硬编码密钥，官方明确称为 unprotected）——模板把该后端视为不可用，拒绝写入并把 `secrets:isAvailable` 的 `reason` 报为 `insecure-backend`，不把“混淆”冒充“加密”。
 2. **渲染层边界**：`secrets` 域只提供 `isAvailable / list / set / delete / getMasked`，**刻意不提供取明文方法**；业务代码在主进程内直接 `getSecret()`。
 3. **禁止硬编码**：gitleaks 默认规则集（`.gitleaks.toml` 的 `useDefault = true`）三道闸门：
    - pre-commit：`gitleaks git --staged`（软闸门，未安装则提示跳过）
@@ -50,7 +50,7 @@ SQLite 主库（`app_settings` 与派生业务表）默认使用标准 better-sq
 
 ## 五、渲染层安全
 
-1. **XSS**：Markdown 渲染（关于页 release notes）先 `remark-gfm` 再 `rehype-raw` + **`rehype-sanitize`**；禁止新增 `dangerouslySetInnerHTML`（确需时须评审并说明来源可信）。
+1. **XSS**：Markdown 渲染（设置关于页 release notes）先 `remark-gfm` 再 `rehype-raw` + **`rehype-sanitize`**；禁止新增 `dangerouslySetInnerHTML`（确需时须评审并说明来源可信）。
 2. **远程内容**：模板不加载远程 HTML / iframe；未来接入网页承载时使用 `WebContentsView` + 独立 session 分区，不回渲染层 iframe；新 partition 必须调用 `hardenSession()`，复用 CSP 与权限白名单。
 3. **依赖**：`pnpm audit:registry`（moderate 起卡关）、`pnpm knip`（死依赖减少攻击面）。
 4. **权限**：默认拒绝；唯一放行 `clipboard-sanitized-write`（复制按钮），`clipboard-read`、媒体、通知等保持拒绝。

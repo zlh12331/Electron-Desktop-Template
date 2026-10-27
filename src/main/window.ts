@@ -2,7 +2,7 @@
 // 渲染进程崩溃自愈。边界：窗口唤起在 window-show，标题栏配色在 window-theme
 import { join } from 'node:path';
 import { DEFAULT_WINDOW_SETTINGS } from '@code-agent/shared/main';
-import { app, BrowserWindow, screen, shell } from 'electron';
+import { app, BrowserWindow, nativeTheme, screen, shell } from 'electron';
 import { installExtension, REACT_DEVELOPER_TOOLS } from 'electron-devtools-installer';
 import { resolveStartHidden } from './infra/autostart/autostart';
 import { readSetting } from './infra/storage/settings-pref';
@@ -15,7 +15,7 @@ import { notifyMinimizedToTray } from './tray';
 import { getDevRendererUrl, isDevTestEnvEnabled } from './utils/dev-test-env';
 import { reportError, reportMessage } from './utils/error-report';
 import { logger } from './utils/logger';
-import { markMaximizeOnNextShow } from './window-show';
+import { markMaximizeOnNextShow, setMainWindow } from './window-show';
 import { TITLE_BAR_SYMBOL } from './window-theme';
 
 /**
@@ -62,7 +62,10 @@ export function createWindow(): BrowserWindow {
       ? {
           titleBarOverlay: {
             color: '#00000000',
-            symbolColor: TITLE_BAR_SYMBOL.dark,
+            // 默认主题跟随系统：建窗首帧就按 OS 明暗选图标色，不能硬编码暗色
+            symbolColor: nativeTheme.shouldUseDarkColors
+              ? TITLE_BAR_SYMBOL.dark
+              : TITLE_BAR_SYMBOL.light,
             height: 52,
           },
         }
@@ -76,6 +79,7 @@ export function createWindow(): BrowserWindow {
       webSecurity: true,
     },
   });
+  setMainWindow(win);
 
   // 导航白名单：只允许 dev server origin 或产物 index.html 的完全匹配，其余一律拦下
   // （配合主进程对 defaultSession 的 CSP/XFO 注入，构成三层外站拦截的第一层）
@@ -126,7 +130,7 @@ export function createWindow(): BrowserWindow {
 
   const startHidden = resolveStartHidden(app);
   if (startHidden) {
-    logger.info({}, '开机自启静默启动：窗口驻留托盘不显示');
+    logger.info({}, '静默启动：窗口驻留托盘不显示');
   }
   win.once('ready-to-show', () => {
     recordStartupReady(win.webContents.id, 'ready-to-show');

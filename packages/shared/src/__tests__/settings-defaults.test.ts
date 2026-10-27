@@ -11,8 +11,8 @@ import {
 
 describe('settings-defaults', () => {
   it('渲染层与主进程共享的默认值保持稳定', () => {
-    expect(DEFAULT_THEME_SETTING).toBe('dark');
-    expect(DEFAULT_LANGUAGE_SETTING).toBe('zh-CN');
+    expect(DEFAULT_THEME_SETTING).toBe('system');
+    expect(DEFAULT_LANGUAGE_SETTING).toBe('system');
     expect(DEFAULT_UPDATE_SETTINGS).toEqual({
       autoCheck: true,
       allowPrerelease: false,

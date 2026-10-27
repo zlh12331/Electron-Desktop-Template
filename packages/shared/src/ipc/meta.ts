@@ -37,6 +37,7 @@ export const IPC_META = {
     getInfo: request('app:getInfo'),
     openExternal: request('app:openExternal'),
     openDataDir: request('app:openDataDir'),
+    openLogsDir: request('app:openLogsDir'),
     // 诊断包导出：日志 + 版本信息 → 用户选定路径的 zip（排障闭环的出口）
     exportDiagnostics: request('app:exportDiagnostics'),
     // 开机自启：读写 OS 登录项而非 SQLite 设置——托盘菜单与设置页必须同源

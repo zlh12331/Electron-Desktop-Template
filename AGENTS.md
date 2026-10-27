@@ -1,6 +1,6 @@
 # AGENTS.md — Electron 桌面端模板
 
-跨平台桌面应用模板（Windows/macOS/Linux）：Electron 44 + React 19 + TypeScript + Vite 8。
+跨平台桌面应用模板（Windows/macOS/Linux）：Electron 45 + React 19 + TypeScript + Vite 8。
 底座能力已就绪（IPC 契约体系、SQLite 设置持久化、三平台打包与自动更新），业务页面待接入。
 
 ## 重要命令
@@ -99,6 +99,8 @@ tools/           → 独立 TS 子包（depcruise / typedoc）
 ## 关键约束（易踩坑）
 
 - **preload 必须 CJS**（`sandbox: true`）：纯 ESM 包（如 zod）引入会静默失败导致 `window.api` 为 undefined。preload 只能经 `@code-agent/shared/preload` / `ipc/meta` / `ipc/channels` 子路径导入。
+- **Electron 45 sandboxed preload 无 Node shim**：`Buffer` / `events` / `timers` / `url` 不再注入；需要 UUID 等能力用 Web Crypto，不要在 preload 引入 Node 内置模块。
+- **safeStorage 用异步 API**：`encryptStringAsync` / `decryptStringAsync`（45 起同步方法弃用）；凭据写入/读取集中在 `src/main/infra/storage/keychain.ts`。
 - **组件不直连 `window.api`**：经 `hooks/` 或 `lib/` 桥接（`check:ui-consistency` 卡关）。
 - **响应一律 `unwrap()`**（`lib/ipc.ts`），禁手写 `'data' in resp`。
 - **useMutation 必须挂 `onError`** → `toast.error(unwrapErrorMessage(...))`。

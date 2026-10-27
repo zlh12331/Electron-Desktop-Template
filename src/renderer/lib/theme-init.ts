@@ -24,7 +24,7 @@ export type StoredTheme = 'light' | 'dark' | 'system';
  *
  * settings 真源在 SQLite（S1），首帧脚本无法同步读 IPC——主题每次变更时
  * 低成本镜像一份到 localStorage，脚本启动即得用户选择。
- * 失败静默（无痕模式等）：镜像缺失时脚本回退默认暗色，仅首帧方向偏差一次。
+ * 失败静默（无痕模式等）：镜像缺失时脚本回退默认主题（跟随系统），仅首帧方向偏差一次。
  */
 export function mirrorThemeForFirstPaint(theme: StoredTheme): void {
   try {

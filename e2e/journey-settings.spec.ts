@@ -28,8 +28,8 @@ test.describe('设置用户旅程（batch 3）', () => {
     // 设置抽屉是 Sheet（@radix-ui/react-dialog）→ role=dialog
     const dialog = page.locator('[role="dialog"]').first();
     await expect(dialog).toBeVisible({ timeout: 10_000 });
-    // 命中任一即可：通用/外观与缩放/快捷键是常驻导航标题（模板版默认落地「通用」分区）
-    await expect(dialog.getByText(/通用|外观与缩放|快捷键/).first()).toBeVisible({
+    // 命中任一即可：通用/外观/快捷键是常驻导航标题（模板版默认落地「通用」分区）
+    await expect(dialog.getByText(/通用|外观|快捷键/).first()).toBeVisible({
       timeout: 10_000,
     });
   });

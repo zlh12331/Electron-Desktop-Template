@@ -1,5 +1,6 @@
 import { ZOOM_LEVELS } from '@code-agent/shared/renderer';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { i18n } from '@/i18n';
@@ -17,10 +18,33 @@ beforeEach(() => {
     writable: true,
     configurable: true,
   });
-  useSettingsStore.setState({ appearance: { zoom: 1 } });
+  useSettingsStore.setState({ appearance: { zoom: 1 }, theme: 'system' });
 });
 
 describe('ZoomSection', () => {
+  it('主题默认跟随系统：下拉回显 system', () => {
+    render(<ZoomSection />);
+
+    expect(screen.getByText(t('settings.themeTitle'))).toBeDefined();
+    expect(screen.getByRole('combobox', { name: t('settings.themeTitle') })).toHaveTextContent(
+      t('settings.themeSystem'),
+    );
+  });
+
+  it('主题下拉切换到深色 → 写入 settings-store', async () => {
+    const user = userEvent.setup();
+    render(<ZoomSection />);
+
+    await user.click(screen.getByRole('combobox', { name: t('settings.themeTitle') }));
+    await user.click(await screen.findByRole('option', { name: t('settings.themeDark') }));
+
+    expect(useSettingsStore.getState().theme).toBe('dark');
+    await waitFor(() => {
+      const calls = setSpy.mock.calls as unknown as { key: string }[][];
+      expect(calls.filter((c) => c[0]?.key === 'theme')).toHaveLength(1);
+    });
+  });
+
   it('渲染标题与当前档位回显（100%）', () => {
     render(<ZoomSection />);
     expect(screen.getByText(t('settings.zoomTitle'))).toBeDefined();

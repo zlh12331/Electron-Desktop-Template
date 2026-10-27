@@ -63,6 +63,7 @@ const mocks = vi.hoisted(() => {
     reportError: vi.fn(),
     reportMessage: vi.fn(),
     markMaximizeOnNextShow: vi.fn(),
+    setMainWindow: vi.fn(),
     bindStartupWindow: vi.fn(),
     recordStartupReady: vi.fn(),
     recordRendererCrash: vi.fn(),
@@ -85,6 +86,7 @@ vi.mock('electron', () => ({
     getAllDisplays: () => [{ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }],
   },
   shell: { openExternal: mocks.openExternal },
+  nativeTheme: { shouldUseDarkColors: false },
 }));
 
 vi.mock('electron-devtools-installer', () => ({
@@ -135,6 +137,7 @@ vi.mock('./utils/logger', () => ({
 
 vi.mock('./window-show', () => ({
   markMaximizeOnNextShow: mocks.markMaximizeOnNextShow,
+  setMainWindow: mocks.setMainWindow,
 }));
 
 vi.mock('./window-theme', () => ({

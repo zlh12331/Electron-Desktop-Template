@@ -58,7 +58,7 @@ async function launchElectron(
   userData: string = E2E_USER_DATA,
 ): Promise<{ app: ElectronApplication; page: Page }> {
   const app = await electron.launch({
-    args: [MAIN_ENTRY],
+    args: [MAIN_ENTRY, '--lang=zh-CN'],
     env: buildElectronEnv({
       NODE_ENV: 'development',
       // 设了它就改走 loadURL 连 dev server，而非 loadFile 载生产产物（src/main/window.ts）；
@@ -189,8 +189,10 @@ test.describe('Electron 应用 E2E 测试', () => {
       ownedProcess = app.process();
       const themeButton = page.getByRole('button', { name: /切换主题|Toggle theme/i });
       await expect(themeButton).toBeVisible();
-      await expect(page.locator('html')).toHaveClass(/\bdark\b/);
 
+      // 默认 system：第一击 system → dark，第二击 dark → light；与 OS 初始明暗无关
+      await themeButton.click();
+      await expect(page.locator('html')).toHaveClass(/\bdark\b/);
       await themeButton.click();
       await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
       // 设置写穿透异步完成；只读确认落库，不能通过 IPC 写入替代 UI 操作。
@@ -247,7 +249,7 @@ test.describe('Electron 应用 E2E 测试', () => {
       ownedProcess = app.process();
 
       await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-      await expect(page.getByRole('navigation')).toContainText('About');
+      await expect(page.getByRole('navigation')).toContainText('Settings');
     } finally {
       if (ownedApp !== undefined) {
         await closeElectronApp(ownedApp);
@@ -342,20 +344,23 @@ test.describe('Electron 应用 E2E 测试', () => {
     expect(result.ok).toBe(true);
   });
 
-  test('About 页复制诊断信息写入系统剪贴板', async () => {
+  test('设置关于页复制诊断信息写入系统剪贴板', async () => {
     ({ app, page } = await launchElectron());
 
-    await page.evaluate(() => {
-      window.location.hash = '#/about';
-    });
+    await page
+      .getByRole('button', { name: /打开设置|Open settings/i })
+      .first()
+      .click();
+    const settings = page.getByRole('dialog');
+    await settings.getByRole('tab', { name: /关于|About/i, exact: true }).click();
     const copyButton = page.getByRole('button', { name: /复制诊断|Copy diagnostics/i });
     await expect(copyButton).toBeVisible({ timeout: 15_000 });
 
     await app.evaluate(({ clipboard }) => clipboard.clear());
     await copyButton.click();
 
-    // 复制成功后按钮进入“已复制”反馈；失败只会弹 toast，按钮文案保持不变
-    await expect(page.getByRole('button', { name: /已复制|Copied/i })).toBeVisible();
+    // 设置诊断卡不改变按钮文案，成功反馈走 toast；随后校验系统剪贴板
+    await expect(page.getByText(/已复制|Copied/i).first()).toBeVisible({ timeout: 5_000 });
     await expect
       .poll(() => app.evaluate(({ clipboard }) => clipboard.readText()), { timeout: 5_000 })
       .toContain('Electron');

@@ -220,7 +220,7 @@ describe('wrap', () => {
     wrap('test:channel', null, handler);
     const registeredHandler = getRegisteredHandler();
     const sender = {
-      getURL: () => `${allowedFileUrl}#/about`,
+      getURL: () => `${allowedFileUrl}#/notes`,
       mainFrame: topFrame,
     };
 

@@ -15,9 +15,21 @@ export {
 } from './constants/brand';
 export type { ErrorMeta, IpcError } from './constants/errors';
 export { ERROR_META, ErrorCode } from './constants/errors';
-export { IPC_PROTOCOL_VERSION } from './constants/protocol';
+export type { LanguageSetting, SupportedLanguage } from './constants/language';
 export {
+  FALLBACK_LANGUAGE,
+  LANGUAGE_SETTINGS,
+  resolveLanguageFromLocale,
+  resolveLanguageSetting,
+  SUPPORTED_LANGUAGES,
+} from './constants/language';
+export { IPC_PROTOCOL_VERSION } from './constants/protocol';
+export type { BackupKeep } from './constants/settings-defaults';
+export {
+  BACKUP_KEEP_OPTIONS,
+  DEFAULT_BACKUP_SETTINGS,
   DEFAULT_LANGUAGE_SETTING,
+  DEFAULT_LOGGING_SETTINGS,
   DEFAULT_NOTIFICATION_SETTINGS,
   DEFAULT_PROXY_SETTINGS,
   DEFAULT_THEME_SETTING,

@@ -9,19 +9,19 @@ const otherEntryUrl = rendererEntryFileUrl(join(process.cwd(), 'other-app'));
 describe('isAllowedRendererUrl', () => {
   it('file 入口允许 hash（生产 hash router），query 与不同路径拒绝', () => {
     expect(isAllowedRendererUrl(entryUrl, entryUrl)).toBe(true);
-    expect(isAllowedRendererUrl(`${entryUrl}#/about`, entryUrl)).toBe(true);
+    expect(isAllowedRendererUrl(`${entryUrl}#/notes`, entryUrl)).toBe(true);
     expect(isAllowedRendererUrl(`${entryUrl}#/`, entryUrl)).toBe(true);
     expect(isAllowedRendererUrl(otherEntryUrl, entryUrl)).toBe(false);
     expect(isAllowedRendererUrl(`${entryUrl}?spoof=1`, entryUrl)).toBe(false);
-    expect(isAllowedRendererUrl(`${entryUrl}?spoof=1#/about`, entryUrl)).toBe(false);
+    expect(isAllowedRendererUrl(`${entryUrl}?spoof=1#/notes`, entryUrl)).toBe(false);
   });
 
   it('dev 只接受 dev server origin', () => {
     expect(
-      isAllowedRendererUrl('http://localhost:5173/#/about', entryUrl, 'http://localhost:5173'),
+      isAllowedRendererUrl('http://localhost:5173/#/notes', entryUrl, 'http://localhost:5173'),
     ).toBe(true);
     expect(
-      isAllowedRendererUrl('http://localhost:5174/#/about', entryUrl, 'http://localhost:5173'),
+      isAllowedRendererUrl('http://localhost:5174/#/notes', entryUrl, 'http://localhost:5173'),
     ).toBe(false);
     expect(isAllowedRendererUrl('file:///tmp/renderer/index.html', entryUrl)).toBe(false);
   });

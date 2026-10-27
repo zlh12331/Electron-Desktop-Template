@@ -1,8 +1,12 @@
 // index.ts：应用入口与生命周期——单实例锁、whenReady 启动序列（遥测→DB→容器→IPC→窗口→托盘）、
 // 深链接管、退出协商与善后链。边界：只做装配与编排，业务实现在 infra/ 与 service-container
 import { join } from 'node:path';
-import { DEFAULT_UPDATE_SETTINGS, type DeepLinkPayload } from '@code-agent/shared/main';
-import { app, BrowserWindow, nativeTheme, session } from 'electron';
+import {
+  DEFAULT_LANGUAGE_SETTING,
+  DEFAULT_UPDATE_SETTINGS,
+  type DeepLinkPayload,
+} from '@code-agent/shared/main';
+import { app, nativeTheme, session } from 'electron';
 import {
   broadcastDeepLink,
   extractProtocolUrl,
@@ -17,6 +21,7 @@ import {
 } from './infra/autostart/autostart';
 import { initMainI18n, t } from './infra/i18n';
 import { applyProxySetting, migrateProxyCredentials } from './infra/network/proxy-credentials';
+import { readBackupPolicy } from './infra/storage/backup-settings';
 import { initDb } from './infra/storage/db';
 import { readAllSettings, readSetting, writeSetting } from './infra/storage/settings-pref';
 import { readTelemetryLevelSync } from './infra/storage/telemetry-pref';
@@ -55,10 +60,16 @@ import { disposeServices, recoverFromCrash, serviceContainer } from './service-c
 import { createTray } from './tray';
 import { isDevTestEnvEnabled, resolveEnvFileToLoad } from './utils/dev-test-env';
 import { reportError, reportMessage } from './utils/error-report';
-import { flushPendingLogs, initLogger, logger, registerGlobalErrorHandlers } from './utils/logger';
+import {
+  applyLogLevel,
+  flushPendingLogs,
+  initLogger,
+  logger,
+  registerGlobalErrorHandlers,
+} from './utils/logger';
 import { flushTelemetryOnFatal } from './utils/telemetry-flush';
 import { createWindow, readCloseAction } from './window';
-import { bringMainWindowToFront } from './window-show';
+import { bringMainWindowToFront, getMainWindow } from './window-show';
 import { syncTitleBarOverlayFromTheme } from './window-theme';
 
 // 环境文件必须先于 userData/CDP/Sentry 解析；空路径用于隔离验收，禁止继承本机后端配置。
@@ -123,8 +134,8 @@ const sentryInit = gotTheLock
 let coldLaunchDeepLink: string | null = null;
 app.on('open-url', (event, url) => {
   event.preventDefault();
-  const win = BrowserWindow.getAllWindows()[0];
-  if (win === undefined) {
+  const win = getMainWindow();
+  if (win === null) {
     coldLaunchDeepLink = url;
   } else {
     deliverDeepLink(parseDeepLink(url));
@@ -161,9 +172,10 @@ app
       resolveStartHidden(app) ? 'hidden' : 'foreground',
       async () => {
         await withSpan('db.init', {}, async () => {
-          initDb();
+          initDb({ getBackupPolicy: readBackupPolicy });
         });
-        initMainI18n(readSetting('language'));
+        applyLogLevel(isVerboseLoggingEnabled());
+        initMainI18n(readSetting('language') ?? DEFAULT_LANGUAGE_SETTING, app.getLocale());
         await initProxyFromSettings();
         registerGlobalErrorHandlers();
         void recoverFromCrash();
@@ -365,8 +377,8 @@ async function initProxyFromSettings(): Promise<void> {
 
 // 渲染层已挂载直接广播；仍在加载则暂存，挂载后由 app:takePendingDeepLink 取走
 function deliverDeepLink(payload: DeepLinkPayload): void {
-  const win = BrowserWindow.getAllWindows()[0];
-  if (win === undefined || win.webContents.isLoading()) {
+  const win = getMainWindow();
+  if (win === null || win.webContents.isLoading()) {
     setPendingDeepLink(payload);
     logger.info({ hasTarget: payload.targetId !== null }, '深链已暂存，等待渲染层就绪');
     return;
@@ -392,38 +404,47 @@ function readWindowSettings(): Record<string, unknown> {
   }
 }
 
-function isAutoCheckEnabled(): boolean {
+type UpdateBooleanKey = 'autoCheck' | 'allowPrerelease';
+
+/** 读更新域布尔开关（缺失/损坏/读取失败均按默认值，避免一个坏字段阻断更新） */
+function readUpdateBoolean(key: UpdateBooleanKey): boolean {
   try {
     const value = readSetting('update');
     if (typeof value !== 'object' || value === null) {
-      return DEFAULT_UPDATE_SETTINGS.autoCheck;
+      return DEFAULT_UPDATE_SETTINGS[key];
     }
-    const autoCheck = (value as { autoCheck?: unknown }).autoCheck;
-    return typeof autoCheck === 'boolean' ? autoCheck : DEFAULT_UPDATE_SETTINGS.autoCheck;
+    const field = (value as Record<string, unknown>)[key];
+    return typeof field === 'boolean' ? field : DEFAULT_UPDATE_SETTINGS[key];
   } catch (error) {
     logger.warn(
-      { error: error instanceof Error ? error.message : String(error) },
-      '读取更新设置失败，自动检查按默认开启',
+      { key, error: error instanceof Error ? error.message : String(error) },
+      '读取更新设置失败，使用默认值',
     );
-    return DEFAULT_UPDATE_SETTINGS.autoCheck;
+    return DEFAULT_UPDATE_SETTINGS[key];
   }
 }
 
+function isAutoCheckEnabled(): boolean {
+  return readUpdateBoolean('autoCheck');
+}
+
 function isAllowPrereleaseEnabled(): boolean {
+  return readUpdateBoolean('allowPrerelease');
+}
+
+/** 读详细日志开关（缺失/损坏 → false，保持打包态默认 info） */
+function isVerboseLoggingEnabled(): boolean {
   try {
-    const value = readSetting('update');
+    const value = readSetting('logging');
     if (typeof value !== 'object' || value === null) {
-      return DEFAULT_UPDATE_SETTINGS.allowPrerelease;
+      return false;
     }
-    const allowPrerelease = (value as { allowPrerelease?: unknown }).allowPrerelease;
-    return typeof allowPrerelease === 'boolean'
-      ? allowPrerelease
-      : DEFAULT_UPDATE_SETTINGS.allowPrerelease;
+    return (value as { verbose?: unknown }).verbose === true;
   } catch (error) {
     logger.warn(
       { error: error instanceof Error ? error.message : String(error) },
-      '读取预发布设置失败，默认不接收预发布',
+      '读取日志设置失败，使用默认级别',
     );
-    return DEFAULT_UPDATE_SETTINGS.allowPrerelease;
+    return false;
   }
 }

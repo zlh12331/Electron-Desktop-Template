@@ -87,6 +87,21 @@ describe('createBackupFile（热备份 + 轮转）', () => {
       db.close();
     }
   });
+
+  it('自定义保留份数：keep=5 时只保留最近 5 份', async () => {
+    const db = makeDbFile(dbPath);
+    try {
+      for (let i = 0; i < 7; i++) {
+        await createBackupFile(db, dbPath, 5);
+      }
+      const names = readdirSync(backupDirPath(dbPath)).filter(
+        (n) => n.startsWith(`${EXECUTABLE_NAME}-db-`) && n.endsWith('.db'),
+      );
+      expect(names).toHaveLength(5);
+    } finally {
+      db.close();
+    }
+  });
 });
 
 describe('listBackups（恢复点列表）', () => {

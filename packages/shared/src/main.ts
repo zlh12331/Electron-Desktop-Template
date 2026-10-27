@@ -1,5 +1,6 @@
 export * from './constants/brand';
 export * from './constants/errors';
+export * from './constants/language';
 export * from './constants/protocol';
 export * from './constants/settings-defaults';
 export * from './constants/zoom';

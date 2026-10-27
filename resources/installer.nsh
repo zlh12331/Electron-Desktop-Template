@@ -88,7 +88,7 @@
   !insertmacro customUnInstallCheck
 !macroend
 
-; 卸载器侧：清理开机自启注册项
+; 卸载器侧：清理开机自启注册项、协议、更新缓存；按需删除用户数据
 ;
 ; 为什么必需（2026-09-21 真机验证）：用户若在应用内
 ; 开启过开机自启，注册表 HKCU\...\Run 会留下一条指向本应用的启动项；卸载后它仍指向
@@ -102,15 +102,91 @@
 ;   → 卸一次 → 再查。
 ;
 ; 约束（与本文件头的三条同源，均经 makensis 编译验证）：
-; - 值名 = Electron 写入时用的 `app.getName()`（优先 productName），即 electron-builder.yml
-;   的 productName（构建期由 ${PRODUCT_NAME} 提供，卸载器段可用）。
+; - 开机自启的值名**不是** productName / app.getName()：Electron 用进程 AppUserModelID
+;   （默认 `electron.app.<exe ProductName>`，经快捷方式启动时为 appId），会随启动方式漂移；
+;   固定名字删除是 no-op（见 src/main/infra/autostart/autostart.ts:138）。这里枚举 Run，
+;   按命令行前缀（无引号 / 带引号两种）匹配当前安装 exe 后删除，并同步清
+;   StartupApproved 同名状态值。
+; - 自启清理只在手动卸载执行：更新时旧卸载器由安装器以 `/KEEP_APP_DATA` 调用，删掉 Run
+;   项后新安装器不会重建（App 也不按设置回填），会静默关闭用户的开机自启。
 ; - 不引用 ${INSTALL_REGISTRY_KEY} / ${UNINSTALL_REGISTRY_KEY}：它们由 multiUser.nsh 定义，
 ;   而本文件注入在生成的脚本最前面，引用会触发 "unknown variable"（项目把警告当错误）。
-; - 只删 Run 键下的这一条值，不动其它键；DeleteRegValue 对不存在的值静默（无需先判断）。
+; - 只删除指向当前安装 exe 的 Run 值，不动其它启动项；DeleteRegValue 对不存在的值静默。
+;
+; 清理边界（2026-10-27）：
+; - 更新/覆盖安装：安装器调用旧卸载器时固定带 `/KEEP_APP_DATA`（installUtil.nsh:224），
+;   且新安装包本身就在 updater cache 里——此时必须全部跳过，否则会删掉正在执行的
+;   安装包或用户数据。
+; - 手动卸载：updater cache 无条件删除（纯缓存，可重新下载）；userData 交互确认，
+;   默认保留（MB_DEFBUTTON2），静默卸载只认 `--delete-app-data`（与 electron-builder
+;   内置行为一致，由模板在文件末尾执行）。
+; - `%TEMP%\ns*.tmp` / `electron-download-*` 不属于本应用：前者是 NSIS/其他安装器的
+;   临时目录，后者是开发期 @electron/get 的产物；无法安全归属，禁止在卸载器里通配删除。
+;   App 运行时也不创建临时目录（诊断包写用户选择的位置），无需清理。
+;
+; updater cache 路径 = `%LOCALAPPDATA%\<package name>-updater`：
+; electron-builder 的 app-update.yml 写 `updaterCacheDirName = sanitizedName.toLowerCase()
+; + "-updater"`（appInfo.js:126）。本模板包名非 scoped 且全小写，可直接由
+; ${APP_PACKAGE_NAME} 拼接；派生项目若改 scoped/大写包名需同步本行。
 !macro customUnInstall
-  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCT_NAME}"
   ; 运行时注册的协议键同样归本应用所有；不删会留下指向已卸载 exe 的残留
   DeleteRegKey HKCU "Software\Classes\${APP_PROTOCOL}"
+
+  ; 安装器驱动的旧版卸载（更新/覆盖安装）固定带 /KEEP_APP_DATA；必须跳过清理。
+  ${GetOptions} $CMDLINE "/KEEP_APP_DATA" $R0
+  ${if} ${Errors}
+    ; 开机自启：值名随 AppUserModelID 漂移，按 exe 路径匹配；更新时跳过（见文件头）
+    StrCpy $R4 0
+    customUnInstall_findRun:
+      StrCpy $R0 0
+    customUnInstall_scanRun:
+      EnumRegValue $R1 HKCU "Software\Microsoft\Windows\CurrentVersion\Run" $R0
+      StrCmp $R1 "" customUnInstall_doneRun
+      ReadRegStr $R2 HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "$R1"
+      ; 命令行可能是 `<exe> --hidden` 或 `"<exe>" --hidden`：按路径前缀匹配，
+      ; 参数变化（如新增开关）不影响清理。quoted 分支跳过开头的引号再比较。
+      StrLen $R5 "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
+      StrCpy $R3 "$R2" $R5
+      StrCmp $R3 "$INSTDIR\${APP_EXECUTABLE_FILENAME}" customUnInstall_deleteRun
+      StrCpy $R3 "$R2" $R5 1
+      StrCmp $R3 "$INSTDIR\${APP_EXECUTABLE_FILENAME}" customUnInstall_deleteRun customUnInstall_nextRun
+    customUnInstall_deleteRun:
+      DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "$R1"
+      DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" "$R1"
+      IntOp $R4 $R4 + 1
+      IntCmp $R4 16 customUnInstall_doneRun customUnInstall_findRun customUnInstall_doneRun
+    customUnInstall_nextRun:
+      IntOp $R0 $R0 + 1
+      Goto customUnInstall_scanRun
+    customUnInstall_doneRun:
+      ClearErrors
+
+    ; updater cache：纯缓存，手动卸载时无条件删除
+    !ifdef APP_PACKAGE_NAME
+      RMDir /r "$LOCALAPPDATA\${APP_PACKAGE_NAME}-updater"
+    !endif
+
+    ; userData：交互确认，默认保留；静默卸载不弹窗（--delete-app-data 由内置逻辑处理）
+    ${GetOptions} $CMDLINE "--delete-app-data" $R0
+    ${if} ${Errors}
+      ${IfNot} ${Silent}
+        MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 \
+          "Also delete this app's user data?$\r$\n$\r$\nThis removes settings, notes, backups, logs and saved credentials. Choose No to keep them for a future reinstall." \
+          IDNO customUnInstall_keepData IDCANCEL customUnInstall_keepData
+        ; 与 electron-builder 内置删除列表保持一致（product filename / package name）
+        RMDir /r "$APPDATA\${APP_FILENAME}"
+        !ifdef APP_PRODUCT_FILENAME
+          RMDir /r "$APPDATA\${APP_PRODUCT_FILENAME}"
+        !endif
+        !ifdef APP_PACKAGE_NAME
+          RMDir /r "$APPDATA\${APP_PACKAGE_NAME}"
+        !endif
+        customUnInstall_keepData:
+        Nop
+      ${EndIf}
+    ${endif}
+    ClearErrors
+  ${endif}
 !macroend
 
 ; ── 更新模式跳过「安装模式」页（2026-10-01 向导式更新安装）─────────────────

@@ -18,7 +18,6 @@ function renderAtHome(): ReturnType<typeof createMemoryRouter> {
     // notes-example:start
     { path: '/notes/:id', element: <div>note</div> },
     // notes-example:end
-    { path: '/about', element: <div>about</div> },
   ]);
   render(<RouterProvider router={router} />);
   return router;

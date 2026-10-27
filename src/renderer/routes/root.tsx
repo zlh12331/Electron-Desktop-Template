@@ -12,7 +12,7 @@ import { reportRendererReady } from '@/lib/startup';
  * 根布局组件
  *
  * 在 createHashRouter 中作为顶层路由的 element，
- * 其 children（HomePage / AboutPage）通过 <Outlet /> 渲染。
+ * 其 children（页面路由）通过 <Outlet /> 渲染。
  */
 export function RootLayout(): ReactElement {
   useEffect(() => {
@@ -28,7 +28,7 @@ export function RootLayout(): ReactElement {
 /**
  * 懒加载路由的占位（HydrateFallback）
  *
- * HomePage / AboutPage 使用 route.lazy 按需加载，加载完成前在此渲染轻量占位，
+ * 页面路由使用 route.lazy 按需加载，加载完成前在此渲染轻量占位，
  * 避免空白窗口。仅占位一瞬（本地模块加载毫秒级），不做骨架屏。
  */
 export function RootHydrateFallback(): ReactElement {

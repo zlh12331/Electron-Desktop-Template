@@ -1,4 +1,8 @@
-import type { BackupEntry } from '@code-agent/shared/renderer';
+import {
+  BACKUP_KEEP_OPTIONS,
+  type BackupEntry,
+  type BackupKeep,
+} from '@code-agent/shared/renderer';
 import { History, RotateCcw } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { toast } from 'sonner';
@@ -7,7 +11,9 @@ import { useBackups, useCreateBackup, useRestoreBackup } from '@/hooks/use-backu
 import { useTranslation } from '@/i18n/use-translation';
 import { formatBytes } from '@/lib/format-bytes';
 import { cn } from '@/lib/utils';
+import { useSettingsStore } from '@/stores/persistent/settings-store';
 import { confirm } from '@/stores/transient/confirm-dialog-store';
+import { SegControl, SettingRow, ToggleRow } from '../settings-controls';
 
 /** 时间戳 → 本地可读时间（列表展示用；秒级足够） */
 function formatBackupTime(ms: number): string {
@@ -23,6 +29,8 @@ export function BackupBlock(): ReactElement {
   const backupsQuery = useBackups();
   const createBackup = useCreateBackup();
   const restoreBackup = useRestoreBackup();
+  const backup = useSettingsStore((s) => s.backup);
+  const updateBackup = useSettingsStore((s) => s.updateBackup);
 
   const backups: readonly BackupEntry[] = backupsQuery.data ?? [];
 
@@ -61,6 +69,22 @@ export function BackupBlock(): ReactElement {
         </Button>
       </div>
       <p className="text-muted-foreground text-xs font-sans">{t('settings.backupHint')}</p>
+      <ToggleRow
+        name={t('settings.backupAutoLabel')}
+        description={t('settings.backupAutoDesc')}
+        checked={backup.autoBackup}
+        onChange={(checked) => updateBackup({ autoBackup: checked })}
+      />
+      <SettingRow label={t('settings.backupKeepLabel')} description={t('settings.backupKeepDesc')}>
+        <SegControl
+          value={String(backup.keep)}
+          options={BACKUP_KEEP_OPTIONS.map((count) => ({
+            value: String(count),
+            label: t('settings.backupKeepOption', { count }),
+          }))}
+          onChange={(value) => updateBackup({ keep: Number(value) as BackupKeep })}
+        />
+      </SettingRow>
 
       {backups.length === 0 ? (
         <p className="text-muted-foreground/70 text-xs font-sans">{t('settings.backupEmpty')}</p>

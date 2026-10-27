@@ -114,7 +114,7 @@ interface ReplacementFile {
 /**
  * 删除示例后需要回落为通用行为的位置
  *
- * 这些位置不能整行删：深链必须继续有目标（关于页占位），测试也必须继续有断言。
+ * 这些位置不能整行删：深链必须继续有目标（首页占位），测试也必须继续有断言。
  */
 const REPLACEMENT_FILES: readonly ReplacementFile[] = [
   {
@@ -124,13 +124,13 @@ const REPLACEMENT_FILES: readonly ReplacementFile[] = [
         ' * 收到协议唤起时导航到目标页面。示例切片把 payload.targetId 解析为笔记 id，\n' +
           ' * 直接打开 `/notes/<id>`（目标不存在时页面显示「笔记不存在」）。\n',
         ' * 收到协议唤起时导航到目标页面。模板版只演示「如何消费深链 payload」：\n' +
-          ' * payload.targetId 非空时跳转到关于页作为占位（目标实体不存在时留驻当前页）。\n',
+          ' * payload.targetId 非空时返回首页作为占位（目标实体不存在时留驻当前页）。\n',
       ],
       [
         '      // 深链示例：targetId 视作笔记 id，打开参考切片的详情页\n' +
           '      navigate(ROUTES.note(payload.targetId));',
-        '      // 深链示例：targetId 视作目标实体 id，模板内跳转到关于页作为占位\n' +
-          '      navigate(ROUTES.about);',
+        '      // 深链示例：targetId 视作目标实体 id，模板内返回首页作为占位\n' +
+          '      navigate(ROUTES.home);',
       ],
     ],
   },
@@ -139,11 +139,11 @@ const REPLACEMENT_FILES: readonly ReplacementFile[] = [
     pairs: [
       [
         "expect(router.state.location.pathname).toBe('/notes/abc');",
-        "expect(router.state.location.pathname).toBe('/about');",
+        "expect(router.state.location.pathname).toBe('/');",
       ],
       [
         "await waitFor(() => expect(router.state.location.pathname).toBe('/notes/cold'));",
-        "await waitFor(() => expect(router.state.location.pathname).toBe('/about'));",
+        "await waitFor(() => expect(router.state.location.pathname).toBe('/'));",
       ],
     ],
   },
@@ -152,7 +152,7 @@ const REPLACEMENT_FILES: readonly ReplacementFile[] = [
     pairs: [
       [
         'await expect(page).toHaveURL(/#\\/notes\\/e2e-deep-link$/, { timeout: 15_000 });',
-        'await expect(page).toHaveURL(/#\\/about$/, { timeout: 15_000 });',
+        'await expect(page).toHaveURL(/#\\/$/, { timeout: 15_000 });',
       ],
       ["\n    await expect(page.getByText('笔记不存在')).toBeVisible();", ''],
     ],
@@ -161,9 +161,10 @@ const REPLACEMENT_FILES: readonly ReplacementFile[] = [
     file: 'src/renderer/components/layout/Sidebar.tsx',
     pairs: [
       [
-        "import { Info, NotebookPen, Settings2 } from 'lucide-react';",
-        "import { Info, Settings2 } from 'lucide-react';",
+        "import { NotebookPen, Settings2 } from 'lucide-react';",
+        "import { Settings2 } from 'lucide-react';",
       ],
+      ["import { ROUTES } from '@/lib/constants';", ''],
     ],
   },
   {

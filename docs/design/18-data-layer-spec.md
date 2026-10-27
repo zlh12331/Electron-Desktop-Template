@@ -73,7 +73,7 @@ applyPendingRestore（pending → 临时文件 → 原子 rename 主库；失败
 → 调度启动备份（异步、串行化）
 ```
 
-- 备份保留 3 份轮转（`BACKUP_KEEP`）；启动备份异步执行，不阻塞窗口。
+- 备份轮转保留份数由 `settings.backup.keep` 配置（3/5/10，默认 3）；启动自动备份由 `settings.backup.autoBackup` 控制（默认开）。启动备份异步执行，不阻塞窗口。
 - 手动备份（`backup:create`）会先排干挂起备份再执行，防并发。
 - 恢复（`backup:restore`）为「暂存 + 重启生效」，不热替换打开的库。
 

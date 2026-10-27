@@ -1,15 +1,20 @@
 import { PRODUCT_NAME } from '@code-agent/shared/renderer';
-import { Clipboard, Loader2, Rocket } from 'lucide-react';
+import { Check, Clipboard, Rocket } from 'lucide-react';
 import { type ReactElement, type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 
+import { AsyncBoundary } from '@/components/common/AsyncBoundary';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useAppInfo } from '@/hooks/use-app-info';
+import { useAsyncView } from '@/hooks/use-async-view';
+import { useCopy } from '@/hooks/use-copy';
 import { useInstallUpdate } from '@/hooks/use-install-update';
+import { useSystemStatusQuery } from '@/hooks/use-system';
 import { useUpdate } from '@/hooks/use-update';
 import { useTranslation } from '@/i18n/use-translation';
 import { reportError } from '@/lib/error-report';
+import { formatBytes } from '@/lib/format-bytes';
 import { formatDateTime } from '@/lib/format-intl';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores/persistent/settings-store';
@@ -78,6 +83,9 @@ export function AboutSection(): ReactElement {
   });
   const [copying, setCopying] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const { copied, copy } = useCopy();
+  const statusQuery = useSystemStatusQuery();
+  const statusView = useAsyncView(statusQuery, { isEmpty: () => false });
   const { state: updateState, check, cancel, lastCheckAt } = useUpdate();
   const installUpdate = useInstallUpdate();
   const autoCheck = useSettingsStore((s) => s.update.autoCheck);
@@ -219,11 +227,11 @@ export function AboutSection(): ReactElement {
               className="text-muted-foreground hover:text-foreground h-auto gap-1 rounded px-0 font-mono"
               aria-label={t('settings.aboutCopy')}
               title={t('settings.aboutCopy')}
-              onClick={() => void copyText(info.commitSha ?? '')}
+              onClick={() => void copy(info.commitSha ?? '')}
             >
               {info.commitSha}
-              {copying ? (
-                <Loader2 className="size-3 animate-spin" strokeWidth={1.5} />
+              {copied ? (
+                <Check className="size-3" strokeWidth={1.5} />
               ) : (
                 <Clipboard className="size-3" strokeWidth={1.5} />
               )}
@@ -258,6 +266,30 @@ export function AboutSection(): ReactElement {
             {info?.userDataPath ?? '…'}
           </span>
         </InfoRow>
+      </Card>
+
+      <SectionTitle>{t('settings.aboutLiveStatus')}</SectionTitle>
+      <Card className="flex flex-col">
+        <AsyncBoundary
+          view={statusView}
+          skeleton={<div className="bg-muted h-12 animate-pulse rounded-md" />}
+          empty={<p className="text-muted-foreground text-xs">{t('settings.aboutNoRuntime')}</p>}
+        >
+          {(status) => (
+            <>
+              <InfoRow label={t('settings.aboutUptime')}>
+                <span className="text-muted-foreground font-mono">
+                  {Math.floor(status.uptimeSeconds)}s
+                </span>
+              </InfoRow>
+              <InfoRow label={t('settings.aboutMemory')}>
+                <span className="text-muted-foreground font-mono">
+                  {formatBytes(status.memory.rss)}
+                </span>
+              </InfoRow>
+            </>
+          )}
+        </AsyncBoundary>
       </Card>
 
       <SectionTitle>{t('settings.aboutDiagnosticsTitle')}</SectionTitle>

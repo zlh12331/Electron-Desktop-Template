@@ -22,7 +22,7 @@ function assertVisibleKey(key: string): void {
 export const secretsHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContext>['secrets'] =
   {
     isAvailable: async () => {
-      const status = getEncryptionStatus();
+      const status = await getEncryptionStatus();
       return { ...status, platform: process.platform };
     },
 

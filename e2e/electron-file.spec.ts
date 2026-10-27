@@ -1,5 +1,5 @@
-// electron-file.spec.ts：file:// 模式（不走 dev server）的导航 + IPC 回归——
-// 生产构建用 hash router，sender 校验必须允许 hash；否则进入 About 后所有 IPC 失效。
+// electron-file.spec.ts：file:// 模式（不走 dev server）的 hash 路由 + IPC 回归——
+// 生产构建用 hash router，sender 校验必须允许 hash；否则带 hash 的 URL 上所有 IPC 失效。
 // 本用例不依赖 electron-builder 产物，用 electron-vite dev 生成的 out/main 启动，
 // 但显式清空 ELECTRON_RENDERER_URL，让窗口走 loadFile（与打包态同一 URL 形态）。
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -22,7 +22,7 @@ const DEBUG_PORT = '9225';
 
 async function launchFileMode(userData: string): Promise<{ app: ElectronApplication; page: Page }> {
   const app = await electron.launch({
-    args: [APP_ROOT],
+    args: [APP_ROOT, '--lang=zh-CN'],
     env: buildElectronEnv({
       NODE_ENV: 'test',
       // 空串 = 不连 dev server，走 loadFile（src/main/window.ts）
@@ -63,7 +63,7 @@ test.describe('file 模式 hash 路由 IPC', () => {
     }
   });
 
-  test('进入 About 再返回首页，IPC 仍可用', async () => {
+  test('file 模式设置 hash 后 IPC 仍可用', async () => {
     const userData = mkdtempSync(join(tmpdir(), 'electron-file-'));
     try {
       const launched = await launchFileMode(userData);
@@ -73,17 +73,9 @@ test.describe('file 模式 hash 路由 IPC', () => {
       await expect.poll(() => page.url()).not.toContain('#/');
       await expect.poll(async () => (await callAppInfo(page)) !== null).toBe(true);
 
-      await page
-        .getByRole('button', { name: /查看说明|Read more/i })
-        .first()
-        .click();
-      await expect.poll(() => new URL(page.url()).hash).toBe('#/about');
-      await expect.poll(async () => (await callAppInfo(page)) !== null).toBe(true);
-
-      await page
-        .getByRole('button', { name: /返回|Back/i })
-        .first()
-        .click();
+      await page.evaluate(() => {
+        window.location.hash = '#/';
+      });
       await expect.poll(() => new URL(page.url()).hash).toBe('#/');
       await expect.poll(async () => (await callAppInfo(page)) !== null).toBe(true);
     } finally {

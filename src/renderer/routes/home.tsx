@@ -1,12 +1,10 @@
 import { PRODUCT_NAME } from '@code-agent/shared/renderer';
-import { ArrowRight, Layers, Package, Settings2 } from 'lucide-react';
+import { Layers, Package, Settings2 } from 'lucide-react';
 import type { ReactElement } from 'react';
-import { useNavigate } from 'react-router';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useTranslation } from '@/i18n/use-translation';
-import { ROUTES } from '@/lib/constants';
 import { useUiStore } from '@/stores/transient/ui-store';
 
 /** 能力卡片（模板自述：告诉使用者这套底座开箱可用什么） */
@@ -35,7 +33,6 @@ const CAPABILITIES: readonly Capability[] = [
  */
 export function HomePage(): ReactElement {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const openSettings = useUiStore((s) => s.openSettings);
 
   return (
@@ -61,14 +58,10 @@ export function HomePage(): ReactElement {
           ))}
         </div>
 
-        <div className="mt-8 flex justify-center gap-2">
+        <div className="mt-8 flex justify-center">
           <Button variant="outline" size="sm" onClick={() => openSettings()}>
             <Settings2 className="size-3.5" />
             {t('welcome.action.settings')}
-          </Button>
-          <Button size="sm" onClick={() => navigate(ROUTES.about)}>
-            {t('welcome.action.about')}
-            <ArrowRight className="size-3.5" />
           </Button>
         </div>
       </div>

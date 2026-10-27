@@ -10,7 +10,11 @@ Object.defineProperty(window, 'api', {
 import { applySettingsSnapshot, flushPendingSettings, useSettingsStore } from './settings-store';
 
 /** store 的初始默认值（DEFAULT_SETTINGS 为模块私有；此处按已知默认态复位） */
-const DEFAULTS = { theme: 'dark', language: 'zh-CN', closeAction: 'minimize' } as const;
+const DEFAULTS = {
+  theme: 'system',
+  language: 'system',
+  closeAction: 'minimize',
+} as const;
 
 describe('settings-store.applyMainSettingChange', () => {
   beforeEach(() => {
@@ -23,7 +27,9 @@ describe('settings-store.applyMainSettingChange', () => {
     useSettingsStore.setState({
       theme: DEFAULTS.theme,
       language: DEFAULTS.language,
-      window: { closeAction: DEFAULTS.closeAction },
+      window: {
+        closeAction: DEFAULTS.closeAction,
+      },
     });
   });
 
@@ -47,16 +53,14 @@ describe('settings-store.applyMainSettingChange', () => {
     expect(useSettingsStore.getState().window.closeAction).toBe('quit');
   });
 
-  it('window 域的部分字段：与既有字段合并而非替换', () => {
-    useSettingsStore.setState({
-      window: { closeAction: 'minimize', ...{ futureField: 'x' } } as never,
-    });
+  it('window 域只接受 closeAction：未知字段不进入 state', () => {
+    useSettingsStore.setState({ window: { closeAction: 'minimize' } });
 
-    useSettingsStore.getState().applyMainSettingChange('window', { closeAction: 'quit' });
+    useSettingsStore
+      .getState()
+      .applyMainSettingChange('window', { closeAction: 'quit', futureField: 'x' });
 
-    const win = useSettingsStore.getState().window as unknown as Record<string, unknown>;
-    expect(win['closeAction']).toBe('quit');
-    expect(win['futureField']).toBe('x');
+    expect(useSettingsStore.getState().window).toEqual({ closeAction: 'quit' });
   });
 
   it('非对象值被忽略（不让主进程的异常 payload 污染 state）', () => {
@@ -274,5 +278,53 @@ describe('settings-store.appearance 域（35 号界面缩放）', () => {
     expect(useSettingsStore.getState().appearance).toEqual({ zoom: 1.5 });
     const calls = setSpy.mock.calls as unknown as { key: string }[][];
     expect(calls.filter((c) => c[0]?.key === 'appearance')).toHaveLength(0);
+  });
+});
+
+describe('settings-store 新增设置域', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'api', {
+      value: { settings: { set: setSpy } },
+      writable: true,
+      configurable: true,
+    });
+    setSpy.mockReset();
+    setSpy.mockResolvedValue({ data: { ok: true } });
+    applySettingsSnapshot({});
+  });
+
+  it('快照缺 logging/backup → 回落默认（详细日志关 / 自动备份开 + 保留 3 份）', () => {
+    expect(useSettingsStore.getState().logging).toEqual({ verbose: false });
+    expect(useSettingsStore.getState().backup).toEqual({ autoBackup: true, keep: 3 });
+  });
+
+  it('快照部分字段与默认合并，非法 keep 不进入状态', () => {
+    applySettingsSnapshot({ logging: { verbose: true }, backup: { keep: 5 } });
+    expect(useSettingsStore.getState().logging).toEqual({ verbose: true });
+    expect(useSettingsStore.getState().backup).toEqual({ autoBackup: true, keep: 5 });
+  });
+
+  it('updateLogging/updateBackup：部分合并并以对应键写穿透', () => {
+    useSettingsStore.getState().updateLogging({ verbose: true });
+    useSettingsStore.getState().updateBackup({ keep: 10 });
+    const calls = setSpy.mock.calls as unknown as { key: string }[][];
+    const writes = calls.map((c) => c[0]);
+    expect(writes).toContainEqual({ key: 'logging', value: { verbose: true } });
+    expect(writes).toContainEqual({ key: 'backup', value: { autoBackup: true, keep: 10 } });
+  });
+
+  it('update 域：autoCheck 与既有字段合并', () => {
+    useSettingsStore.getState().setUpdate({ autoCheck: false });
+    expect(useSettingsStore.getState().update).toMatchObject({
+      autoCheck: false,
+      allowPrerelease: false,
+    });
+  });
+
+  it('language=system 是合法快照值，主进程导入广播可按域合并', () => {
+    applySettingsSnapshot({ language: 'system' });
+    expect(useSettingsStore.getState().language).toBe('system');
+    useSettingsStore.getState().applyMainSettingChange('language', 'en');
+    expect(useSettingsStore.getState().language).toBe('en');
   });
 });

@@ -14,6 +14,8 @@ const VALID_VALUES: Record<(typeof SETTING_KEYS)[number], unknown> = {
   notification: { enabled: false },
   proxy: { mode: 'fixed', url: 'http://127.0.0.1:7890', bypass: ['corp.example'] },
   appearance: { zoom: 1.25 },
+  logging: { verbose: true },
+  backup: { autoBackup: false, keep: 5 },
 };
 
 describe('SETTING_VALUE_SCHEMAS', () => {
@@ -46,6 +48,9 @@ describe('SettingsSetReqSchema', () => {
       { key: 'proxy', value: { mode: 'auto' } },
       { key: 'proxy', value: { mode: 'fixed', url: 'ftp://127.0.0.1' } },
       { key: 'appearance', value: { zoom: 0.93 } },
+      { key: 'language', value: 'fr-FR' },
+      { key: 'logging', value: { verbose: 1 } },
+      { key: 'backup', value: { keep: 4 } },
     ];
     for (const input of cases) {
       const result = SettingsSetReqSchema.safeParse(input);

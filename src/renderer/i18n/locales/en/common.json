@@ -31,8 +31,7 @@
     "protocolMismatch": "App version mismatch",
     "protocolMismatchDesc": "Main process and UI protocol versions differ. Please restart the app",
     "confirm": "Confirm",
-    "copyFailed": "Copy failed: clipboard unavailable",
-    "back": "Back"
+    "copyFailed": "Copy failed: clipboard unavailable"
   },
   "topbar": {
     "expandSidebar": "Expand sidebar",
@@ -78,14 +77,12 @@
     "navigate": "Navigate",
     "select": "Select",
     "commandPaletteShortcut": "Open command palette",
-    "openAbout": "About this template",
-    "sectionNavigation": "Navigation",
     "themeToLight": "Switch to light theme",
     "themeToDark": "Switch to dark theme"
   },
   "settings": {
     "title": "Settings",
-    "desc": "Configure language, window behavior, notifications, data, network and updates.",
+    "desc": "Configure language, appearance, window behavior, notifications, data, network, logging and updates.",
     "telemetry": "Telemetry (OpenTelemetry)",
     "telemetryHint": "Controls error reporting (Sentry, requires a DSN) and trace/metric/log export (OpenTelemetry, requires an OTLP endpoint). Both are disabled by default. Restart the app to apply changes.",
     "telOff": "Off",
@@ -166,6 +163,26 @@
     "zoomLabel": "Zoom level",
     "zoomDesc": "Scale the entire interface (shortcuts: Ctrl+= / Ctrl+- / Ctrl+0)",
     "zoomPercent": "{{percent}}%",
+    "themeTitle": "Color theme",
+    "themeDesc": "Choose a fixed theme or follow the system setting",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System",
+    "storageTitle": "Storage",
+    "migrationTitle": "Settings migration",
+    "dangerZoneTitle": "Danger zone",
+    "loggingTitle": "Logs",
+    "loggingHint": "Open the log directory or enable verbose logging for support.",
+    "loggingOpenDir": "Open log directory",
+    "loggingDirOpened": "Log directory opened",
+    "loggingDirOpenFailed": "Failed to open log directory",
+    "loggingVerboseLabel": "Verbose logging",
+    "loggingVerboseDesc": "Write debug-level details to the log file; applies immediately",
+    "backupAutoLabel": "Automatic startup backup",
+    "backupAutoDesc": "Create a backup on every launch",
+    "backupKeepLabel": "Backups to keep",
+    "backupKeepDesc": "Older backups beyond this count are rotated out",
+    "backupKeepOption": "{{count}} backups",
     "updateCacheUsage": "Update cache: {{size}} ({{count}} files)",
     "clearUpdateCache": "Clear update cache",
     "clearUpdateCacheConfirm": "This removes the differential-update baseline, so the next update will download in full. Continue?",
@@ -174,7 +191,7 @@
     "exportSuccess": "Exported to {{path}}",
     "exportFailed": "Failed to export sessions",
     "backupTitle": "Startup backups",
-    "backupHint": "A backup is created automatically on every launch (the latest 3 are kept). Restoring requires an app restart and loses unsaved changes",
+    "backupHint": "Startup backups follow the policy below. Restoring requires an app restart and loses unsaved changes",
     "backupCreate": "Back up now",
     "backupCreated": "Backup created",
     "backupEmpty": "No backups yet (one will be created on next launch)",
@@ -182,7 +199,7 @@
     "backupCorrupt": "Corrupted",
     "backupRestore": "Restore",
     "backupRestoreConfirm": "This replaces current data with the backup from {{time}} and restarts the app. Later data will be lost. Restore?",
-    "settingsDataHint": "Settings (theme / language / shortcuts / window behavior / proxy / zoom) can be exported for backup or migration. Credentials live in the OS keychain, are machine-bound, and are excluded from the export.",
+    "settingsDataHint": "Settings (theme / language / shortcuts / window behavior / proxy / zoom / logging / backup policy) can be exported for backup or migration. Credentials live in the OS keychain, are machine-bound, and are excluded from the export.",
     "exportSettings": "Export settings",
     "importSettings": "Import settings",
     "importSettingsConfirm": "Importing overwrites current settings that share a key with the file. Continue?",
@@ -190,25 +207,25 @@
     "exportSettingsFailed": "Failed to export settings",
     "importSettingsFailed": "Failed to import settings",
     "resetAllSettings": "Reset all settings",
-    "resetAllSettingsConfirm": "This deletes all settings and restores defaults: theme, language, shortcuts, window behavior, notifications, proxy, zoom, and auto-update. Saved proxy credentials are also cleared; other credentials, database backups, and launch-at-login are unaffected. This cannot be undone; export your settings first if you want to keep them.",
+    "resetAllSettingsConfirm": "This deletes all settings and restores defaults: theme, language, shortcuts, window behavior, notifications, proxy, zoom, logging, backup policy, and updates. Saved proxy credentials are also cleared; other credentials, database backups, and launch-at-login are unaffected. This cannot be undone; export your settings first if you want to keep them.",
     "resetAllSettingsDone": "All settings have been reset to defaults",
     "resetAllSettingsFailed": "Failed to reset settings",
     "dataDirOpened": "Data directory opened",
-    "group": {
-      "general": "General",
-      "about": "About",
-      "advanced": "Advanced"
-    },
     "nav": {
       "about": "About",
       "general": "General",
       "proxy": "Network Proxy",
       "shortcuts": "Shortcuts",
-      "appearance": "Appearance & zoom",
+      "appearance": "Appearance",
       "notification": "Notifications",
       "data": "Data",
-      "secrets": "Credentials"
+      "beta": "Beta"
     },
+    "betaTitle": "Beta experiments",
+    "betaHint": "Experimental features roll out gradually and may behave differently from stable.",
+    "betaExperimentsTitle": "Experimental features",
+    "betaExperimentsEmpty": "No experimental features are available in this version.",
+    "betaRisk": "Experimental features may be unstable; export settings and back up data before enabling them.",
     "shortcuts": {
       "title": "Shortcuts",
       "hint": "Supports Ctrl/Alt/Shift/Cmd combined with a main key. Changes take effect immediately; entries conflicting with other custom or fixed shortcuts are rejected with a toast.",
@@ -219,6 +236,10 @@
     "shortcutPressKeys": "Press keys…",
     "aboutTagline": "An out-of-the-box Electron desktop app skeleton",
     "aboutRuntime": "Runtime versions",
+    "aboutLiveStatus": "Runtime status",
+    "aboutNoRuntime": "No runtime status available",
+    "aboutUptime": "Uptime",
+    "aboutMemory": "Memory",
     "aboutPlatform": "Platform",
     "aboutUserData": "User data",
     "aboutOpenDataDir": "Open data directory",
@@ -233,8 +254,8 @@
     "aboutChecking": "Checking…",
     "aboutCancelled": "Download cancelled",
     "aboutUpdatesTitle": "Updates",
-    "aboutAutoCheck": "Check for updates automatically",
-    "aboutAutoCheckDesc": "Checks on every launch, downloads new versions in the background, and installs them when you quit",
+    "aboutAutoCheck": "Automatically check for and download updates",
+    "aboutAutoCheckDesc": "Check for and download new versions on every launch; install them when you quit",
     "aboutAllowPrerelease": "Receive prerelease updates",
     "aboutAllowPrereleaseDesc": "Get notified about beta releases (stable releases only by default)",
     "aboutSkipped": "Skipped v{{version}}",
@@ -254,10 +275,12 @@
     "aboutLegalTitle": "License & acknowledgements",
     "aboutLicenseValue": "Apache-2.0 License",
     "aboutThanks": "Built with Electron, React, Radix UI, Tailwind CSS, Motion and other open-source projects",
+    "back": "Back",
     "language": "Language",
+    "languageDesc": "Choose the interface language or follow the system language",
+    "languageSystem": "System",
     "generalTitle": "General",
     "telemetryTitle": "Telemetry & Privacy",
-    "back": "Back",
     "autostartApprovalDesc": "Registered, but you must allow it in System Settings → Login Items before it takes effect",
     "autostartUnsupportedDesc": "Available in installed builds only (not in development mode)",
     "secretsTitle": "Credentials",
@@ -333,17 +356,8 @@
     "ariaLabel": "Sidebar navigation",
     "nav": {
       "notes": "Notes",
-      "about": "About",
       "settings": "Settings"
     }
-  },
-  "about": {
-    "title": "About this template",
-    "body": "{{product}} is an Electron + React + TypeScript desktop app template: the IPC definition table, settings persistence, three-platform packaging and auto-update are ready. Replace the pages here with your own product to get started.",
-    "runtime": "Runtime",
-    "noRuntime": "No runtime information available",
-    "copyDiagnostics": "Copy diagnostics",
-    "copied": "Copied"
   },
   "welcome": {
     "eyebrow": "DESKTOP TEMPLATE",
@@ -363,8 +377,7 @@
       }
     },
     "action": {
-      "settings": "Open settings",
-      "about": "Read more"
+      "settings": "Open settings"
     }
   }
 }

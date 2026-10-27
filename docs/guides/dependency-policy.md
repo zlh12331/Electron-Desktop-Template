@@ -10,7 +10,7 @@
 | ------------------------ | ---------------------------------------------------------- | -------------------------------- |
 | Node.js                  | **26 LTS**（当前 `.nvmrc` 26.12.1；`engines.node >=26`）   | `package.json` / `.nvmrc` / CI   |
 | pnpm                     | 12.x（`packageManager` 固定 12.15.0；`engines.pnpm >=12`） | `package.json`                   |
-| Electron                 | 44.x（当前 44.9.3；major 人工评审）                        | `package.json` / `renovate.json` |
+| Electron                 | 45.x（当前 45.0.0；major 人工评审）                        | `package.json` / `renovate.json` |
 | TypeScript               | 根工程 7.x；`tools/*` 工具子包固定 6.x                     | `package.json` / `tools/*`       |
 | Vite / electron-vite     | Vite 8.x / electron-vite 6.0.0 稳定版                      | `package.json`                   |
 | React / Router / i18next | React 19.x / React Router 8.x / i18next 26.x               | `package.json`                   |
@@ -75,6 +75,7 @@ electron-vite 曾使用 beta.1，2026-10-24 已收敛到 6.0.0 稳定版；后�
 ## 7. 原生模块、preload 与渲染层预算
 
 - **Electron patch/minor**：升级后必须重编 better-sqlite3 等原生模块，并跑 `pnpm check:native-arch` + `pnpm test:smoke`。
+- **Electron 45 边界**：sandboxed preload 不再提供 Node `Buffer` / `events` / `timers` / `url`；`safeStorage` 同步方法弃用，凭据统一走 `encryptStringAsync` / `decryptStringAsync`。
 - **preload**：保持 CJS、零第三方运行时依赖；需要共享类型时走 `@code-agent/shared/preload` 等零依赖子路径。
 - **renderer**：新增依赖前评估 bundle 增量；单依赖超过 150KB（gzip）需在 PR 论证，并保持 `pnpm check:bundle` 通过。
 - **Node 内置能力优先**：能用 `node:fs` / `node:crypto` / `fetch` 解决的不新增全家桶。

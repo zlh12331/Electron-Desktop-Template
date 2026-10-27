@@ -37,7 +37,11 @@ describe('UpdateNotice', () => {
     mockState.value = null;
     mockFromSnapshot.value = false;
     useSettingsStore.setState({
-      update: { autoCheck: true, allowPrerelease: false, skippedVersion: null },
+      update: {
+        autoCheck: true,
+        allowPrerelease: false,
+        skippedVersion: null,
+      },
     });
   });
 
@@ -119,7 +123,11 @@ describe('UpdateNotice', () => {
 
   it('已跳过该版本（settings.update.skippedVersion）：不弹任何 toast', () => {
     useSettingsStore.setState({
-      update: { autoCheck: true, allowPrerelease: false, skippedVersion: '1.2.3' },
+      update: {
+        autoCheck: true,
+        allowPrerelease: false,
+        skippedVersion: '1.2.3',
+      },
     });
     mockState.value = { phase: 'downloaded', version: '1.2.3' };
     render(<UpdateNotice />);
@@ -129,7 +137,11 @@ describe('UpdateNotice', () => {
 
   it('跳过的是别的版本：仍正常提示当前版本', () => {
     useSettingsStore.setState({
-      update: { autoCheck: true, allowPrerelease: false, skippedVersion: '1.0.0' },
+      update: {
+        autoCheck: true,
+        allowPrerelease: false,
+        skippedVersion: '1.0.0',
+      },
     });
     mockState.value = { phase: 'downloaded', version: '1.2.3' };
     render(<UpdateNotice />);

@@ -14,8 +14,14 @@ type Translate = ReturnType<typeof useTranslation>['t'];
  * checking/downloading/cancelled 静默：进度高频推送（展示在关于面板与顶栏指示）；
  * 取消由关于面板就地提示。
  */
-function notifyPhase(payload: UpdateStatusPayload, install: () => void, t: Translate): void {
+interface NotifyContext {
+  readonly install: () => void;
+  readonly t: Translate;
+}
+
+function notifyPhase(payload: UpdateStatusPayload, context: NotifyContext): void {
   const { phase, version, message } = payload;
+  const { install, t } = context;
   switch (phase) {
     case 'available':
       toast.info(t('update.noticeAvailable'), {
@@ -73,7 +79,7 @@ export function UpdateNotice(): ReactElement | null {
     if (version !== undefined && version === skippedVersion) {
       return;
     }
-    notifyPhase(state, install, t);
+    notifyPhase(state, { install, t });
   }, [state, fromSnapshot, install, skippedVersion, t]);
 
   return null;

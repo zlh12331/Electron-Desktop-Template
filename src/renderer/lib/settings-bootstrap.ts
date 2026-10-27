@@ -83,7 +83,7 @@ export async function bootstrapSettings(): Promise<{
   if (legacy?.state !== undefined) {
     const migrated = migrateShortcuts(legacy.state);
     return {
-      theme: (migrated['theme'] as Theme | undefined) ?? 'dark',
+      theme: (migrated['theme'] as Theme | undefined) ?? DEFAULT_THEME,
       snapshot: migrated,
     };
   }

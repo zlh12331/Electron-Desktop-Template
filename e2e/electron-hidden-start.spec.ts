@@ -48,7 +48,7 @@ async function launchElectron(
   extraArgs: readonly string[],
 ): Promise<{ app: ElectronApplication; page: Page }> {
   const app = await electron.launch({
-    args: [MAIN_ENTRY, ...extraArgs],
+    args: [MAIN_ENTRY, '--lang=zh-CN', ...extraArgs],
     env: buildElectronEnv({
       NODE_ENV: 'development',
       ELECTRON_RENDERER_URL: 'http://localhost:5173',
@@ -88,7 +88,10 @@ async function launchElectron(
  */
 async function isWindowVisible(app: ElectronApplication): Promise<boolean> {
   return await app.evaluate(({ BrowserWindow }) => {
-    const win = BrowserWindow.getAllWindows()[0];
+    // Electron 45 起 getAllWindows 可能先返回 DevTools；按 URL 过滤主窗口
+    const win = BrowserWindow.getAllWindows().find(
+      (candidate) => !candidate.webContents.getURL().startsWith('devtools://'),
+    );
     return win?.isVisible() === true;
   });
 }
@@ -184,7 +187,9 @@ test.describe('开机自启静默启动（--hidden 消费端）', () => {
       return;
     }
     const maximized = await app.evaluate(({ BrowserWindow }) => {
-      const win = BrowserWindow.getAllWindows()[0];
+      const win = BrowserWindow.getAllWindows().find(
+        (candidate) => !candidate.webContents.getURL().startsWith('devtools://'),
+      );
       return win?.isMaximized() === true;
     });
     expect(maximized).toBe(true);

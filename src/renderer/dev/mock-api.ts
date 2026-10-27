@@ -14,12 +14,22 @@ import { ipcErr, ipcOk } from '@/lib/ipc-factories';
 
 /** 浏览器模式下内存态的假设置（不落库，刷新即重置） */
 const memorySettings = new Map<string, unknown>([
-  ['theme', 'dark'],
-  ['language', 'zh-CN'],
+  ['theme', 'system'],
+  ['language', 'system'],
+  [
+    'update',
+    {
+      autoCheck: true,
+      allowPrerelease: false,
+      skippedVersion: null,
+    },
+  ],
   ['window', { closeAction: 'minimize' }],
   ['notification', { enabled: true }],
   ['proxy', { mode: 'system' }],
   ['appearance', { zoom: 1 }],
+  ['logging', { verbose: false }],
+  ['backup', { autoBackup: true, keep: 3 }],
 ]);
 
 /** 假备份列表 */
@@ -155,6 +165,7 @@ export function createMockApi(): IpcApi {
         }),
       openExternal: async () => ipcOk({ ok: true }),
       openDataDir: async () => ipcOk({ ok: true }),
+      openLogsDir: async () => ipcOk({ ok: true }),
       exportDiagnostics: async () => ipcOk({ saved: false }),
       getLoginItemSettings: async () =>
         ipcOk({ openAtLogin: false, supported: false, requiresApproval: false }),

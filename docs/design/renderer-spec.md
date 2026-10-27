@@ -23,7 +23,7 @@
 ## 3. 路由页面（`routes/`）
 
 - `home.tsx`：欢迎页——模板的落地页，接入方第一个替换的对象。
-- `about.tsx`：示例业务路由，演示「新增页面要改哪三处」。
+- `notes.tsx`：Local Notes 示例业务路由，演示「新增页面要改哪三处」。
 
 新增页面：`lib/constants.ts` 加常量 → `router.tsx` 加 children（lazy）→ 新建 `routes/<page>.tsx`。
 

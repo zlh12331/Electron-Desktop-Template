@@ -5,6 +5,7 @@
 
 export * from './constants/brand';
 export * from './constants/errors';
+export * from './constants/language';
 export * from './constants/protocol';
 export * from './constants/settings-defaults';
 // IPC 契约：定义表体系——meta（纯字符串，preload 侧可安全引入）→ definitions（meta + zod）→ derive（类型推导），

@@ -23,7 +23,7 @@ function storeTheme(theme: 'light' | 'dark' | 'system'): void {
 }
 
 describe('readStoredTheme', () => {
-  it('无存储时回退默认主题（dark，与 settings-store 默认一致）', () => {
+  it('无存储时回退默认主题（system，与 settings-store 默认一致）', () => {
     expect(readStoredTheme(window.localStorage)).toBe(DEFAULT_THEME);
   });
 
@@ -62,9 +62,9 @@ describe('applyInitialTheme', () => {
     mockSystemDark(false);
   });
 
-  it('无存储 → 应用默认暗色', () => {
+  it('无存储 → 应用默认主题（system，当前系统亮色）', () => {
     applyInitialTheme();
-    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 
   it('持久化 light → 不添加 .dark', () => {

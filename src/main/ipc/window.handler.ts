@@ -3,6 +3,7 @@ import { clampZoom, overlayHeightFor } from '@code-agent/shared/main';
 import { BrowserWindow } from 'electron';
 
 import { logger } from '../utils/logger';
+import { getMainWindow } from '../window-show';
 
 /** 依赖注入工厂（无外部依赖） */
 export function createWindowHandlers(): {
@@ -31,8 +32,8 @@ function applyTitleBarOverlayHeight(zoom: number): void {
   if (process.platform !== 'win32') {
     return;
   }
-  const win = BrowserWindow.getAllWindows()[0];
-  if (win === undefined || win.isDestroyed()) {
+  const win = getMainWindow();
+  if (win === null) {
     return;
   }
   try {

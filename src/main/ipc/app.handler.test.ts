@@ -76,6 +76,13 @@ describe('app.handler', () => {
     expect(result).toEqual({ ok: true });
   });
 
+  it('openLogsDir：调用 shell.openPath 打开独立日志目录', async () => {
+    vi.mocked(shell.openPath).mockResolvedValue('');
+    const result = await appHandlers.openLogsDir(undefined, EMPTY_CTX);
+    expect(shell.openPath).toHaveBeenCalledWith('/mock/logs');
+    expect(result).toEqual({ ok: true });
+  });
+
   it('exportDiagnostics（确认保存）：打包到所选路径并返回 saved=true', async () => {
     vi.mocked(dialog.showSaveDialog).mockResolvedValue({
       canceled: false,

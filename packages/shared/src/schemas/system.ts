@@ -55,8 +55,8 @@ export type ReadLogsReq = z.infer<typeof ReadLogsReqSchema>;
  *
  * 数据源：环境类字段取自 Electron app（getVersion / isPackaged）与 process（versions / platform /
  * arch / pid / uptime），memory 与 cpu 为 Node.js process.memoryUsage() / process.cpuUsage() 原生输出。
- * 消费方是关于页运行时区块（src/renderer/hooks/use-system.ts 周期轮询），字段随 Node/Electron
- * 语义走，勿在此换算单位。
+ * 模板保留该 IPC 能力；渲染层可按需接入运行时区块，字段随 Node/Electron 语义走，
+ * 勿在此换算单位。
  * 该方法无入参（定义表 schema 为 null），故本文件没有对应的请求 schema。
  */
 export interface SystemStatusRes {

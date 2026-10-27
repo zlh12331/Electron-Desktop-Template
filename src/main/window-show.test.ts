@@ -48,12 +48,18 @@ vi.mock('./utils/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-import { bringMainWindowToFront, markMaximizeOnNextShow, showMainWindow } from './window-show';
+import {
+  bringMainWindowToFront,
+  markMaximizeOnNextShow,
+  setMainWindow,
+  showMainWindow,
+} from './window-show';
 
 describe('window-show（主窗口唤回唯一实现）', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.windows.length = 0;
+    setMainWindow(null);
   });
 
   describe('showMainWindow', () => {
@@ -62,13 +68,13 @@ describe('window-show（主窗口唤回唯一实现）', () => {
     });
 
     it('窗口已销毁 → 返回 false（不对已销毁对象操作）', () => {
-      mocks.windows.push(mocks.makeWin({ destroyed: true }));
+      setMainWindow(mocks.makeWin({ destroyed: true }) as never);
       expect(showMainWindow()).toBe(false);
     });
 
     it('隐藏窗口（非最小化）→ show + focus，窗口变为可见（P0-2 的核心断言）', () => {
       const win = mocks.makeWin();
-      mocks.windows.push(win);
+      setMainWindow(win as never);
 
       expect(showMainWindow()).toBe(true);
 
@@ -79,7 +85,7 @@ describe('window-show（主窗口唤回唯一实现）', () => {
 
     it('最小化窗口 → restore 在 show 之前', () => {
       const win = mocks.makeWin({ minimized: true });
-      mocks.windows.push(win);
+      setMainWindow(win as never);
 
       showMainWindow();
 
@@ -88,7 +94,7 @@ describe('window-show（主窗口唤回唯一实现）', () => {
 
     it('未调用 markMaximizeOnNextShow 时不 maximize（普通唤回不改变窗口尺寸）', () => {
       const win = mocks.makeWin();
-      mocks.windows.push(win);
+      setMainWindow(win as never);
 
       showMainWindow();
 
@@ -99,7 +105,7 @@ describe('window-show（主窗口唤回唯一实现）', () => {
   describe('markMaximizeOnNextShow（P0-1 的配套：静默启动时延迟最大化）', () => {
     it('标记后首次唤回执行 maximize（随后仍 show，作跨平台兜底）', () => {
       const win = mocks.makeWin();
-      mocks.windows.push(win);
+      setMainWindow(win as never);
       markMaximizeOnNextShow();
 
       showMainWindow();
@@ -110,7 +116,7 @@ describe('window-show（主窗口唤回唯一实现）', () => {
 
     it('pending 标志只生效一次：第二次唤回不再 maximize', () => {
       const win = mocks.makeWin();
-      mocks.windows.push(win);
+      setMainWindow(win as never);
       markMaximizeOnNextShow();
 
       showMainWindow();
@@ -125,7 +131,7 @@ describe('window-show（主窗口唤回唯一实现）', () => {
       expect(showMainWindow()).toBe(false);
 
       const win = mocks.makeWin();
-      mocks.windows.push(win);
+      setMainWindow(win as never);
       showMainWindow();
 
       expect(win.calls).toContain('maximize');
@@ -135,7 +141,7 @@ describe('window-show（主窗口唤回唯一实现）', () => {
   describe('bringMainWindowToFront（Dock / 二次启动 / 托盘共用）', () => {
     it('有窗口 → 唤回，不调用 create', () => {
       const win = mocks.makeWin();
-      mocks.windows.push(win);
+      setMainWindow(win as never);
       const create = vi.fn();
 
       bringMainWindowToFront(create);

@@ -1,9 +1,14 @@
 import type { LoginItemSettingsRes } from '@code-agent/shared/renderer';
-import { Check, Languages } from 'lucide-react';
 import { type ReactElement, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { changeLanguage, SUPPORTED_LANGUAGES, type SupportedLanguage } from '@/i18n/config';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { SUPPORTED_LANGUAGES } from '@/i18n/config';
 import { useTranslation } from '@/i18n/use-translation';
 import { LANGUAGE_ENDONYMS } from '@/lib/language-endonyms';
 import {
@@ -11,49 +16,38 @@ import {
   setLoginItemSettings,
   subscribeLoginItemChanged,
 } from '@/lib/settings-ops';
-import { cn } from '@/lib/utils';
-import { type AppLanguage, useSettingsStore } from '@/stores/persistent/settings-store';
+import type { AppLanguage } from '@/stores/persistent/settings-store';
+import { useSettingsStore } from '@/stores/persistent/settings-store';
 import { SegControl, SettingRow, ToggleRow } from '../settings-controls';
 import { TelemetrySection } from './telemetry-section';
 
-/** 语言切换行（真实 i18n：changeLanguage 立即生效；P2：同步写入 SQLite 设置链路） */
+/** 语言切换行（真实 i18n：设置值 system 在 store 内解析为当前 OS 语言） */
 function LanguageRow(): ReactElement {
-  const { t, i18n } = useTranslation();
-  const currentLang = i18n.language?.startsWith('en') ? 'en' : 'zh-CN';
-  const [lang, setLang] = useState<string>(currentLang);
-
-  const handleSelect = (next: string): void => {
-    setLang(next);
-    void changeLanguage(next as SupportedLanguage);
-    useSettingsStore.getState().setLanguage(next as AppLanguage);
-  };
+  const { t } = useTranslation();
+  const language = useSettingsStore((s) => s.language);
+  const setLanguage = useSettingsStore((s) => s.setLanguage);
 
   return (
-    <div className="flex items-center justify-between gap-2">
-      <div className="flex items-center gap-2">
-        <Languages className="text-muted-foreground size-3.5" strokeWidth={1.5} />
-        <span className="text-foreground text-sm">{t('settings.language')}</span>
-      </div>
-      <div className="flex items-center gap-1">
-        {SUPPORTED_LANGUAGES.map((code) => (
-          <Button
-            key={code}
-            variant="ghost"
-            size="sm"
-            className={cn(
-              'h-auto gap-1 rounded px-2 py-1 text-xs',
-              lang === code
-                ? 'bg-muted text-foreground border-border'
-                : 'text-muted-foreground border-transparent',
-            )}
-            onClick={() => handleSelect(code)}
-          >
-            {LANGUAGE_ENDONYMS[code]}
-            {lang === code && <Check className="size-3" strokeWidth={2} />}
-          </Button>
-        ))}
-      </div>
-    </div>
+    <SettingRow label={t('settings.language')} description={t('settings.languageDesc')}>
+      <Select
+        value={language}
+        onValueChange={(value) => {
+          setLanguage(value as AppLanguage);
+        }}
+      >
+        <SelectTrigger className="w-[150px]" aria-label={t('settings.language')}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="system">{t('settings.languageSystem')}</SelectItem>
+          {SUPPORTED_LANGUAGES.map((code) => (
+            <SelectItem key={code} value={code}>
+              {LANGUAGE_ENDONYMS[code]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </SettingRow>
   );
 }
 
@@ -97,7 +91,7 @@ export function GeneralSection(): ReactElement {
     <div className="flex flex-col gap-5 pt-2">
       <div>
         <h3 className="text-foreground text-sm font-semibold">{t('settings.generalTitle')}</h3>
-        <div className="border-border bg-muted/20 mt-2 rounded-md border p-3">
+        <div className="mt-2">
           <LanguageRow />
         </div>
       </div>

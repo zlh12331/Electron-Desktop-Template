@@ -152,7 +152,7 @@ export class UpdateService implements IUpdateService {
     private readonly createCancellationToken: () => CancellationTokenLike,
   ) {}
 
-  /** 启动调度：配 logger/自动下载关闭（用户显式确认后才下）/预发布开关；dev 或用户关闭时跳过 */
+  /** 启动调度：配 logger/预发布开关；dev 或用户关闭自动更新时跳过 */
   start(options: UpdateStartOptions = {}): void {
     this.started = true;
     const autoCheckEnabled = (
@@ -164,6 +164,7 @@ export class UpdateService implements IUpdateService {
 
     this.updater.logger = createUpdaterLogger();
     this.updater.autoDownload = false;
+    // 自动检查开启 = 完整自动链路（检查→下载→退出安装）；关闭后由用户显式触发
     this.updater.autoInstallOnAppQuit = autoCheckEnabled;
     this.updater.forceDevUpdateConfig = this.devUpdateForced;
 

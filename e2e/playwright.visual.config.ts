@@ -26,6 +26,7 @@ export default defineConfig({
   use: {
     ...devices['Desktop Chrome'],
     baseURL: 'http://localhost:5199',
+    locale: 'zh-CN',
     viewport: { width: 1280, height: 800 },
     launchOptions: { args: ['--font-render-hinting=none'] },
   },

@@ -63,6 +63,12 @@ export const appHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContex
     return { ok: error.length === 0 };
   },
 
+  openLogsDir: async () => {
+    const dir = app.getPath('logs');
+    const error = await shell.openPath(dir);
+    return { ok: error.length === 0 };
+  },
+
   takePendingDeepLink: async () => {
     return { payload: takePendingDeepLink() };
   },

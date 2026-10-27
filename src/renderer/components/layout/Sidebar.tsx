@@ -1,4 +1,5 @@
-import { Info, NotebookPen, Settings2 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { NotebookPen, Settings2 } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
@@ -9,27 +10,23 @@ import { cn } from '@/lib/utils';
 import { useUiStore } from '@/stores/transient/ui-store';
 
 /**
- * 左侧栏：导航骨架
+ * 左侧栏：顶部业务导航 + 底部固定设置入口
  *
  * 导航项由本文件的数据驱动（不是硬编码 JSX），接入业务时把 NAV_ITEMS 换成真实入口即可。
- * 宽度受 --sidebar-w 令牌控制，拖拽逻辑在 AppShell。
+ * 设置固定在左下角，避免与业务导航混排；宽度受 --sidebar-w 令牌控制，拖拽逻辑在 AppShell。
  */
 interface NavItem {
   readonly id: string;
   readonly labelKey: string;
-  readonly icon: typeof Info;
-  /** 目标路由（与 openSettings 二选一） */
-  readonly path?: string;
-  /** 点击打开设置分区 */
-  readonly settingsSection?: 'general';
+  readonly icon: LucideIcon;
+  /** 目标路由 */
+  readonly path: string;
 }
 
 const NAV_ITEMS: readonly NavItem[] = [
   // notes-example:start
   { id: 'notes', labelKey: 'sidebar.nav.notes', icon: NotebookPen, path: ROUTES.notes },
   // notes-example:end
-  { id: 'about', labelKey: 'sidebar.nav.about', icon: Info, path: ROUTES.about },
-  { id: 'settings', labelKey: 'sidebar.nav.settings', icon: Settings2, settingsSection: 'general' },
 ];
 
 /** 左侧导航栏 */
@@ -48,20 +45,13 @@ export function Sidebar(): ReactElement {
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const active =
-            item.path !== undefined &&
-            (location.pathname === item.path || location.pathname.startsWith(`${item.path}/`));
+            location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
           return (
             <Button
               key={item.id}
               variant="ghost"
               size="sm"
-              onClick={() => {
-                if (item.path !== undefined) {
-                  navigate(item.path);
-                } else if (item.settingsSection !== undefined) {
-                  openSettings(item.settingsSection);
-                }
-              }}
+              onClick={() => navigate(item.path)}
               className={cn(
                 'mb-0.5 w-full justify-start gap-2 px-2.5 text-sm font-normal',
                 active && 'bg-muted text-foreground font-medium',
@@ -72,6 +62,18 @@ export function Sidebar(): ReactElement {
             </Button>
           );
         })}
+      </div>
+
+      <div className="border-t p-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => openSettings('general')}
+          className="w-full justify-start gap-2 px-2.5 text-sm font-normal"
+        >
+          <Settings2 className="size-3.5 shrink-0" strokeWidth={1.5} />
+          <span className="truncate">{t('sidebar.nav.settings')}</span>
+        </Button>
       </div>
     </nav>
   );

@@ -3,7 +3,7 @@
 // 边界：schema 真源在 schema.ts，迁移文件由 drizzle-kit 从其派生，本文件不写任何建表 SQL
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { EXECUTABLE_NAME } from '@code-agent/shared/main';
+import { type BackupKeep, EXECUTABLE_NAME } from '@code-agent/shared/main';
 import Database from 'better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
@@ -15,6 +15,7 @@ import { logger } from '../../utils/logger';
 import { recordDbBackup, recordDbRecovery } from '../telemetry/otel-metrics';
 import {
   applyPendingRestore,
+  BACKUP_KEEP,
   backupDirPath,
   cleanupBackupTmpFiles,
   createBackupFile,
@@ -40,11 +41,11 @@ function enqueueBackup<T>(task: () => Promise<T>): Promise<T> {
   return run;
 }
 
-function runBackup(sqlite: Database.Database, dbPath: string): Promise<void> {
+function runBackup(sqlite: Database.Database, dbPath: string, keep: BackupKeep): Promise<void> {
   return enqueueBackup(async () => {
     const startedAt = performance.now();
     try {
-      await createBackupFile(sqlite, dbPath);
+      await createBackupFile(sqlite, dbPath, keep);
       recordDbBackup('success', performance.now() - startedAt);
     } catch (error: unknown) {
       cleanupBackupTmpFiles(dbPath);
@@ -59,7 +60,9 @@ function runBackup(sqlite: Database.Database, dbPath: string): Promise<void> {
 }
 
 /** 手动备份（设置面触发）：与启动备份共用串行链，防并发写坏/互相覆盖 */
-export function createManualBackup(): Promise<{ readonly name: string }> {
+export function createManualBackup(
+  keep: BackupKeep = BACKUP_KEEP,
+): Promise<{ readonly name: string }> {
   return enqueueBackup(async () => {
     if (sqliteInstance === null) {
       throw new Error('数据库未初始化，无法备份');
@@ -67,7 +70,7 @@ export function createManualBackup(): Promise<{ readonly name: string }> {
     const dbPath = getDbPath();
     const startedAt = performance.now();
     try {
-      const name = await createBackupFile(sqliteInstance, dbPath);
+      const name = await createBackupFile(sqliteInstance, dbPath, keep);
       recordDbBackup('success', performance.now() - startedAt);
       return { name };
     } catch (error) {
@@ -77,17 +80,37 @@ export function createManualBackup(): Promise<{ readonly name: string }> {
   });
 }
 
+/** 启动备份策略（由 index.ts 注入读取函数，避免 db.ts ↔ settings-pref 循环依赖） */
+export interface StartupBackupPolicy {
+  readonly autoBackup: boolean;
+  readonly keep: BackupKeep;
+}
+
 // 重建分支跳过启动备份：空库若进备份轮转，会把仅有的健康备份挤掉——保留它们等下次真实数据
 function scheduleStartupBackup(
   sqlite: Database.Database,
   dbPath: string,
   status: RecoveryStatus,
+  getPolicy: (() => StartupBackupPolicy) | undefined,
 ): void {
   if (status === 'rebuilt') {
     logger.warn({}, '本次启动重建了空数据库，跳过启动备份以保留既有健康备份');
     return;
   }
-  void runBackup(sqlite, dbPath);
+  let policy: StartupBackupPolicy = { autoBackup: true, keep: BACKUP_KEEP };
+  try {
+    policy = getPolicy?.() ?? policy;
+  } catch (error) {
+    logger.warn(
+      { error: error instanceof Error ? error.message : String(error) },
+      '读取备份策略失败，按默认策略执行',
+    );
+  }
+  if (!policy.autoBackup) {
+    logger.info({}, '用户关闭了启动自动备份：本次跳过');
+    return;
+  }
+  void runBackup(sqlite, dbPath, policy.keep);
 }
 
 // 从最新到最旧逐个尝试恢复：候选须过完整性校验；替换前先清 db/-wal/-shm 三件套
@@ -309,11 +332,17 @@ function openWithDefaultPragmas(dbPath: string): Database.Database | null {
   }
 }
 
+/** initDb 可选依赖 */
+export interface InitDbOptions {
+  /** 启动备份策略读取；缺省 true/3（测试与未注入场景保持原行为） */
+  readonly getBackupPolicy?: () => StartupBackupPolicy;
+}
+
 /**
  * 初始化数据库（应用级单例，whenReady 启动序列调用）：
  * 暂存恢复 → 损坏自愈 → auto_vacuum 对齐 → 极老库补丁 → 迁移 → 调度启动备份
  */
-export function initDb(): DrizzleDB {
+export function initDb(options: InitDbOptions = {}): DrizzleDB {
   if (dbInstance !== null) {
     return dbInstance;
   }
@@ -357,10 +386,11 @@ export function initDb(): DrizzleDB {
     throw error;
   }
 
-  scheduleStartupBackup(sqlite, dbPath, recovery.status);
-
+  // 先挂实例再调度启动备份：备份策略读取会经 settings-pref 调用 getDb()
   dbInstance = db;
   sqliteInstance = sqlite;
+  scheduleStartupBackup(sqlite, dbPath, recovery.status, options.getBackupPolicy);
+
   logger.info({ dbPath }, 'SQLite 数据库初始化完成');
   return db;
 }

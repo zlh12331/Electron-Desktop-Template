@@ -1,10 +1,8 @@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from 'cmdk';
-import { Info, Moon, Search, Settings2, Sun } from 'lucide-react';
+import { Moon, Search, Settings2, Sun } from 'lucide-react';
 import { type ReactElement, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
 
 import { useTranslation } from '@/i18n/use-translation';
-import { ROUTES } from '@/lib/constants';
 import { useSettingsStore } from '@/stores/persistent/settings-store';
 import { useUiStore } from '@/stores/transient/ui-store';
 
@@ -23,7 +21,7 @@ interface PaletteCommand {
   readonly sectionKey: string;
   /** 标题 i18n key */
   readonly titleKey: string;
-  readonly icon: typeof Info;
+  readonly icon: typeof Settings2;
   /** 执行动作 */
   readonly run: () => void;
 }
@@ -99,12 +97,11 @@ function inertBackground(overlay: HTMLElement): () => void {
 /**
  * 命令面板（Ctrl/Cmd+K 唤起）
  *
- * 模板版只含通用命令（设置 / 关于 / 切换主题）。接入业务后把新命令追加到
+ * 模板版只含通用命令（设置 / 切换主题）。接入业务后把新命令追加到
  * COMMANDS；面板本身不需要改动（分组、过滤、键盘导航都由 cmdk 处理）。
  */
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps): ReactElement | null {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const openSettings = useUiStore((s) => s.openSettings);
   const setTheme = useSettingsStore((s) => s.setTheme);
   const theme = useSettingsStore((s) => s.theme);
@@ -153,13 +150,6 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps): Rea
       titleKey: 'palette.openSettings',
       icon: Settings2,
       run: () => openSettings(),
-    },
-    {
-      id: 'about',
-      sectionKey: 'palette.sectionNavigation',
-      titleKey: 'palette.openAbout',
-      icon: Info,
-      run: () => navigate(ROUTES.about),
     },
     {
       id: 'theme',

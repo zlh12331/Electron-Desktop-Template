@@ -60,7 +60,7 @@ src/main/
 ├── quit-state.ts             # 退出状态位
 ├── diagnostics.ts            # 诊断包导出
 ├── infra/
-│   ├── app-info.ts           # build-info.json 读取（关于页/OTel resource/Sentry tags）
+│   ├── app-info.ts           # build-info.json 读取（设置关于页/OTel resource/Sentry tags）
 │   ├── autostart/            # 开机自启（三平台）
 │   ├── file/                 # 用户手势授权表（对话框选中的路径）
 │   ├── i18n/                 # 主进程文案（托盘等）
@@ -84,7 +84,7 @@ src/renderer/
 ├── main.tsx                  # React 挂载 + 启动快照 + 首帧主题
 ├── App.tsx                   # AppErrorBoundary + AppProviders + RouterProvider
 ├── router.tsx                # 路由表（hash router，file:// 兼容）
-├── routes/                   # 页面（home / about）
+├── routes/                   # 页面（home / notes 示例切片）
 ├── components/
 │   ├── layout/               # AppShell / Sidebar / Topbar / bridges / layout-utils
 │   ├── settings/             # 设置壳 + sections/（registry.tsx 是分区注册表）

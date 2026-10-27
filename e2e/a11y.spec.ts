@@ -1,5 +1,5 @@
 // a11y.spec.ts：可访问性扫描（WCAG 2.1 AA）——浏览器模式 E2E，window.api 由 dev/mock-api.ts 注入
-// 覆盖当前模板保留的界面：首页亮/暗双主题、关于页、设置全部分区、命令面板、快捷键帮助。
+// 覆盖当前模板保留的界面：首页亮/暗双主题、设置全部分区、命令面板、快捷键帮助。
 // 为什么扫描前等待：页面与弹层带过渡动画，过早扫描会取到半透明中间态而产生假对比度违规。
 
 import AxeBuilder from '@axe-core/playwright';
@@ -11,12 +11,12 @@ const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 /** 设置导航分区（顺序与 registry 一致；文案固定为 zh-CN，与 mock 设置的默认语言一致） */
 const SETTINGS_SECTIONS = [
   '通用',
-  '外观与缩放',
+  '外观',
   '通知',
   '数据',
-  '凭据',
-  '网络代理',
   '快捷键',
+  '网络代理',
+  'Beta',
   '关于',
 ] as const;
 
@@ -56,30 +56,24 @@ test.describe('可访问性（WCAG 2.1 AA）', () => {
     await page.close();
   });
 
-  test('首页：亮/暗双主题', async ({ page }) => {
+  test('首页：跟随系统亮/暗双主题', async ({ page }) => {
     const violations: string[] = [];
 
+    await page.emulateMedia({ colorScheme: 'dark' });
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await settle(page);
-    // mock 设置默认 dark；先扫暗色
+    // mock 默认主题 system：OS 暗色时首帧应落地 dark
     await expect(page.locator('html')).toHaveClass(/\bdark\b/);
     violations.push(...formatViolations('首页/暗色', await scan(page)));
 
-    // 顶栏主题按钮循环 dark → light：断言 class 真落地，防只切 store 未应用
-    await page.getByRole('button', { name: '切换主题' }).click();
+    // system 模式下 OS 明暗切换应实时生效
+    await page.emulateMedia({ colorScheme: 'light' });
     await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
     await settle(page);
     violations.push(...formatViolations('首页/亮色', await scan(page)));
 
     expect(violations).toEqual([]);
-  });
-
-  test('关于页', async ({ page }) => {
-    await page.goto('/#/about');
-    await expect(page.getByRole('heading', { name: '关于本模板' })).toBeVisible();
-    await settle(page);
-    expect(formatViolations('关于页', await scan(page))).toEqual([]);
   });
 
   // notes-example:start
@@ -110,7 +104,7 @@ test.describe('可访问性（WCAG 2.1 AA）', () => {
     );
     await generalTab.focus();
     await page.keyboard.press('ArrowDown');
-    await expect(dialog.getByRole('tab', { name: '外观与缩放', exact: true })).toBeFocused();
+    await expect(dialog.getByRole('tab', { name: '外观', exact: true })).toBeFocused();
 
     for (const label of SETTINGS_SECTIONS) {
       const tab = page.getByRole('tab', { name: label, exact: true });

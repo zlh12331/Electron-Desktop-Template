@@ -77,6 +77,7 @@ async function launchPackagedApp(
 
   const app = await electron.launch({
     executablePath: EXECUTABLE_PATH,
+    args: ['--lang=zh-CN'],
     // buildElectronEnv 会剥离 IDE/Agent 终端注入的 ELECTRON_RUN_AS_NODE；
     // 生产构建即使被塞入 ELECTRON_RENDERER_URL 也必须 loadFile 加载打包内的 renderer。
     env: buildElectronEnv({
@@ -201,6 +202,7 @@ test.describe('生产构建冒烟测试', () => {
     const t0 = Date.now();
     const launchApp = await electron.launch({
       executablePath: EXECUTABLE_PATH,
+      args: ['--lang=zh-CN'],
       env: { ...process.env, NODE_ENV: 'production' },
     });
     const t1 = Date.now(); // 进程启动 + 首窗口创建
@@ -218,7 +220,7 @@ test.describe('生产构建冒烟测试', () => {
     const t4 = Date.now();
 
     // 「可交互」判据：主按钮可点击（h1 不可聚焦，对非可聚焦元素调用 focus() 会抛内部错误）
-    const primaryAction = page.getByRole('button', { name: /查看说明|Read more/ }).first();
+    const primaryAction = page.getByRole('button', { name: /打开设置|Open settings/ }).first();
     await expect(primaryAction).toBeEnabled({ timeout: 5_000 });
     await primaryAction.click();
     const t5 = Date.now();
@@ -250,7 +252,7 @@ test.describe('生产构建冒烟测试', () => {
     await closeElectronApp(launchApp);
   });
 
-  test('hash 路由导航后 IPC 仍可用（About → 首页）', async () => {
+  test('hash 路由设置后 IPC 仍可用', async () => {
     ({ app, page } = await launchPackagedApp());
 
     const callAppInfo = (): Promise<unknown> =>
@@ -264,17 +266,9 @@ test.describe('生产构建冒烟测试', () => {
 
     await expect.poll(async () => (await callAppInfo()) !== null).toBe(true);
 
-    await page
-      .getByRole('button', { name: /查看说明|Read more/i })
-      .first()
-      .click();
-    await expect.poll(() => new URL(page.url()).hash).toBe('#/about');
-    await expect.poll(async () => (await callAppInfo()) !== null).toBe(true);
-
-    await page
-      .getByRole('button', { name: /返回|Back/i })
-      .first()
-      .click();
+    await page.evaluate(() => {
+      window.location.hash = '#/';
+    });
     await expect.poll(() => new URL(page.url()).hash).toBe('#/');
     await expect.poll(async () => (await callAppInfo()) !== null).toBe(true);
   });
