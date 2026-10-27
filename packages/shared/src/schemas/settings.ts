@@ -3,6 +3,8 @@
 // 边界：只定义形状与值域；落库（app_settings）/凭据（keychain）/代理、缩放等主进程应用点都在各自模块
 
 import { z } from 'zod';
+import { LANGUAGE_SETTINGS } from '../constants/language';
+import { BACKUP_KEEP_OPTIONS, type BackupKeep } from '../constants/settings-defaults';
 import { ZOOM_LEVELS } from '../constants/zoom';
 import { TELEMETRY_LEVELS, type TelemetryLevel } from '../observability/telemetry-level';
 
@@ -60,6 +62,10 @@ export const SETTING_KEYS = [
   // 界面缩放（settings.appearance：{zoom}；主进程 window:applyZoom 应用
   // webContents.setZoomFactor + Windows overlay 联动；缺失视为 1，损坏归最近档位）
   'appearance',
+  // 详细日志（settings.logging：{verbose}；主进程 logger 应用 debug 级别）
+  'logging',
+  // 备份策略（settings.backup：{autoBackup, keep}；启动/手动备份共同消费）
+  'backup',
 ] as const;
 
 /** settings:set 可写键白名单 TypeScript 类型 */
@@ -68,8 +74,8 @@ export type SettingKey = (typeof SETTING_KEYS)[number];
 /** 主题值域（与渲染层 Theme 对齐） */
 const ThemeSettingSchema = z.enum(['light', 'dark', 'system']);
 
-/** 界面语言值域（与渲染层 AppLanguage 对齐） */
-const LanguageSettingSchema = z.enum(['zh-CN', 'en']);
+/** 界面语言值域（system = 跟随系统；其余为显式语言） */
+const LanguageSettingSchema = z.enum(LANGUAGE_SETTINGS);
 
 /** 单个快捷键字符串（录键控件写入；空串会让冲突检测失去意义） */
 const ShortcutValueSchema = z.string().min(1).max(128);
@@ -84,6 +90,8 @@ const ShortcutsSettingSchema = z.object({
 /** update 域值：字段可选，读侧与默认值合并 */
 const UpdateSettingSchema = z.object({
   autoCheck: z.boolean().optional(),
+  autoDownload: z.boolean().optional(),
+  autoInstallOnAppQuit: z.boolean().optional(),
   allowPrerelease: z.boolean().optional(),
   skippedVersion: z.string().min(1).nullable().optional(),
 });
@@ -91,6 +99,7 @@ const UpdateSettingSchema = z.object({
 /** window 域值：字段可选，主进程读取时仍有默认值兜底 */
 const WindowSettingSchema = z.object({
   closeAction: z.enum(['quit', 'minimize']).optional(),
+  startMinimized: z.boolean().optional(),
 });
 
 /** notification 域值：字段可选，缺失按开启处理 */
@@ -139,6 +148,27 @@ const AppearanceSettingSchema = z.object({
   }),
 });
 
+/** logging 域值：verbose 开启 debug 级文件日志 */
+const LoggingSettingSchema = z.object({
+  verbose: z.boolean().optional(),
+});
+
+/** 备份保留档位：只接受显式档位，避免用户写成 0/负数导致轮转异常 */
+const BackupKeepSchema = z
+  .number()
+  .refine(
+    (value): value is BackupKeep => (BACKUP_KEEP_OPTIONS as readonly number[]).includes(value),
+    {
+      message: `backup.keep 必须是合法档位（${BACKUP_KEEP_OPTIONS.join('/')}）`,
+    },
+  );
+
+/** backup 域值：启动自动备份 + 保留份数 */
+const BackupSettingSchema = z.object({
+  autoBackup: z.boolean().optional(),
+  keep: BackupKeepSchema.optional(),
+});
+
 /**
  * settings 各键的值级 schema（SETTING_KEYS 与 schema 一一对应，类型层面强制）
  *
@@ -153,6 +183,8 @@ export const SETTING_VALUE_SCHEMAS: Readonly<Record<SettingKey, z.ZodType>> = {
   notification: NotificationSettingSchema,
   proxy: ProxySettingSchema,
   appearance: AppearanceSettingSchema,
+  logging: LoggingSettingSchema,
+  backup: BackupSettingSchema,
 };
 
 /** settings:set 入参（写穿透：渲染层内存态变更后同步落库；值级 schema 与导入共用） */

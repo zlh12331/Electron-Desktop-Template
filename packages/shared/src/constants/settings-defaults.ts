@@ -11,6 +11,8 @@ export const DEFAULT_LANGUAGE_SETTING = 'zh-CN' as const;
 /** 默认自动更新设置（settings.update） */
 export const DEFAULT_UPDATE_SETTINGS = {
   autoCheck: true,
+  autoDownload: true,
+  autoInstallOnAppQuit: true,
   allowPrerelease: false,
   skippedVersion: null,
 } as const;
@@ -18,6 +20,7 @@ export const DEFAULT_UPDATE_SETTINGS = {
 /** 默认窗口行为（settings.window） */
 export const DEFAULT_WINDOW_SETTINGS = {
   closeAction: 'minimize',
+  startMinimized: false,
 } as const;
 
 /** 默认通知设置（settings.notification） */
@@ -28,4 +31,21 @@ export const DEFAULT_NOTIFICATION_SETTINGS = {
 /** 默认网络代理设置（settings.proxy） */
 export const DEFAULT_PROXY_SETTINGS = {
   mode: 'system',
+} as const;
+
+/** 默认日志设置（settings.logging） */
+export const DEFAULT_LOGGING_SETTINGS = {
+  verbose: false,
+} as const;
+
+/** 备份保留档位（settings.backup.keep；3 = 现状默认值） */
+export const BACKUP_KEEP_OPTIONS = [3, 5, 10] as const;
+
+/** 备份保留档位类型 */
+export type BackupKeep = (typeof BACKUP_KEEP_OPTIONS)[number];
+
+/** 默认备份设置（settings.backup） */
+export const DEFAULT_BACKUP_SETTINGS = {
+  autoBackup: true,
+  keep: 3,
 } as const;

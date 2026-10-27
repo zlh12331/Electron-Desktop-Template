@@ -15,10 +15,13 @@ describe('settings-defaults', () => {
     expect(DEFAULT_LANGUAGE_SETTING).toBe('zh-CN');
     expect(DEFAULT_UPDATE_SETTINGS).toEqual({
       autoCheck: true,
+      autoDownload: true,
+      autoInstallOnAppQuit: true,
       allowPrerelease: false,
       skippedVersion: null,
     });
     expect(DEFAULT_WINDOW_SETTINGS.closeAction).toBe('minimize');
+    expect(DEFAULT_WINDOW_SETTINGS.startMinimized).toBe(false);
     expect(DEFAULT_NOTIFICATION_SETTINGS.enabled).toBe(true);
     expect(DEFAULT_PROXY_SETTINGS.mode).toBe('system');
   });

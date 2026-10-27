@@ -1,12 +1,18 @@
 import {
+  BACKUP_KEEP_OPTIONS,
+  type BackupKeep,
   clampZoom,
+  DEFAULT_BACKUP_SETTINGS,
   DEFAULT_LANGUAGE_SETTING,
+  DEFAULT_LOGGING_SETTINGS,
   DEFAULT_NOTIFICATION_SETTINGS,
   DEFAULT_PROXY_SETTINGS,
   DEFAULT_THEME_SETTING,
   DEFAULT_UPDATE_SETTINGS,
   DEFAULT_WINDOW_SETTINGS,
   DEFAULT_ZOOM,
+  type LanguageSetting,
+  resolveLanguageSetting,
   type SettingKey,
 } from '@code-agent/shared/renderer';
 import { create } from 'zustand';
@@ -72,6 +78,10 @@ export interface KeyboardShortcuts {
 interface UpdateSettings {
   /** 是否启用自动检查更新（默认 true） */
   readonly autoCheck: boolean;
+  /** 发现新版本后是否自动下载（默认 true；关闭后需手动触发下载） */
+  readonly autoDownload: boolean;
+  /** 下载完成后是否在退出应用时自动安装（默认 true） */
+  readonly autoInstallOnAppQuit: boolean;
   /**
    * 是否接收预发布（beta）更新（默认 false）
    *
@@ -102,6 +112,8 @@ interface UpdateSettings {
 interface WindowSettings {
   /** 点 X 的行为（默认 minimize） */
   readonly closeAction: 'quit' | 'minimize';
+  /** 启动时直接隐藏到托盘（默认 false；不影响开机自启已有的静默语义） */
+  readonly startMinimized: boolean;
 }
 
 /**
@@ -149,14 +161,26 @@ interface AppearanceSettings {
   readonly zoom: number;
 }
 
+/** 日志设置：verbose 开启后文件日志落到 debug 级（重启/立即应用由主进程决定） */
+interface LoggingSettings {
+  readonly verbose: boolean;
+}
+
+/** 备份设置：启动自动备份 + 轮转保留份数 */
+interface BackupSettings {
+  readonly autoBackup: boolean;
+  readonly keep: BackupKeep;
+}
+
 /**
  * 应用界面语言
  *
  * P2 修复（S1 单真源残留）：语言此前经 i18next LanguageDetector 只写 localStorage，
  * 游离于 settings 写穿透链路之外（重装/多窗口不同步）。现在 SQLite 为真源，
  * localStorage 的语言缓存键（见 @/i18n/config 的 LANGUAGE_STORAGE_KEY）仅作 detector 的同步派生缓存。
+ * `system` 是设置值，不是 i18next 的实际语言；渲染前必须经 resolveLanguageSetting 解析。
  */
-export type AppLanguage = 'zh-CN' | 'en';
+export type AppLanguage = LanguageSetting;
 
 /**
  * 用户设置数据形状（不含操作方法；DEFAULT_SETTINGS 与快照共用）
@@ -178,6 +202,10 @@ interface SettingsData {
   readonly proxy: ProxySettings;
   /** 界面缩放（35 号：主窗口整体缩放） */
   readonly appearance: AppearanceSettings;
+  /** 详细日志（logger debug 级别） */
+  readonly logging: LoggingSettings;
+  /** 备份策略（启动自动备份 / 保留份数） */
+  readonly backup: BackupSettings;
 }
 
 /**
@@ -200,6 +228,10 @@ interface SettingsState extends SettingsData {
   readonly updateProxy: (patch: Partial<ProxySettings>) => void;
   /** 更新界面缩放（写穿透 SQLite；应用由 AppShell useZoomEffect 单点收敛） */
   readonly updateAppearance: (patch: Partial<AppearanceSettings>) => void;
+  /** 更新详细日志（写穿透 SQLite；主进程 settings:set 分支即时应用） */
+  readonly updateLogging: (patch: Partial<LoggingSettings>) => void;
+  /** 更新备份策略（写穿透 SQLite；启动/手动备份读取） */
+  readonly updateBackup: (patch: Partial<BackupSettings>) => void;
   /**
    * 应用「主进程主动变更的设置」（托盘菜单等）
    *
@@ -315,6 +347,8 @@ const DEFAULT_SETTINGS: SettingsData = {
   appearance: {
     zoom: DEFAULT_ZOOM,
   },
+  logging: { ...DEFAULT_LOGGING_SETTINGS },
+  backup: { ...DEFAULT_BACKUP_SETTINGS },
 };
 
 /**
@@ -337,9 +371,7 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
   setLanguage: (language) => {
     set({ language });
     persistSetting('language', language);
-    try {
-      localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
-    } catch {}
+    applyResolvedLanguage(language);
   },
   updateShortcuts: (patch) => {
     const shortcuts = { ...useSettingsStore.getState().shortcuts, ...patch };
@@ -377,6 +409,16 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
     set({ appearance });
     persistSetting('appearance', appearance);
   },
+  updateLogging: (patch) => {
+    const logging = { ...useSettingsStore.getState().logging, ...patch };
+    set({ logging });
+    persistSetting('logging', logging);
+  },
+  updateBackup: (patch) => {
+    const backup = { ...useSettingsStore.getState().backup, ...patch };
+    set({ backup });
+    persistSetting('backup', backup);
+  },
   applyMainSettingChange: (key, value) => {
     applyMainChange(key, value, set);
   },
@@ -387,9 +429,23 @@ function asTheme(value: unknown): Theme | null {
   return value === 'light' || value === 'dark' || value === 'system' ? value : null;
 }
 
-/** language 合法值收窄 */
+/** language 合法值收窄（system 是合法设置值，i18n 解析交给 applyResolvedLanguage） */
 function asLanguage(value: unknown): AppLanguage | null {
-  return value === 'zh-CN' || value === 'en' ? value : null;
+  return value === 'system' || value === 'zh-CN' || value === 'en' ? value : null;
+}
+
+/** 渲染层 locale（system 解析用；非浏览器环境回落 undefined） */
+function currentLocale(): string | undefined {
+  return typeof navigator === 'undefined' ? undefined : navigator.language;
+}
+
+/** 把设置值解析成实际 i18n 语言，并同步 detector 的 localStorage 缓存 */
+function applyResolvedLanguage(language: AppLanguage): void {
+  const resolved = resolveLanguageSetting(language, currentLocale());
+  void changeLanguage(resolved);
+  try {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, resolved);
+  } catch {}
 }
 
 /**
@@ -411,7 +467,7 @@ function applyMainChange(
     const language = asLanguage(value);
     if (language !== null) {
       set({ language });
-      void changeLanguage(language);
+      applyResolvedLanguage(language);
     }
     return;
   }
@@ -440,6 +496,17 @@ function applyMainChange(
 export function applySettingsSnapshot(snapshot: Readonly<Record<string, unknown>>): void {
   const theme = asTheme(snapshot['theme']) ?? DEFAULT_SETTINGS.theme;
   const language = asLanguage(snapshot['language']) ?? DEFAULT_SETTINGS.language;
+  const updateSnapshot = (snapshot['update'] as Partial<UpdateSettings> | undefined) ?? {};
+  const windowSnapshot = snapshot['window'] as
+    | { closeAction?: unknown; startMinimized?: unknown }
+    | undefined;
+  const loggingSnapshot = snapshot['logging'] as { verbose?: unknown } | undefined;
+  const backupSnapshot = snapshot['backup'] as { autoBackup?: unknown; keep?: unknown } | undefined;
+  const backupKeep = (BACKUP_KEEP_OPTIONS as readonly number[]).includes(
+    backupSnapshot?.keep as number,
+  )
+    ? (backupSnapshot?.keep as BackupKeep)
+    : DEFAULT_SETTINGS.backup.keep;
   mirrorThemeForFirstPaint(theme);
   useSettingsStore.setState({
     theme,
@@ -450,11 +517,22 @@ export function applySettingsSnapshot(snapshot: Readonly<Record<string, unknown>
     },
     update: {
       ...DEFAULT_SETTINGS.update,
-      ...((snapshot['update'] as Partial<UpdateSettings> | undefined) ?? {}),
+      ...updateSnapshot,
+      autoDownload:
+        typeof updateSnapshot.autoDownload === 'boolean'
+          ? updateSnapshot.autoDownload
+          : DEFAULT_SETTINGS.update.autoDownload,
+      autoInstallOnAppQuit:
+        typeof updateSnapshot.autoInstallOnAppQuit === 'boolean'
+          ? updateSnapshot.autoInstallOnAppQuit
+          : DEFAULT_SETTINGS.update.autoInstallOnAppQuit,
     },
     window: {
-      ...DEFAULT_SETTINGS.window,
-      ...((snapshot['window'] as Partial<WindowSettings> | undefined) ?? {}),
+      closeAction: windowSnapshot?.closeAction === 'quit' ? 'quit' : 'minimize',
+      startMinimized:
+        typeof windowSnapshot?.startMinimized === 'boolean'
+          ? windowSnapshot.startMinimized
+          : DEFAULT_SETTINGS.window.startMinimized,
     },
     notification: {
       ...DEFAULT_SETTINGS.notification,
@@ -466,6 +544,19 @@ export function applySettingsSnapshot(snapshot: Readonly<Record<string, unknown>
     },
     appearance: {
       zoom: clampZoom((snapshot['appearance'] as { zoom?: unknown } | undefined)?.zoom as number),
+    },
+    logging: {
+      verbose:
+        typeof loggingSnapshot?.verbose === 'boolean'
+          ? loggingSnapshot.verbose
+          : DEFAULT_SETTINGS.logging.verbose,
+    },
+    backup: {
+      autoBackup:
+        typeof backupSnapshot?.autoBackup === 'boolean'
+          ? backupSnapshot.autoBackup
+          : DEFAULT_SETTINGS.backup.autoBackup,
+      keep: backupKeep,
     },
   });
 }
