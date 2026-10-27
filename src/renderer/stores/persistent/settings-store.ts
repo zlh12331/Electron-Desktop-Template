@@ -76,15 +76,13 @@ export interface KeyboardShortcuts {
  * 下载与安装照常（见 docs/history/27-auto-update-spec.md §4）。
  */
 interface UpdateSettings {
-  /** 是否启用自动检查更新（默认 true） */
-  readonly autoCheck: boolean;
   /**
-   * 发现新版本后是否自动下载（默认 true；关闭后需手动触发下载）
+   * 自动检查更新并下载（默认 true）
    *
-   * 退出时自动安装不是独立设置：只有 autoCheck + autoDownload 同时开启时才自动安装，
-   * 避免用户面对互相耦合的第四个开关。
+   * 一个开关承载完整自动链路：启动检查 → 后台下载 → 退出时安装；
+   * 关闭后自动链路全停，手动检查仍会下载，安装由用户显式触发。
    */
-  readonly autoDownload: boolean;
+  readonly autoCheck: boolean;
   /**
    * 是否接收预发布（beta）更新（默认 false）
    *
@@ -521,10 +519,6 @@ export function applySettingsSnapshot(snapshot: Readonly<Record<string, unknown>
     update: {
       ...DEFAULT_SETTINGS.update,
       ...updateSnapshot,
-      autoDownload:
-        typeof updateSnapshot.autoDownload === 'boolean'
-          ? updateSnapshot.autoDownload
-          : DEFAULT_SETTINGS.update.autoDownload,
     },
     window: {
       closeAction: windowSnapshot?.closeAction === 'quit' ? 'quit' : 'minimize',

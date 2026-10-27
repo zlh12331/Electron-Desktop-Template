@@ -26,7 +26,6 @@ beforeEach(() => {
   useSettingsStore.setState({
     update: {
       autoCheck: true,
-      autoDownload: true,
       allowPrerelease: false,
       skippedVersion: null,
     },
@@ -96,7 +95,6 @@ describe('顶栏更新指示', () => {
     useSettingsStore.setState({
       update: {
         autoCheck: true,
-        autoDownload: true,
         allowPrerelease: false,
         skippedVersion: '1.2.0',
       },
@@ -109,7 +107,6 @@ describe('顶栏更新指示', () => {
     useSettingsStore.setState({
       update: {
         autoCheck: true,
-        autoDownload: true,
         allowPrerelease: false,
         skippedVersion: '1.0.0',
       },

@@ -11,7 +11,6 @@ export const DEFAULT_LANGUAGE_SETTING = 'zh-CN' as const;
 /** 默认自动更新设置（settings.update） */
 export const DEFAULT_UPDATE_SETTINGS = {
   autoCheck: true,
-  autoDownload: true,
   allowPrerelease: false,
   skippedVersion: null,
 } as const;

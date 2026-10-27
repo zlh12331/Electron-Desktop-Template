@@ -200,7 +200,6 @@ app
 
         serviceContainer.getUpdateService().start({
           autoCheckEnabled: isAutoCheckEnabled,
-          autoDownloadEnabled: isAutoDownloadEnabled,
           allowPrereleaseEnabled: isAllowPrereleaseEnabled,
           devUpdateEnabled: isDevTestEnvEnabled(app.isPackaged, 'APP_DEV_UPDATE'),
         });
@@ -401,7 +400,7 @@ function readWindowSettings(): Record<string, unknown> {
   }
 }
 
-type UpdateBooleanKey = 'autoCheck' | 'autoDownload' | 'allowPrerelease';
+type UpdateBooleanKey = 'autoCheck' | 'allowPrerelease';
 
 /** 读更新域布尔开关（缺失/损坏/读取失败均按默认值，避免一个坏字段阻断更新） */
 function readUpdateBoolean(key: UpdateBooleanKey): boolean {
@@ -423,10 +422,6 @@ function readUpdateBoolean(key: UpdateBooleanKey): boolean {
 
 function isAutoCheckEnabled(): boolean {
   return readUpdateBoolean('autoCheck');
-}
-
-function isAutoDownloadEnabled(): boolean {
-  return readUpdateBoolean('autoDownload');
 }
 
 function isAllowPrereleaseEnabled(): boolean {

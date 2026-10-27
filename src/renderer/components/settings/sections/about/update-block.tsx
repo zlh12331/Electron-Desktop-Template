@@ -16,7 +16,6 @@ type TranslateFn = ReturnType<typeof useTranslation>['t'];
 interface UpdateBlockProps {
   readonly state: UpdateStatusPayload | null;
   readonly onCheck: () => void;
-  readonly onDownload: () => void;
   readonly onCancel: () => void;
   readonly onInstall: () => void;
   readonly onSkip: () => void;
@@ -104,7 +103,6 @@ function DownloadingBlock({ state, onCancel }: DownloadingBlockProps): ReactElem
 export function UpdateBlock({
   state,
   onCheck,
-  onDownload,
   onCancel,
   onInstall,
   onSkip,
@@ -159,9 +157,6 @@ export function UpdateBlock({
           {' · '}
           {t('settings.aboutUpdateVersion', { version: state?.version ?? '' })}
         </span>
-        <Button variant="outline" size="sm" onClick={onDownload}>
-          {t('settings.aboutDownload')}
-        </Button>
         <Button variant="ghost" size="sm" onClick={onSkip}>
           {t('update.skipVersion')}
         </Button>

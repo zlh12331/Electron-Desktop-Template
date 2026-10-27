@@ -90,7 +90,6 @@ const ShortcutsSettingSchema = z.object({
 /** update 域值：字段可选，读侧与默认值合并 */
 const UpdateSettingSchema = z.object({
   autoCheck: z.boolean().optional(),
-  autoDownload: z.boolean().optional(),
   allowPrerelease: z.boolean().optional(),
   skippedVersion: z.string().min(1).nullable().optional(),
 });

@@ -10,7 +10,6 @@ const mockState = vi.hoisted(() => ({
 }));
 const mockFromSnapshot = vi.hoisted(() => ({ value: false }));
 const installSpy = vi.hoisted(() => vi.fn());
-const downloadSpy = vi.hoisted(() => vi.fn());
 
 vi.mock('sonner', () => ({
   toast: Object.assign(vi.fn(), {
@@ -25,12 +24,10 @@ vi.mock('@/hooks/use-update', () => ({
     state: typeof mockState.value;
     fromSnapshot: boolean;
     install: typeof installSpy;
-    download: typeof downloadSpy;
   } => ({
     state: mockState.value,
     fromSnapshot: mockFromSnapshot.value,
     install: installSpy,
-    download: downloadSpy,
   }),
 }));
 
@@ -42,7 +39,6 @@ describe('UpdateNotice', () => {
     useSettingsStore.setState({
       update: {
         autoCheck: true,
-        autoDownload: true,
         allowPrerelease: false,
         skippedVersion: null,
       },
@@ -70,26 +66,6 @@ describe('UpdateNotice', () => {
     ];
     expect(message).toContain('发现');
     expect(options.description).toContain('1.2.3');
-  });
-
-  it('available + autoDownload 关闭：提供「下载」动作而不是宣称后台下载', () => {
-    useSettingsStore.setState({
-      update: {
-        autoCheck: true,
-        autoDownload: false,
-        allowPrerelease: false,
-        skippedVersion: null,
-      },
-    });
-    mockState.value = { phase: 'available', version: '1.2.3' };
-    render(<UpdateNotice />);
-    const [, options] = vi.mocked(toast.info).mock.calls[0] as unknown as [
-      string,
-      { description: string; action: { onClick: () => void } },
-    ];
-    expect(options.description).toContain('1.2.3');
-    options.action.onClick();
-    expect(downloadSpy).toHaveBeenCalledOnce();
   });
 
   it('downloaded：带「立即重启」动作的 toast（action.onClick 调 install）', () => {
@@ -149,7 +125,6 @@ describe('UpdateNotice', () => {
     useSettingsStore.setState({
       update: {
         autoCheck: true,
-        autoDownload: true,
         allowPrerelease: false,
         skippedVersion: '1.2.3',
       },
@@ -164,7 +139,6 @@ describe('UpdateNotice', () => {
     useSettingsStore.setState({
       update: {
         autoCheck: true,
-        autoDownload: true,
         allowPrerelease: false,
         skippedVersion: '1.0.0',
       },

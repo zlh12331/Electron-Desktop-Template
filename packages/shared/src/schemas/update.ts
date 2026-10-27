@@ -53,14 +53,13 @@ export const UpdateCheckResSchema = z.object({
 /**
  * 更新状态推送阶段（update:event:status payload 的 phase）
  *
- * 典型时序：checking → available →（autoDownload 开启时服务随即下载；关闭时等待
- * update:download）→ downloading → downloaded；not-available / cancelled / error 为终止态。
- * 同名值 'checking' 与 UpdateCheckRes.status 的语义不同：那里是"请求已被受理"的应答，
- * 这里表示检查进行中。
+ * 典型时序：checking → available →（服务随即开始下载）→ downloading → downloaded；
+ * not-available / cancelled / error 为终止态。同名值 'checking' 与 UpdateCheckRes.status
+ * 的语义不同：那里是"请求已被受理"的应答，这里表示检查进行中。
  */
 export type UpdatePhase =
   | 'checking' // 正在检查更新
-  | 'available' // 发现新版本（autoDownload 关闭时停在 available，等待手动下载）
+  | 'available' // 发现新版本（服务随即自动开始下载，无需渲染层触发）
   | 'downloading' // 下载中（progress / transferred / total / bytesPerSecond 有效）
   | 'downloaded' // 下载完成，可安装重启（update:install，或退出时自动安装）
   | 'not-available' // 已是最新（检查成功结束）

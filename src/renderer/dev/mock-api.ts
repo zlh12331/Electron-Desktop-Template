@@ -20,7 +20,6 @@ const memorySettings = new Map<string, unknown>([
     'update',
     {
       autoCheck: true,
-      autoDownload: true,
       allowPrerelease: false,
       skippedVersion: null,
     },
@@ -326,7 +325,6 @@ export function createMockApi(): IpcApi {
     // notes-example:end
     update: {
       check: async () => ipcOk({ status: 'checking' as const }),
-      download: async () => ipcOk({ ok: true }),
       install: async () => ipcOk({ ok: true }),
       cancel: async () => ipcOk({ ok: true }),
       getStatus: async () => ipcOk({ snapshot: mockUpdateSnapshot, lastCheckAt: null }),

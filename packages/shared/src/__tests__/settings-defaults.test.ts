@@ -15,7 +15,6 @@ describe('settings-defaults', () => {
     expect(DEFAULT_LANGUAGE_SETTING).toBe('zh-CN');
     expect(DEFAULT_UPDATE_SETTINGS).toEqual({
       autoCheck: true,
-      autoDownload: true,
       allowPrerelease: false,
       skippedVersion: null,
     });

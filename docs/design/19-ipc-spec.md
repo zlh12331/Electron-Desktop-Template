@@ -2,7 +2,7 @@
 
 > 本文是 IPC 契约的**开发规范**（怎么加 / 怎么用 / 怎么传错）；契约清单以 `packages/shared/src/ipc/meta.ts` 为准。
 > 基于项目自研 IPC 自动化体系（meta → definitions → derive → preload 生成 → register 统一注册）。
-> 最后同步：2026-10-27（模板版 + Local Notes 示例：14 域 57 channel = 52 request + 5 event，按 meta.ts 实测）
+> 最后同步：2026-10-27（模板版 + Local Notes 示例：14 域 56 channel = 51 request + 5 event，按 meta.ts 实测）
 
 ---
 
@@ -14,7 +14,7 @@
 | `{domain}:stream:{event}` | 流式事件 | （模板暂无；接入流式业务时用） |
 | `{domain}:event:{name}` | 状态推送 | `update:event:status`、`app:event:deepLink` |
 
-- domain 与 meta.ts 域表一致（模板 14 域 57 channel），新域需评估是否并入现有域
+- domain 与 meta.ts 域表一致（模板 14 域 56 channel），新域需评估是否并入现有域
 - action 用动词（get/list/create/delete/rename/start/stop/send）
 
 ## 二、新增 IPC 方法（三步流程，编译期强制）
@@ -86,7 +86,7 @@ channels.ts（IPC_CHANNELS 常量由 deriveChannels(meta) 生成，as const 字�
 
 域清单（`IPC_META` / `registerIpcHandlers` 中，实测 14 个）：
 `app / window / backup / settings / proxy / secrets / system / logs / telemetry / devtools / dialog / invalidation / notes / update`。
-共 52 个 request 通道 + 5 个 event 通道（2026-10-27 实测）；方法数以 meta.ts 为唯一真源。
+共 51 个 request 通道 + 5 个 event 通道（2026-10-27 实测）；方法数以 meta.ts 为唯一真源。
 
 <!-- notes-example:start -->
 > **扩展点说明**：`invalidation:event:domains` 已由 Notes 写路径消费；`logs:read` 与

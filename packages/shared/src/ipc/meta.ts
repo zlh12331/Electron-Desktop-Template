@@ -147,7 +147,6 @@ export const IPC_META = {
 
   update: {
     check: request('update:check'),
-    download: request('update:download'),
     install: request('update:install'),
     cancel: request('update:cancel'),
     getStatus: request('update:getStatus'),

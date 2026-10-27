@@ -143,25 +143,6 @@ describe('UpdateService', () => {
       expect(updater.checkForUpdates).not.toHaveBeenCalled();
     });
 
-    it('退出自动安装联动：自动检查或自动下载任一关闭 → 不自动安装', () => {
-      let autoCheck = true;
-      let autoDownload = false;
-      service.start({
-        autoCheckEnabled: () => autoCheck,
-        autoDownloadEnabled: () => autoDownload,
-      });
-      expect(updater.autoInstallOnAppQuit).toBe(false);
-
-      autoCheck = false;
-      autoDownload = true;
-      service.refreshAutoInstallOnAppQuit();
-      expect(updater.autoInstallOnAppQuit).toBe(false);
-
-      autoCheck = true;
-      service.refreshAutoInstallOnAppQuit();
-      expect(updater.autoInstallOnAppQuit).toBe(true);
-    });
-
     it('开发模式（未打包）：不调度启动检查', async () => {
       vi.useFakeTimers();
       const devService = new UpdateService(
@@ -261,21 +242,6 @@ describe('UpdateService', () => {
       });
       expect(tokens).toHaveLength(1);
       expect(updater.downloadUpdate).toHaveBeenCalledWith(tokens[0]);
-    });
-
-    it('autoDownload 关闭：available 只通知不下载，download() 再显式触发', async () => {
-      const win = createFakeWindow();
-      mockGetAllWindows.mockReturnValue([win]);
-      service.start({ autoDownloadEnabled: () => false });
-      fire(updater, 'update-available', { version: '1.2.0' });
-      expect(lastPayload(win)).toEqual({ phase: 'available', version: '1.2.0' });
-      expect(updater.downloadUpdate).not.toHaveBeenCalled();
-
-      expect(service.download()).toEqual({ ok: true });
-      await vi.waitFor(() => {
-        expect(updater.downloadUpdate).toHaveBeenCalledOnce();
-      });
-      expect(tokens).toHaveLength(1);
     });
 
     it('download-progress → 透传字节与速率并补上版本号', () => {
@@ -654,21 +620,12 @@ describe('UpdateService', () => {
     });
 
     describe('refreshAutoInstallOnAppQuit', () => {
-      it('按退出时刻的开关状态重算（自动检查/下载任一关闭即停用）', () => {
+      it('按退出时刻的自动检查开关重算（运行中切换立即生效）', () => {
         let autoCheck = true;
-        let autoDownload = true;
-        service.start({
-          autoCheckEnabled: () => autoCheck,
-          autoDownloadEnabled: () => autoDownload,
-        });
+        service.start({ autoCheckEnabled: () => autoCheck });
         expect(updater.autoInstallOnAppQuit).toBe(true);
 
         autoCheck = false;
-        service.refreshAutoInstallOnAppQuit();
-        expect(updater.autoInstallOnAppQuit).toBe(false);
-
-        autoCheck = true;
-        autoDownload = false;
         service.refreshAutoInstallOnAppQuit();
         expect(updater.autoInstallOnAppQuit).toBe(false);
       });

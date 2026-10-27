@@ -331,8 +331,8 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
     expect(journal.entries[0]?.tag.startsWith('0001_')).toBe(false);
 
     const doc = readFileSync(join(dir, 'docs/design/19-ipc-spec.md'), 'utf8');
-    expect(doc).toContain('13 域 50 channel');
-    expect(doc).toContain('共 45 个 request 通道 + 5 个 event 通道');
+    expect(doc).toContain('13 域 49 channel');
+    expect(doc).toContain('共 44 个 request 通道 + 5 个 event 通道');
     expect(doc).not.toContain('notes');
     expect(doc).toContain('invalidation / proxy');
 
@@ -380,7 +380,7 @@ describe('runInitTemplate（临时副本，真实文件系统）', () => {
       'notes-example:start',
     );
     expect(readFileSync(join(dir, 'docs/design/19-ipc-spec.md'), 'utf8')).toContain(
-      '14 域 57 channel',
+      '14 域 56 channel',
     );
     expect(readFileSync(join(dir, 'package.json'), 'utf8')).toContain('"remove:notes-example"');
   });

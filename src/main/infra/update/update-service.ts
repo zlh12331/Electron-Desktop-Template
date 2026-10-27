@@ -76,7 +76,6 @@ interface DownloadAttempt {
 
 export interface UpdateStartOptions {
   readonly autoCheckEnabled?: () => boolean;
-  readonly autoDownloadEnabled?: () => boolean;
   readonly allowPrereleaseEnabled?: () => boolean;
   readonly devUpdateEnabled?: boolean;
 }
@@ -109,7 +108,6 @@ interface UpdateInfoLike {
 export interface IUpdateService {
   start(options?: UpdateStartOptions): void;
   check(manual: boolean): Promise<UpdateCheckRes>;
-  download(): { ok: boolean };
   cancelDownload(): void;
   getStatus(): UpdateGetStatusRes;
   onStatus(listener: (payload: UpdateStatusPayload) => void): () => void;
@@ -148,15 +146,13 @@ export class UpdateService implements IUpdateService {
 
   private autoCheckEnabled: (() => boolean) | null = null;
 
-  private autoDownloadEnabled: (() => boolean) | null = null;
-
   constructor(
     private readonly updater: AutoUpdaterLike,
     private readonly isPackaged: () => boolean,
     private readonly createCancellationToken: () => CancellationTokenLike,
   ) {}
 
-  /** 启动调度：配 logger/自动下载关闭（用户显式确认后才下）/预发布开关；dev 或用户关闭时跳过 */
+  /** 启动调度：配 logger/预发布开关；dev 或用户关闭自动更新时跳过 */
   start(options: UpdateStartOptions = {}): void {
     this.started = true;
     const autoCheckEnabled = (
@@ -165,15 +161,11 @@ export class UpdateService implements IUpdateService {
     this.devUpdateForced = options.devUpdateEnabled === true;
     this.allowPrereleaseEnabled = options.allowPrereleaseEnabled ?? null;
     this.autoCheckEnabled = options.autoCheckEnabled ?? null;
-    this.autoDownloadEnabled = options.autoDownloadEnabled ?? null;
-    const autoDownloadEnabled = (
-      options.autoDownloadEnabled ?? (() => DEFAULT_UPDATE_SETTINGS.autoDownload)
-    )();
 
     this.updater.logger = createUpdaterLogger();
     this.updater.autoDownload = false;
-    // 退出自动安装是「自动检查 + 自动下载」都开启时的联动结果，不单独暴露开关
-    this.updater.autoInstallOnAppQuit = autoCheckEnabled && autoDownloadEnabled;
+    // 自动检查开启 = 完整自动链路（检查→下载→退出安装）；关闭后由用户显式触发
+    this.updater.autoInstallOnAppQuit = autoCheckEnabled;
     this.updater.forceDevUpdateConfig = this.devUpdateForced;
 
     this.registerListeners();
@@ -276,19 +268,6 @@ export class UpdateService implements IUpdateService {
     }
   }
 
-  /** 手动下载已发现的版本（autoDownload 关闭时由设置页/通知触发） */
-  download(): { ok: boolean } {
-    if (this.pendingVersion === null) {
-      return { ok: false };
-    }
-    if (this.downloadAttempt?.settled === false || this.snapshot?.phase === 'downloaded') {
-      return { ok: true };
-    }
-    logger.info({ scope: 'auto-updater', version: this.pendingVersion }, '用户请求下载更新');
-    this.beginDownload(this.pendingVersion);
-    return { ok: true };
-  }
-
   cancelDownload(): void {
     const attempt = this.downloadAttempt;
     if (attempt === null || attempt.settled || attempt.token.cancelled) return;
@@ -339,8 +318,7 @@ export class UpdateService implements IUpdateService {
   /** 退出前刷新「退出时自动安装」开关（用户可能在运行中改过设置，按最新值执行） */
   refreshAutoInstallOnAppQuit(): void {
     this.updater.autoInstallOnAppQuit =
-      (this.autoCheckEnabled?.() ?? DEFAULT_UPDATE_SETTINGS.autoCheck) &&
-      (this.autoDownloadEnabled?.() ?? DEFAULT_UPDATE_SETTINGS.autoDownload);
+      this.autoCheckEnabled?.() ?? DEFAULT_UPDATE_SETTINGS.autoCheck;
   }
 
   dispose(): void {
@@ -364,15 +342,7 @@ export class UpdateService implements IUpdateService {
       logger.info({ scope: 'auto-updater', version: info.version }, '发现新版本');
       this.pendingVersion = info.version;
       this.pendingReleaseNotes = toReleaseNotes(info.releaseNotes);
-      if (this.autoDownloadEnabled?.() ?? DEFAULT_UPDATE_SETTINGS.autoDownload) {
-        this.beginDownload(info.version);
-      } else {
-        this.emit({
-          phase: 'available',
-          version: info.version,
-          ...(this.pendingReleaseNotes !== null ? { releaseNotes: this.pendingReleaseNotes } : {}),
-        });
-      }
+      this.beginDownload(info.version);
     });
     this.updater.on('update-not-available', () => {
       if (!this.acceptCheckEvent()) return;
