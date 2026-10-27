@@ -22,7 +22,7 @@ const DEBUG_PORT = '9225';
 
 async function launchFileMode(userData: string): Promise<{ app: ElectronApplication; page: Page }> {
   const app = await electron.launch({
-    args: [APP_ROOT],
+    args: [APP_ROOT, '--lang=zh-CN'],
     env: buildElectronEnv({
       NODE_ENV: 'test',
       // 空串 = 不连 dev server，走 loadFile（src/main/window.ts）

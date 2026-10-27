@@ -77,6 +77,7 @@ async function launchPackagedApp(
 
   const app = await electron.launch({
     executablePath: EXECUTABLE_PATH,
+    args: ['--lang=zh-CN'],
     // buildElectronEnv 会剥离 IDE/Agent 终端注入的 ELECTRON_RUN_AS_NODE；
     // 生产构建即使被塞入 ELECTRON_RENDERER_URL 也必须 loadFile 加载打包内的 renderer。
     env: buildElectronEnv({
@@ -201,6 +202,7 @@ test.describe('生产构建冒烟测试', () => {
     const t0 = Date.now();
     const launchApp = await electron.launch({
       executablePath: EXECUTABLE_PATH,
+      args: ['--lang=zh-CN'],
       env: { ...process.env, NODE_ENV: 'production' },
     });
     const t1 = Date.now(); // 进程启动 + 首窗口创建

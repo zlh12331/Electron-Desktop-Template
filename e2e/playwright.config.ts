@@ -26,6 +26,8 @@ export default defineConfig({
     // 5199 与 electron-vite dev（5173）分离：reuseExistingServer 会复用占用该端口的既有服务，
     // 遗留的无 mock 服务一旦被复用，页面停在裸态导致用例连环红——端口分离即为此根治
     baseURL: 'http://localhost:5199',
+    // 默认语言跟随系统：固定浏览器 locale，保持现有中文断言确定
+    locale: 'zh-CN',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     trace: 'retain-on-failure',

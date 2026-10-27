@@ -48,7 +48,7 @@ async function launchElectron(
   extraArgs: readonly string[],
 ): Promise<{ app: ElectronApplication; page: Page }> {
   const app = await electron.launch({
-    args: [MAIN_ENTRY, ...extraArgs],
+    args: [MAIN_ENTRY, '--lang=zh-CN', ...extraArgs],
     env: buildElectronEnv({
       NODE_ENV: 'development',
       ELECTRON_RENDERER_URL: 'http://localhost:5173',
