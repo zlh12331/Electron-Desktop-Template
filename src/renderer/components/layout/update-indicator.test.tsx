@@ -24,7 +24,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   useUpdateStore.setState({ status: null, fromSnapshot: false, lastCheckAt: null });
   useSettingsStore.setState({
-    update: { autoCheck: true, allowPrerelease: false, skippedVersion: null },
+    update: {
+      autoCheck: true,
+      autoDownload: true,
+      autoInstallOnAppQuit: true,
+      allowPrerelease: false,
+      skippedVersion: null,
+    },
   });
   useUiStore.setState({ settingsOpen: false, settingsSection: null });
 });
@@ -89,7 +95,13 @@ describe('顶栏更新指示', () => {
 
   it('已跳过该版本（持久）：不渲染指示（跨会话静默）', () => {
     useSettingsStore.setState({
-      update: { autoCheck: true, allowPrerelease: false, skippedVersion: '1.2.0' },
+      update: {
+        autoCheck: true,
+        autoDownload: true,
+        autoInstallOnAppQuit: true,
+        allowPrerelease: false,
+        skippedVersion: '1.2.0',
+      },
     });
     const { container } = renderWith({ phase: 'downloaded', version: '1.2.0' });
     expect(container.firstChild).toBeNull();
@@ -97,7 +109,13 @@ describe('顶栏更新指示', () => {
 
   it('跳过的是别的版本：仍渲染指示', () => {
     useSettingsStore.setState({
-      update: { autoCheck: true, allowPrerelease: false, skippedVersion: '1.0.0' },
+      update: {
+        autoCheck: true,
+        autoDownload: true,
+        autoInstallOnAppQuit: true,
+        allowPrerelease: false,
+        skippedVersion: '1.0.0',
+      },
     });
     renderWith({ phase: 'downloaded', version: '1.2.0' });
     expect(

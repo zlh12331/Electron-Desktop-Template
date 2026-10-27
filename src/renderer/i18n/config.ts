@@ -1,4 +1,10 @@
-import { DEFAULT_LANGUAGE_SETTING, STORAGE_PREFIX } from '@code-agent/shared/renderer';
+import {
+  FALLBACK_LANGUAGE,
+  resolveLanguageSetting,
+  STORAGE_PREFIX,
+  SUPPORTED_LANGUAGES,
+  type SupportedLanguage,
+} from '@code-agent/shared/renderer';
 import i18next from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
@@ -8,14 +14,11 @@ import enErrors from './locales/en/errors.json';
 import zhCNCommon from './locales/zh-CN/common.json';
 import zhCNErrors from './locales/zh-CN/errors.json';
 
-/** 支持的语言列表（用于语言切换 UI） */
-export const SUPPORTED_LANGUAGES = ['zh-CN', 'en'] as const;
+export type { SupportedLanguage };
+export { SUPPORTED_LANGUAGES };
 
-/** 支持的语言类型 */
-export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
-
-/** 默认语言（也是 fallback 语言；与 shared 默认设置一致） */
-const DEFAULT_LANGUAGE: SupportedLanguage = DEFAULT_LANGUAGE_SETTING;
+/** fallback 语言：settings.language=system 解析失败时的最后一级 */
+const DEFAULT_LANGUAGE: SupportedLanguage = FALLBACK_LANGUAGE;
 
 /** localStorage key（与 settings-store 的前缀对齐） */
 export const LANGUAGE_STORAGE_KEY = `${STORAGE_PREFIX}:lang`;
@@ -110,8 +113,11 @@ export function getCurrentLanguage(): SupportedLanguage {
  *
  * 启动快照来自 SQLite，不能假设历史数据一定合法。
  */
-export function resolveLanguage(value: unknown): SupportedLanguage {
-  return value === 'en' || value === 'zh-CN' ? value : DEFAULT_LANGUAGE;
+export function resolveLanguage(
+  value: unknown,
+  locale: string | undefined = typeof navigator === 'undefined' ? undefined : navigator.language,
+): SupportedLanguage {
+  return resolveLanguageSetting(value, locale);
 }
 
 /**

@@ -18,6 +18,24 @@ function renderWithQuery(ui: ReactElement) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  useSettingsStore.setState({
+    language: 'zh-CN',
+    window: { closeAction: 'minimize', startMinimized: false },
+  });
+  Object.defineProperty(window, 'api', {
+    value: {
+      settings: { set: vi.fn(async () => ({ data: { ok: true } })) },
+      app: {
+        getLoginItemSettings: vi.fn(async () => ({
+          data: { openAtLogin: false, supported: true, requiresApproval: false },
+        })),
+        setLoginItemSettings: vi.fn(),
+        subscribeLoginItemChanged: vi.fn(() => () => {}),
+      },
+    },
+    writable: true,
+    configurable: true,
+  });
 });
 
 describe('GeneralSection', () => {
@@ -43,5 +61,22 @@ describe('GeneralSection', () => {
     renderWithQuery(<GeneralSection />);
     expect(screen.getByRole('button', { name: /简体中文/ })).toBeDefined();
     expect(screen.getByRole('button', { name: /English/ })).toBeDefined();
+    expect(
+      screen.getByRole('button', { name: new RegExp(t('settings.languageSystem')) }),
+    ).toBeDefined();
+  });
+
+  it('跟随系统：点击 System 写入 language=system', async () => {
+    renderWithQuery(<GeneralSection />);
+    await userEvent.click(
+      screen.getByRole('button', { name: new RegExp(t('settings.languageSystem')) }),
+    );
+    expect(useSettingsStore.getState().language).toBe('system');
+  });
+
+  it('启动时最小化：开关写入 window.startMinimized', async () => {
+    renderWithQuery(<GeneralSection />);
+    await userEvent.click(screen.getByRole('switch', { name: t('settings.startMinimizedLabel') }));
+    expect(useSettingsStore.getState().window.startMinimized).toBe(true);
   });
 });

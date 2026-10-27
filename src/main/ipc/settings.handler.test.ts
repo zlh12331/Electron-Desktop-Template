@@ -7,7 +7,9 @@ const mocks = vi.hoisted(() => ({
   showSaveDialog: vi.fn(),
   showOpenDialog: vi.fn(),
   appGetPath: vi.fn(() => 'C:/documents'),
+  appGetLocale: vi.fn(() => 'zh-CN'),
   setMainLanguage: vi.fn(),
+  applyLogLevel: vi.fn(),
   applyProxySetting: vi.fn(),
   clearProxyAuthCredentials: vi.fn(),
   enrichProxySetting: vi.fn(),
@@ -32,7 +34,7 @@ vi.mock('node:fs/promises', () => ({
 }));
 
 vi.mock('electron', () => ({
-  app: { getPath: mocks.appGetPath },
+  app: { getPath: mocks.appGetPath, getLocale: mocks.appGetLocale },
   dialog: {
     showSaveDialog: mocks.showSaveDialog,
     showOpenDialog: mocks.showOpenDialog,
@@ -80,6 +82,7 @@ vi.mock('../utils/json-file', () => ({
 }));
 
 vi.mock('../utils/logger', () => ({
+  applyLogLevel: mocks.applyLogLevel,
   logger: mocks.logger,
 }));
 
@@ -130,7 +133,13 @@ describe('settingsHandlers.set', () => {
 
     await settingsHandlers.set({ key: 'language', value: 'en' }, ctx);
     expect(mocks.writeSetting).toHaveBeenCalledWith('language', 'en');
-    expect(mocks.setMainLanguage).toHaveBeenCalledWith('en');
+    expect(mocks.setMainLanguage).toHaveBeenCalledWith('en', 'zh-CN');
+  });
+
+  it('logging 写库并即时应用 verbose 级别', async () => {
+    await settingsHandlers.set({ key: 'logging', value: { verbose: true } }, ctx);
+    expect(mocks.writeSetting).toHaveBeenCalledWith('logging', { verbose: true });
+    expect(mocks.applyLogLevel).toHaveBeenCalledWith(true);
   });
 
   it('proxy 先拆凭据落库，再应用并广播回填后的值', async () => {
@@ -226,7 +235,7 @@ describe('settingsHandlers.importSettings', () => {
     });
     expect(mocks.replaceSettingInImportPayload).not.toHaveBeenCalled();
     expect(mocks.syncTitleBarOverlayFromTheme).toHaveBeenCalledWith('dark');
-    expect(mocks.setMainLanguage).toHaveBeenCalledWith('en');
+    expect(mocks.setMainLanguage).toHaveBeenCalledWith('en', 'zh-CN');
     expect(mocks.broadcastSettingChanged).toHaveBeenCalledWith('theme', 'dark');
     expect(mocks.broadcastSettingChanged).toHaveBeenCalledWith('language', 'en');
   });
@@ -279,7 +288,8 @@ describe('settingsHandlers.resetAll', () => {
     expect(mocks.clearProxyAuthCredentials).toHaveBeenCalledOnce();
     expect(mocks.deleteSettings).toHaveBeenCalledWith(SETTING_KEYS);
     expect(mocks.syncTitleBarOverlayFromTheme).toHaveBeenCalledWith(undefined);
-    expect(mocks.setMainLanguage).toHaveBeenCalledWith('zh-CN');
+    expect(mocks.setMainLanguage).toHaveBeenCalledWith(undefined, 'zh-CN');
+    expect(mocks.applyLogLevel).toHaveBeenCalledWith(false);
     expect(mocks.applyProxySetting).toHaveBeenCalledWith(undefined);
   });
 });

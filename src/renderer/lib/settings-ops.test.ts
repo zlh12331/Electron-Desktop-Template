@@ -8,6 +8,7 @@ import {
   getUpdateCacheInfo,
   importSettingsFile,
   openDataDirChecked,
+  openLogsDirChecked,
   resetAllSettings,
   setLoginItemSettings,
   subscribeLoginItemChanged,
@@ -24,6 +25,7 @@ const api = {
   settings: { exportSettings: vi.fn(), importSettings: vi.fn(), resetAll: vi.fn() },
   app: {
     openDataDir: vi.fn(),
+    openLogsDir: vi.fn(),
     exportDiagnostics: vi.fn(),
     getLoginItemSettings: vi.fn(),
     setLoginItemSettings: vi.fn(),
@@ -91,6 +93,12 @@ describe('settings-ops · 有桥路径', () => {
     api.app.openDataDir.mockResolvedValue(ok({ ok: false }));
 
     await expect(openDataDirChecked()).resolves.toEqual({ ok: false });
+  });
+
+  it('openLogsDirChecked：返回主进程回读的 ok 结果', async () => {
+    api.app.openLogsDir.mockResolvedValue(ok({ ok: true }));
+
+    await expect(openLogsDirChecked()).resolves.toEqual({ ok: true });
   });
 
   it('exportDiagnostics：透传 saved/path', async () => {

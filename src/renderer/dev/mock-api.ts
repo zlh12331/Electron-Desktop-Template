@@ -16,10 +16,22 @@ import { ipcErr, ipcOk } from '@/lib/ipc-factories';
 const memorySettings = new Map<string, unknown>([
   ['theme', 'dark'],
   ['language', 'zh-CN'],
-  ['window', { closeAction: 'minimize' }],
+  [
+    'update',
+    {
+      autoCheck: true,
+      autoDownload: true,
+      autoInstallOnAppQuit: true,
+      allowPrerelease: false,
+      skippedVersion: null,
+    },
+  ],
+  ['window', { closeAction: 'minimize', startMinimized: false }],
   ['notification', { enabled: true }],
   ['proxy', { mode: 'system' }],
   ['appearance', { zoom: 1 }],
+  ['logging', { verbose: false }],
+  ['backup', { autoBackup: true, keep: 3 }],
 ]);
 
 /** 假备份列表 */
@@ -155,6 +167,7 @@ export function createMockApi(): IpcApi {
         }),
       openExternal: async () => ipcOk({ ok: true }),
       openDataDir: async () => ipcOk({ ok: true }),
+      openLogsDir: async () => ipcOk({ ok: true }),
       exportDiagnostics: async () => ipcOk({ saved: false }),
       getLoginItemSettings: async () =>
         ipcOk({ openAtLogin: false, supported: false, requiresApproval: false }),
@@ -314,6 +327,7 @@ export function createMockApi(): IpcApi {
     // notes-example:end
     update: {
       check: async () => ipcOk({ status: 'checking' as const }),
+      download: async () => ipcOk({ ok: true }),
       install: async () => ipcOk({ ok: true }),
       cancel: async () => ipcOk({ ok: true }),
       getStatus: async () => ipcOk({ snapshot: mockUpdateSnapshot, lastCheckAt: null }),

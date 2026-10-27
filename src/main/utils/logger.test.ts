@@ -23,6 +23,7 @@ vi.mock('electron', () => ({
 }));
 
 import {
+  applyLogLevel,
   flushPendingLogs,
   initLogger,
   logger,
@@ -41,6 +42,13 @@ describe('logger', () => {
     expect(typeof logger.warn).toBe('function');
     expect(typeof logger.error).toBe('function');
     expect(typeof logger.debug).toBe('function');
+  });
+
+  it('applyLogLevel：verbose 开 debug，关闭时 dev 仍为 debug', () => {
+    applyLogLevel(true);
+    expect(mockLog.transports.file.level).toBe('debug');
+    applyLogLevel(false);
+    expect(mockLog.transports.file.level).toBe('debug');
   });
 
   it('info 日志携带 traceId 字段', () => {

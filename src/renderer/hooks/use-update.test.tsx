@@ -8,14 +8,16 @@ describe('use-update', () => {
   let installSpy: ReturnType<typeof vi.fn>;
   let cancelSpy: ReturnType<typeof vi.fn>;
   let checkSpy: ReturnType<typeof vi.fn>;
+  let downloadSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     checkSpy = vi.fn(async () => ({ data: { status: 'checking' } }));
     installSpy = vi.fn(async () => ({ data: { ok: true } }));
     cancelSpy = vi.fn(async () => ({ data: { ok: true } }));
+    downloadSpy = vi.fn(async () => ({ data: { ok: true } }));
     window.api = {
-      update: { check: checkSpy, install: installSpy, cancel: cancelSpy },
+      update: { check: checkSpy, download: downloadSpy, install: installSpy, cancel: cancelSpy },
     } as never;
     useUpdateStore.setState({ status: null, fromSnapshot: false, lastCheckAt: null });
   });
@@ -48,6 +50,14 @@ describe('use-update', () => {
     expect(useUpdateStore.getState().lastCheckAt).toBeTypeOf('number');
   });
 
+  it('download：调用 update.download', () => {
+    const { result } = renderHook(() => useUpdate());
+    act(() => {
+      result.current.download();
+    });
+    expect(downloadSpy).toHaveBeenCalledOnce();
+  });
+
   it('cancel：调用 update.cancel', () => {
     const { result } = renderHook(() => useUpdate());
     act(() => {
@@ -68,9 +78,11 @@ describe('use-update', () => {
     (window as unknown as { api: undefined }).api = undefined;
     const { result } = renderHook(() => useUpdate());
     await expect(result.current.check()).resolves.toBeUndefined();
+    expect(() => result.current.download()).not.toThrow();
     expect(() => result.current.cancel()).not.toThrow();
     expect(() => result.current.install()).not.toThrow();
     expect(checkSpy).not.toHaveBeenCalled();
+    expect(downloadSpy).not.toHaveBeenCalled();
     expect(cancelSpy).not.toHaveBeenCalled();
     expect(installSpy).not.toHaveBeenCalled();
   });

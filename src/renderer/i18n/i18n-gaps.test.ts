@@ -60,9 +60,11 @@ describe('i18n 批次8 缺口补全', () => {
     expect(document.documentElement.lang).toBe('zh-CN');
   });
 
-  it('resolveLanguage：只接受受支持语言，损坏值回落默认语言', () => {
+  it('resolveLanguage：显式语言原样返回，system 按 locale 解析，损坏值回落中文', () => {
     expect(resolveLanguage('en')).toBe('en');
     expect(resolveLanguage('zh-CN')).toBe('zh-CN');
+    expect(resolveLanguage('system', 'en-US')).toBe('en');
+    expect(resolveLanguage('system', 'zh-TW')).toBe('zh-CN');
     expect(resolveLanguage('fr')).toBe('zh-CN');
     expect(resolveLanguage(undefined)).toBe('zh-CN');
     expect(resolveLanguage(123)).toBe('zh-CN');

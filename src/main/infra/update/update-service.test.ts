@@ -135,12 +135,20 @@ describe('UpdateService', () => {
       expect(updater.autoInstallOnAppQuit).toBe(true);
     });
 
-    it('开关关闭：停用退出自动安装且不调度启动检查', async () => {
+    it('开关关闭：默认停用退出自动安装且不调度启动检查（未显式传独立开关时保持旧语义）', async () => {
       vi.useFakeTimers();
       service.start({ autoCheckEnabled: () => false });
       expect(updater.autoInstallOnAppQuit).toBe(false);
       await vi.advanceTimersByTimeAsync(60_000);
       expect(updater.checkForUpdates).not.toHaveBeenCalled();
+    });
+
+    it('退出安装开关独立于自动检查：自动检查关但仍可保留退出安装', () => {
+      service.start({
+        autoCheckEnabled: () => false,
+        autoInstallOnAppQuitEnabled: () => true,
+      });
+      expect(updater.autoInstallOnAppQuit).toBe(true);
     });
 
     it('开发模式（未打包）：不调度启动检查', async () => {
@@ -242,6 +250,21 @@ describe('UpdateService', () => {
       });
       expect(tokens).toHaveLength(1);
       expect(updater.downloadUpdate).toHaveBeenCalledWith(tokens[0]);
+    });
+
+    it('autoDownload 关闭：available 只通知不下载，download() 再显式触发', async () => {
+      const win = createFakeWindow();
+      mockGetAllWindows.mockReturnValue([win]);
+      service.start({ autoDownloadEnabled: () => false });
+      fire(updater, 'update-available', { version: '1.2.0' });
+      expect(lastPayload(win)).toEqual({ phase: 'available', version: '1.2.0' });
+      expect(updater.downloadUpdate).not.toHaveBeenCalled();
+
+      expect(service.download()).toEqual({ ok: true });
+      await vi.waitFor(() => {
+        expect(updater.downloadUpdate).toHaveBeenCalledOnce();
+      });
+      expect(tokens).toHaveLength(1);
     });
 
     it('download-progress → 透传字节与速率并补上版本号', () => {

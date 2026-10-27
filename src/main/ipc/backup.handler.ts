@@ -1,6 +1,7 @@
 // backup.handler.ts：backup 域 IPC——数据库备份列表/手动创建/恢复（恢复=暂存+重启生效）
 import type { InferHandlers, IPC_DEFINITIONS } from '@code-agent/shared/main';
 import { app } from 'electron';
+import { readBackupPolicy } from '../infra/storage/backup-settings';
 import { listBackups, stageRestore } from '../infra/storage/backup-store';
 import { createManualBackup, getDbPath } from '../infra/storage/db';
 import { logger } from '../utils/logger';
@@ -13,7 +14,7 @@ export const backupHandlers: InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerCon
   },
 
   create: async () => {
-    const { name } = await createManualBackup();
+    const { name } = await createManualBackup(readBackupPolicy().keep);
     return { name };
   },
 

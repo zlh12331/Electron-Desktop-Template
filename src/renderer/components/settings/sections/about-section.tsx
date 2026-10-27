@@ -78,9 +78,11 @@ export function AboutSection(): ReactElement {
   });
   const [copying, setCopying] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const { state: updateState, check, cancel, lastCheckAt } = useUpdate();
+  const { state: updateState, check, download, cancel, lastCheckAt } = useUpdate();
   const installUpdate = useInstallUpdate();
   const autoCheck = useSettingsStore((s) => s.update.autoCheck);
+  const autoDownload = useSettingsStore((s) => s.update.autoDownload);
+  const autoInstallOnAppQuit = useSettingsStore((s) => s.update.autoInstallOnAppQuit);
   const allowPrerelease = useSettingsStore((s) => s.update.allowPrerelease);
   const skippedVersion = useSettingsStore((s) => s.update.skippedVersion);
   const setUpdate = useSettingsStore((s) => s.setUpdate);
@@ -157,6 +159,7 @@ export function AboutSection(): ReactElement {
             <UpdateBlock
               state={updateState}
               onCheck={() => void check()}
+              onDownload={download}
               onCancel={cancel}
               onInstall={() => void installUpdate()}
               onSkip={handleSkipVersion}
@@ -193,6 +196,18 @@ export function AboutSection(): ReactElement {
         description={t('settings.aboutAutoCheckDesc')}
         checked={autoCheck}
         onChange={handleAutoCheckChange}
+      />
+      <ToggleRow
+        name={t('settings.aboutAutoDownload')}
+        description={t('settings.aboutAutoDownloadDesc')}
+        checked={autoDownload}
+        onChange={(checked) => setUpdate({ autoDownload: checked })}
+      />
+      <ToggleRow
+        name={t('settings.aboutAutoInstallOnAppQuit')}
+        description={t('settings.aboutAutoInstallOnAppQuitDesc')}
+        checked={autoInstallOnAppQuit}
+        onChange={(checked) => setUpdate({ autoInstallOnAppQuit: checked })}
       />
       <ToggleRow
         name={t('settings.aboutAllowPrerelease')}

@@ -6,12 +6,14 @@ function createFakeUpdateService() {
   return {
     start: vi.fn(),
     check: vi.fn(async () => ({ status: 'checking' as const })),
+    download: vi.fn(() => ({ ok: true })),
     cancelDownload: vi.fn(),
     getStatus: vi.fn(() => ({ snapshot: null, lastCheckAt: null })),
     quitAndInstall: vi.fn(),
     dispose: vi.fn(),
   } as unknown as UpdateHandlerDeps['updateService'] & {
     check: ReturnType<typeof vi.fn>;
+    download: ReturnType<typeof vi.fn>;
     getStatus: ReturnType<typeof vi.fn>;
     cancelDownload: ReturnType<typeof vi.fn>;
   };
@@ -45,6 +47,12 @@ describe('update.handler', () => {
     updateService.check.mockResolvedValueOnce({ status: 'error', message: 'boom' });
     const result = await handlers.check({ manual: false }, EMPTY_CTX);
     expect(result).toEqual({ status: 'error', message: 'boom' });
+  });
+
+  it('download：调用服务下载并透传 ok', async () => {
+    const result = await handlers.download(undefined, EMPTY_CTX);
+    expect(updateService.download).toHaveBeenCalledOnce();
+    expect(result).toEqual({ ok: true });
   });
 
   it('install：调用 quitAndInstall 并返回 ok', async () => {

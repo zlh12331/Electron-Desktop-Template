@@ -17,11 +17,14 @@ export function createUpdateHandlers(
   deps: UpdateHandlerDeps,
 ): Pick<
   InferHandlers<typeof IPC_DEFINITIONS, IpcHandlerContext>['update'],
-  'check' | 'install' | 'cancel' | 'getStatus' | 'getCacheInfo' | 'clearCache'
+  'check' | 'download' | 'install' | 'cancel' | 'getStatus' | 'getCacheInfo' | 'clearCache'
 > {
   return {
     check: async (input) => {
       return deps.updateService.check(input.manual ?? false);
+    },
+    download: async () => {
+      return deps.updateService.download();
     },
     install: async () => {
       deps.updateService.quitAndInstall();

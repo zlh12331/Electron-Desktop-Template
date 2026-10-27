@@ -14,13 +14,29 @@ type Translate = ReturnType<typeof useTranslation>['t'];
  * checking/downloading/cancelled 静默：进度高频推送（展示在关于面板与顶栏指示）；
  * 取消由关于面板就地提示。
  */
-function notifyPhase(payload: UpdateStatusPayload, install: () => void, t: Translate): void {
+interface NotifyContext {
+  readonly install: () => void;
+  readonly download: () => void;
+  readonly autoDownload: boolean;
+  readonly t: Translate;
+}
+
+function notifyPhase(payload: UpdateStatusPayload, context: NotifyContext): void {
   const { phase, version, message } = payload;
+  const { install, download, autoDownload, t } = context;
   switch (phase) {
     case 'available':
-      toast.info(t('update.noticeAvailable'), {
-        description: t('update.downloadingDesc', { version: version ?? '' }),
-      });
+      if (autoDownload) {
+        toast.info(t('update.noticeAvailable'), {
+          description: t('update.downloadingDesc', { version: version ?? '' }),
+        });
+      } else {
+        toast.info(t('update.noticeAvailable'), {
+          description: t('update.availableDesc', { version: version ?? '' }),
+          action: { label: t('update.download'), onClick: download },
+          duration: 60_000,
+        });
+      }
       break;
     case 'downloaded':
       toast(t('update.noticeReady'), {
@@ -51,9 +67,10 @@ function notifyPhase(payload: UpdateStatusPayload, install: () => void, t: Trans
  * 自动更新提示组件（挂载在 AppShell 根级，全局只此一个）
  */
 export function UpdateNotice(): ReactElement | null {
-  const { state, fromSnapshot, install } = useUpdate();
+  const { state, fromSnapshot, install, download } = useUpdate();
   const { t } = useTranslation();
   const skippedVersion = useSettingsStore((s) => s.update.skippedVersion);
+  const autoDownload = useSettingsStore((s) => s.update.autoDownload);
   const lastNotifiedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -73,8 +90,8 @@ export function UpdateNotice(): ReactElement | null {
     if (version !== undefined && version === skippedVersion) {
       return;
     }
-    notifyPhase(state, install, t);
-  }, [state, fromSnapshot, install, skippedVersion, t]);
+    notifyPhase(state, { install, download, autoDownload, t });
+  }, [state, fromSnapshot, install, download, autoDownload, skippedVersion, t]);
 
   return null;
 }

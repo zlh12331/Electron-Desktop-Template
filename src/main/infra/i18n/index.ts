@@ -1,25 +1,25 @@
 // i18n/index.ts：主进程侧最小翻译层——托盘等主进程 UI 的双语词典查找 + {param} 插值
 // 边界：渲染层走 i18next 完整管线，两边不共用实现；语言真源在 settings.language
-import { DEFAULT_LANGUAGE_SETTING } from '@code-agent/shared/main';
+import { FALLBACK_LANGUAGE, resolveLanguageSetting } from '@code-agent/shared/main';
 import { MAIN_DICTIONARIES, type MainLanguage } from './dictionaries';
 
-export const DEFAULT_MAIN_LANGUAGE: MainLanguage = DEFAULT_LANGUAGE_SETTING;
+export const DEFAULT_MAIN_LANGUAGE: MainLanguage = FALLBACK_LANGUAGE;
 
 let currentLanguage: MainLanguage = DEFAULT_MAIN_LANGUAGE;
 
-/** 未知/损坏的语言值一律回落中文（主进程文案只有双语，不存在第三态） */
-function asMainLanguage(value: unknown): MainLanguage {
-  return value === 'en' ? 'en' : DEFAULT_MAIN_LANGUAGE;
+/** 把设置值 + OS locale 解析为双语之一；未知/损坏回落中文 */
+function asMainLanguage(value: unknown, locale: string | undefined): MainLanguage {
+  return resolveLanguageSetting(value, locale);
 }
 
-/** 启动序列调用：按 settings.language 初始化 */
-export function initMainI18n(language: unknown): void {
-  currentLanguage = asMainLanguage(language);
+/** 启动序列调用：按 settings.language 初始化（system 用 app.getLocale 解析） */
+export function initMainI18n(language: unknown, locale: string | undefined = 'zh-CN'): void {
+  currentLanguage = asMainLanguage(language, locale);
 }
 
 /** 运行中切语言（settings:set 的 language 分支调用） */
-export function setMainLanguage(value: unknown): void {
-  currentLanguage = asMainLanguage(value);
+export function setMainLanguage(value: unknown, locale: string | undefined = 'zh-CN'): void {
+  currentLanguage = asMainLanguage(value, locale);
 }
 
 /** 当前语言（托盘菜单构建时读取） */

@@ -36,6 +36,11 @@ export function initLogger(): void {
   log.initialize();
 }
 
+/** 应用用户选择的详细日志级别（verbose → debug；否则沿用打包态 info / dev debug） */
+export function applyLogLevel(verbose: boolean): void {
+  log.transports.file.level = verbose ? 'debug' : app.isPackaged ? 'info' : 'debug';
+}
+
 /** 显式区分本地排障详情与上行上下文，避免旁路隐式复制本地字段。 */
 export interface RemoteLog {
   readonly context: LogContext;

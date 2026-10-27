@@ -25,6 +25,7 @@ export const updateDomain = {
     {} as UpdateCheckRes,
     UpdateCheckResSchema,
   ),
+  download: withSchema(IPC_META.update.download, null, {} as { ok: boolean }, OkResSchema),
   install: withSchema(IPC_META.update.install, null, {} as { ok: boolean }, OkResSchema),
   cancel: withSchema(IPC_META.update.cancel, null, {} as { ok: boolean }, OkResSchema),
   getStatus: withSchema(

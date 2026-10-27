@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { type InferHandlers, type IPC_DEFINITIONS, SETTING_KEYS } from '@code-agent/shared/main';
 import { app, dialog } from 'electron';
 
-import { DEFAULT_MAIN_LANGUAGE, setMainLanguage, t } from '../infra/i18n';
+import { setMainLanguage, t } from '../infra/i18n';
 import {
   applyProxySetting,
   clearProxyAuthCredentials,
@@ -22,9 +22,15 @@ import { deleteSettings, readAllSettings, writeSetting } from '../infra/storage/
 import { readTelemetryLevelSync, writeTelemetryLevel } from '../infra/storage/telemetry-pref';
 import { broadcastSettingChanged } from '../main-events';
 import { readJsonImportFile } from '../utils/json-file';
-import { logger } from '../utils/logger';
+import { applyLogLevel, logger } from '../utils/logger';
 import { syncTitleBarOverlayFromTheme } from '../window-theme';
 import type { IpcHandlerContext } from './wrap';
+
+function isVerboseLogging(value: unknown): boolean {
+  return (
+    typeof value === 'object' && value !== null && (value as { verbose?: unknown }).verbose === true
+  );
+}
 
 /** settings 域 handler（模板版：无 API Key / 运行时模型 / 审批模式等业务项） */
 export const settingsHandlers: InferHandlers<
@@ -54,7 +60,10 @@ export const settingsHandlers: InferHandlers<
         syncTitleBarOverlayFromTheme(input.value);
       }
       if (input.key === 'language') {
-        setMainLanguage(input.value);
+        setMainLanguage(input.value, app.getLocale());
+      }
+      if (input.key === 'logging') {
+        applyLogLevel(isVerboseLogging(input.value));
       }
     }
     // 只记键名，不记值（值可能含代理凭据等敏感信息）
@@ -110,7 +119,10 @@ export const settingsHandlers: InferHandlers<
         syncTitleBarOverlayFromTheme(value);
       }
       if (key === 'language') {
-        setMainLanguage(value);
+        setMainLanguage(value, app.getLocale());
+      }
+      if (key === 'logging') {
+        applyLogLevel(isVerboseLogging(value));
       }
       if (key === 'proxy') {
         await applyProxySetting(value);
@@ -127,7 +139,8 @@ export const settingsHandlers: InferHandlers<
     await clearProxyAuthCredentials();
     deleteSettings(SETTING_KEYS);
     syncTitleBarOverlayFromTheme(undefined);
-    setMainLanguage(DEFAULT_MAIN_LANGUAGE);
+    setMainLanguage(undefined, app.getLocale());
+    applyLogLevel(false);
     await applyProxySetting(undefined);
     logger.info({}, '设置已全部恢复默认（app_settings 设置键已清空）');
     return { settings: {} };

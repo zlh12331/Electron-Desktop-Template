@@ -10,17 +10,31 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useTranslation } from '@/i18n/use-translation';
-import { useSettingsStore } from '@/stores/persistent/settings-store';
+import { type Theme, useSettingsStore } from '@/stores/persistent/settings-store';
+import { SegControl, SettingRow } from '../settings-controls';
 
 /** 界面缩放区块（独立「外观与缩放」分区） */
 export function ZoomSection(): ReactElement {
   const { t } = useTranslation();
+  const theme = useSettingsStore((s) => s.theme);
+  const setTheme = useSettingsStore((s) => s.setTheme);
   const zoom = useSettingsStore((s) => s.appearance.zoom);
   const updateAppearance = useSettingsStore((s) => s.updateAppearance);
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
+      <SettingRow label={t('settings.themeTitle')} description={t('settings.themeDesc')}>
+        <SegControl
+          value={theme}
+          options={[
+            { value: 'light', label: t('settings.themeLight') },
+            { value: 'dark', label: t('settings.themeDark') },
+            { value: 'system', label: t('settings.themeSystem') },
+          ]}
+          onChange={(value) => setTheme(value as Theme)}
+        />
+      </SettingRow>
+      <div className="mt-2 flex items-center gap-2">
         <ZoomIn className="text-muted-foreground size-3.5" strokeWidth={1.5} />
         <h3 className="text-foreground text-sm font-semibold">{t('settings.zoomTitle')}</h3>
       </div>

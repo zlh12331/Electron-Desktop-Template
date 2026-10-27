@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { i18n } from '@/i18n';
+import { useSettingsStore } from '@/stores/persistent/settings-store';
 
 const { mockToastError, mockToastSuccess } = vi.hoisted(() => ({
   mockToastError: vi.fn(),
@@ -46,13 +47,26 @@ const HEALTHY_ENTRY = {
 beforeEach(() => {
   vi.clearAllMocks();
   Object.defineProperty(window, 'api', {
-    value: { backup: { list: vi.fn(), create: vi.fn(), restore: vi.fn() } },
+    value: {
+      backup: { list: vi.fn(), create: vi.fn(), restore: vi.fn() },
+      settings: { set: vi.fn(async () => ({ data: { ok: true } })) },
+    },
     writable: true,
     configurable: true,
   });
+  useSettingsStore.setState({ backup: { autoBackup: true, keep: 3 } });
 });
 
 describe('BackupBlock（37-B）', () => {
+  it('备份策略：默认展示自动备份开 + 保留 3 份，切换写入 settings-store', async () => {
+    vi.mocked(window.api.backup.list).mockResolvedValue({ data: { backups: [] } });
+    renderBlock();
+
+    expect(screen.getByText(t('settings.backupKeepOption', { count: 3 }))).toBeDefined();
+    await userEvent.click(screen.getByRole('switch', { name: t('settings.backupAutoLabel') }));
+    expect(useSettingsStore.getState().backup.autoBackup).toBe(false);
+  });
+
   it('V1 空列表 → 空态文案', async () => {
     vi.mocked(window.api.backup.list).mockResolvedValue({ data: { backups: [] } });
     renderBlock();

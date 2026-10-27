@@ -11,6 +11,7 @@ const mockUpdate = vi.hoisted(() => ({
     fromSnapshot: false,
     lastCheckAt: null as number | null,
     check: vi.fn(async () => {}),
+    download: vi.fn(),
     cancel: vi.fn(),
     install: vi.fn(),
   },
@@ -44,6 +45,7 @@ function renderWith(
     fromSnapshot: false,
     lastCheckAt: null,
     check: vi.fn(async () => {}),
+    download: vi.fn(),
     cancel: vi.fn(),
     install: vi.fn(),
     ...overrides,
@@ -54,7 +56,13 @@ function renderWith(
 beforeEach(() => {
   vi.clearAllMocks();
   useSettingsStore.setState({
-    update: { autoCheck: true, allowPrerelease: false, skippedVersion: null },
+    update: {
+      autoCheck: true,
+      autoDownload: true,
+      autoInstallOnAppQuit: true,
+      allowPrerelease: false,
+      skippedVersion: null,
+    },
   });
 });
 
@@ -64,6 +72,22 @@ describe('关于面板 · 更新区', () => {
     const button = screen.getByRole('button', { name: t('settings.aboutCheckUpdate') });
     await userEvent.click(button);
     expect(mockUpdate.value.check).toHaveBeenCalledOnce();
+  });
+
+  it('发现新版本：手动下载按钮调用 download', async () => {
+    renderWith({ phase: 'available', version: '1.2.0' });
+    await userEvent.click(screen.getByRole('button', { name: t('settings.aboutDownload') }));
+    expect(mockUpdate.value.download).toHaveBeenCalledOnce();
+  });
+
+  it('自动下载 / 退出安装开关：写入 settings 独立字段', async () => {
+    renderWith(null);
+    await userEvent.click(screen.getByRole('switch', { name: t('settings.aboutAutoDownload') }));
+    expect(useSettingsStore.getState().update.autoDownload).toBe(false);
+    await userEvent.click(
+      screen.getByRole('switch', { name: t('settings.aboutAutoInstallOnAppQuit') }),
+    );
+    expect(useSettingsStore.getState().update.autoInstallOnAppQuit).toBe(false);
   });
 
   it('下载中：渲染进度条（含 percent 语义）、取消按钮与字节详情', () => {
@@ -157,7 +181,13 @@ describe('关于面板 · 更新区', () => {
 
   it('跳过态：展示已跳过并提供取消跳过（写回 settings）', async () => {
     useSettingsStore.setState({
-      update: { autoCheck: true, allowPrerelease: false, skippedVersion: '1.2.0' },
+      update: {
+        autoCheck: true,
+        autoDownload: true,
+        autoInstallOnAppQuit: true,
+        allowPrerelease: false,
+        skippedVersion: '1.2.0',
+      },
     });
     renderWith({ phase: 'downloaded', version: '1.2.0' });
     expect(screen.getByText(t('settings.aboutSkipped', { version: '1.2.0' }))).toBeTruthy();
@@ -167,7 +197,13 @@ describe('关于面板 · 更新区', () => {
 
   it('跳过的是别的版本：不展示跳过态（版本号不等即失效）', () => {
     useSettingsStore.setState({
-      update: { autoCheck: true, allowPrerelease: false, skippedVersion: '1.0.0' },
+      update: {
+        autoCheck: true,
+        autoDownload: true,
+        autoInstallOnAppQuit: true,
+        allowPrerelease: false,
+        skippedVersion: '1.0.0',
+      },
     });
     renderWith({ phase: 'downloaded', version: '1.2.0' });
     expect(screen.queryByText(t('settings.aboutSkipped', { version: '1.0.0' }))).toBeNull();

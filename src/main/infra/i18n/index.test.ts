@@ -55,6 +55,15 @@ describe('语言态与 t()', () => {
     expect(getMainLanguage()).toBe('zh-CN');
   });
 
+  it('system 设置按 OS locale 解析（中文族 zh-CN / 其他 en）', () => {
+    initMainI18n('system', 'en-US');
+    expect(getMainLanguage()).toBe('en');
+    initMainI18n('system', 'zh-TW');
+    expect(getMainLanguage()).toBe('zh-CN');
+    setMainLanguage('system', 'en-GB');
+    expect(getMainLanguage()).toBe('en');
+  });
+
   it('en 下缺 key 回退 zh-CN 词典，双缺返回 key 本身', () => {
     setMainLanguage('en');
     expect(t('totally.missing.key')).toBe('totally.missing.key');

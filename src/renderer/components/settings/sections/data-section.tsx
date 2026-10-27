@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { changeLanguage, LANGUAGE_STORAGE_KEY } from '@/i18n/config';
+import { changeLanguage, LANGUAGE_STORAGE_KEY, resolveLanguage } from '@/i18n/config';
 import { useTranslation } from '@/i18n/use-translation';
 import { formatBytes } from '@/lib/format-bytes';
 import {
@@ -13,6 +13,7 @@ import {
   getUpdateCacheInfo,
   importSettingsFile,
   openDataDirChecked,
+  openLogsDirChecked,
   resetAllSettings,
 } from '@/lib/settings-ops';
 import {
@@ -22,6 +23,7 @@ import {
 } from '@/stores/persistent/settings-store';
 import { confirm } from '@/stores/transient/confirm-dialog-store';
 import { useUpdateStore } from '@/stores/transient/update-store';
+import { ToggleRow } from '../settings-controls';
 
 import { BackupBlock } from './backup-block';
 
@@ -30,6 +32,8 @@ export function DataSection(): React.ReactElement {
   const { t } = useTranslation();
   const [cache, setCache] = useState<UpdateCacheInfo | null>(null);
   const downloading = useUpdateStore((s) => s.status?.phase === 'downloading');
+  const logging = useSettingsStore((s) => s.logging);
+  const updateLogging = useSettingsStore((s) => s.updateLogging);
 
   useEffect(() => {
     void (async (): Promise<void> => {
@@ -94,7 +98,7 @@ export function DataSection(): React.ReactElement {
       await flushPendingSettings();
       const settings = await resetAllSettings();
       applySettingsSnapshot(settings);
-      const language = useSettingsStore.getState().language;
+      const language = resolveLanguage(useSettingsStore.getState().language);
       void changeLanguage(language);
       try {
         localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
@@ -116,18 +120,46 @@ export function DataSection(): React.ReactElement {
     } catch {}
   };
 
+  const handleOpenLogsDir = async (): Promise<void> => {
+    try {
+      const res = await openLogsDirChecked();
+      if (res.ok) {
+        toast.success(t('settings.loggingDirOpened'));
+      } else {
+        toast.error(t('settings.loggingDirOpenFailed'));
+      }
+    } catch {
+      toast.error(t('settings.loggingDirOpenFailed'));
+    }
+  };
+
   return (
     <div className="flex flex-col gap-3 pt-2">
       <div className="flex items-center gap-2">
         <Database className="size-4 text-muted-foreground" strokeWidth={1.5} />
         <Label className="font-serif text-sm tracking-wide">{t('settings.dataSection')}</Label>
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={handleOpenDataDir}>
           {t('settings.openDataDir')}
         </Button>
+        <Button variant="outline" size="sm" onClick={() => void handleOpenLogsDir()}>
+          {t('settings.loggingOpenDir')}
+        </Button>
       </div>
       <p className="text-xs text-muted-foreground font-sans">{t('settings.settingsDataHint')}</p>
+      <div className="border-border/60 mt-1 border-t pt-3">
+        <p className="text-foreground mb-1 text-sm font-semibold">{t('settings.loggingTitle')}</p>
+        <p className="text-muted-foreground mb-2 text-xs leading-[1.5]">
+          {t('settings.loggingHint')}
+        </p>
+        <ToggleRow
+          name={t('settings.loggingVerboseLabel')}
+          description={t('settings.loggingVerboseDesc')}
+          checked={logging.verbose}
+          onChange={(checked) => updateLogging({ verbose: checked })}
+        />
+      </div>
       <div className="flex gap-2">
         <Button variant="outline" size="sm" onClick={handleExportSettings}>
           {t('settings.exportSettings')}

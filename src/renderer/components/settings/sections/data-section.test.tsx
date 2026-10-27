@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   importSettings: vi.fn(),
   resetAll: vi.fn(),
   openDataDir: vi.fn(),
+  openLogsDir: vi.fn(),
 }));
 
 vi.mock('sonner', () => ({ toast: { success: mocks.toastSuccess, error: mocks.toastError } }));
@@ -28,6 +29,7 @@ vi.mock('@/lib/settings-ops', () => ({
   importSettingsFile: mocks.importSettings,
   resetAllSettings: mocks.resetAll,
   openDataDirChecked: mocks.openDataDir,
+  openLogsDirChecked: mocks.openLogsDir,
 }));
 vi.mock('./backup-block', () => ({
   // biome-ignore lint/style/useNamingConvention: 被 mock 的组件导出名是 PascalCase
@@ -60,8 +62,13 @@ beforeEach(() => {
   mocks.importSettings.mockResolvedValue({ imported: 5, skipped: 1 });
   mocks.resetAll.mockResolvedValue({});
   mocks.openDataDir.mockResolvedValue({ ok: true });
+  mocks.openLogsDir.mockResolvedValue({ ok: true });
   useUpdateStore.setState({ status: null });
-  useSettingsStore.setState({ language: 'zh-CN', proxy: { mode: 'system' } });
+  useSettingsStore.setState({
+    language: 'zh-CN',
+    proxy: { mode: 'system' },
+    logging: { verbose: false },
+  });
 });
 
 describe('DataSection', () => {
@@ -99,6 +106,23 @@ describe('DataSection', () => {
 
     await waitFor(() => expect(mocks.openDataDir).toHaveBeenCalledOnce());
     expect(mocks.toastError).not.toHaveBeenCalled();
+  });
+
+  it('打开日志目录：成功 → 成功 toast', async () => {
+    renderSection();
+
+    await userEvent.click(screen.getByRole('button', { name: t('settings.loggingOpenDir') }));
+
+    await waitFor(() => expect(mocks.openLogsDir).toHaveBeenCalledOnce());
+    expect(mocks.toastSuccess).toHaveBeenCalledWith(t('settings.loggingDirOpened'));
+  });
+
+  it('详细日志开关：写入 logging.verbose', async () => {
+    renderSection();
+
+    await userEvent.click(screen.getByRole('switch', { name: t('settings.loggingVerboseLabel') }));
+
+    expect(useSettingsStore.getState().logging.verbose).toBe(true);
   });
 
   it('导出设置：saved → 成功 toast 带路径', async () => {

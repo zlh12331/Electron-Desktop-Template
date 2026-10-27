@@ -12,6 +12,8 @@ export interface UseUpdateResult {
   readonly lastCheckAt: number | null;
   /** 手动触发更新检查 */
   readonly check: () => Promise<void>;
+  /** 下载已发现的版本（autoDownload 关闭时使用） */
+  readonly download: () => void;
   /** 取消在途下载（无在途下载时为空操作） */
   readonly cancel: () => void;
   /** 安装已下载的更新并重启 */
@@ -41,6 +43,14 @@ export function useUpdate(): UseUpdateResult {
     markChecked(Date.now());
   };
 
+  const download = (): void => {
+    const api = window.api;
+    if (api === undefined) {
+      return;
+    }
+    void api.update.download();
+  };
+
   const cancel = (): void => {
     const api = window.api;
     if (api === undefined) {
@@ -57,5 +67,5 @@ export function useUpdate(): UseUpdateResult {
     void api.update.install();
   };
 
-  return { state, fromSnapshot, lastCheckAt, check, cancel, install };
+  return { state, fromSnapshot, lastCheckAt, check, download, cancel, install };
 }

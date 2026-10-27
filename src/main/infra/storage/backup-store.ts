@@ -14,12 +14,18 @@ import {
   unlinkSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { AppError, type BackupEntry, ErrorCode, EXECUTABLE_NAME } from '@code-agent/shared/main';
+import {
+  AppError,
+  type BackupEntry,
+  type BackupKeep,
+  ErrorCode,
+  EXECUTABLE_NAME,
+} from '@code-agent/shared/main';
 import Database from 'better-sqlite3';
 import { logger } from '../../utils/logger';
 
 // 轮转保留份数：3 份 × 毫秒级命名，同秒多次备份靠毫秒段防覆盖（37 号实测教训）
-export const BACKUP_KEEP = 3;
+export const BACKUP_KEEP: BackupKeep = 3;
 const BACKUP_DIR = 'backups';
 // 恢复暂存文件名：下次启动 initDb 检测到它才执行真替换
 export const RESTORE_PENDING_FILENAME = `${EXECUTABLE_NAME}.db.restore-pending`;
@@ -108,7 +114,11 @@ export function isBackupHealthy(backupPath: string): boolean {
 }
 
 /** 热备份：backup() 写 .tmp → rename 原子落盘（写一半崩溃不留半截备份）→ 轮转删超额 */
-export async function createBackupFile(sqlite: Database.Database, dbPath: string): Promise<string> {
+export async function createBackupFile(
+  sqlite: Database.Database,
+  dbPath: string,
+  keep: BackupKeep = BACKUP_KEEP,
+): Promise<string> {
   const backupDir = backupDirPath(dbPath);
   mkdirSync(backupDir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 23);
@@ -126,7 +136,7 @@ export async function createBackupFile(sqlite: Database.Database, dbPath: string
   logger.info({ backupPath }, '数据库热备份完成');
 
   const backups = listBackupNames(dbPath);
-  const excess = backups.length - BACKUP_KEEP;
+  const excess = backups.length - keep;
   for (let i = 0; i < excess; i++) {
     const stale = join(backupDir, backups[i] ?? '');
     unlinkSync(stale);

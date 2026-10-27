@@ -3,7 +3,7 @@ import { Check, Languages } from 'lucide-react';
 import { type ReactElement, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { changeLanguage, SUPPORTED_LANGUAGES, type SupportedLanguage } from '@/i18n/config';
+import { SUPPORTED_LANGUAGES } from '@/i18n/config';
 import { useTranslation } from '@/i18n/use-translation';
 import { LANGUAGE_ENDONYMS } from '@/lib/language-endonyms';
 import {
@@ -12,21 +12,20 @@ import {
   subscribeLoginItemChanged,
 } from '@/lib/settings-ops';
 import { cn } from '@/lib/utils';
-import { type AppLanguage, useSettingsStore } from '@/stores/persistent/settings-store';
+import type { AppLanguage } from '@/stores/persistent/settings-store';
+import { useSettingsStore } from '@/stores/persistent/settings-store';
 import { SegControl, SettingRow, ToggleRow } from '../settings-controls';
 import { TelemetrySection } from './telemetry-section';
 
-/** 语言切换行（真实 i18n：changeLanguage 立即生效；P2：同步写入 SQLite 设置链路） */
+/** 语言切换行（真实 i18n：设置值 system 在 store 内解析为当前 OS 语言） */
 function LanguageRow(): ReactElement {
-  const { t, i18n } = useTranslation();
-  const currentLang = i18n.language?.startsWith('en') ? 'en' : 'zh-CN';
-  const [lang, setLang] = useState<string>(currentLang);
-
-  const handleSelect = (next: string): void => {
-    setLang(next);
-    void changeLanguage(next as SupportedLanguage);
-    useSettingsStore.getState().setLanguage(next as AppLanguage);
-  };
+  const { t } = useTranslation();
+  const language = useSettingsStore((s) => s.language);
+  const setLanguage = useSettingsStore((s) => s.setLanguage);
+  const options: readonly { readonly value: AppLanguage; readonly label: string }[] = [
+    { value: 'system', label: t('settings.languageSystem') },
+    ...SUPPORTED_LANGUAGES.map((code) => ({ value: code, label: LANGUAGE_ENDONYMS[code] })),
+  ];
 
   return (
     <div className="flex items-center justify-between gap-2">
@@ -35,21 +34,21 @@ function LanguageRow(): ReactElement {
         <span className="text-foreground text-sm">{t('settings.language')}</span>
       </div>
       <div className="flex items-center gap-1">
-        {SUPPORTED_LANGUAGES.map((code) => (
+        {options.map((option) => (
           <Button
-            key={code}
+            key={option.value}
             variant="ghost"
             size="sm"
             className={cn(
               'h-auto gap-1 rounded px-2 py-1 text-xs',
-              lang === code
+              language === option.value
                 ? 'bg-muted text-foreground border-border'
                 : 'text-muted-foreground border-transparent',
             )}
-            onClick={() => handleSelect(code)}
+            onClick={() => setLanguage(option.value)}
           >
-            {LANGUAGE_ENDONYMS[code]}
-            {lang === code && <Check className="size-3" strokeWidth={2} />}
+            {option.label}
+            {language === option.value && <Check className="size-3" strokeWidth={2} />}
           </Button>
         ))}
       </div>
@@ -61,6 +60,7 @@ function LanguageRow(): ReactElement {
 export function GeneralSection(): ReactElement {
   const { t } = useTranslation();
   const closeAction = useSettingsStore((s) => s.window.closeAction);
+  const startMinimized = useSettingsStore((s) => s.window.startMinimized);
   const setWindow = useSettingsStore((s) => s.setWindow);
   const [autostart, setAutostart] = useState<LoginItemSettingsRes | null>(null);
 
@@ -130,6 +130,12 @@ export function GeneralSection(): ReactElement {
             checked={autostart?.openAtLogin ?? false}
             disabled={autostart?.supported === false}
             onChange={(checked) => void handleToggleAutostart(checked)}
+          />
+          <ToggleRow
+            name={t('settings.startMinimizedLabel')}
+            description={t('settings.startMinimizedDesc')}
+            checked={startMinimized}
+            onChange={(checked) => setWindow({ startMinimized: checked })}
           />
         </div>
       </div>

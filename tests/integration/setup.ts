@@ -47,6 +47,7 @@ vi.mock('electron', () => ({
     isPackaged: false,
     getAppPath: () => process.cwd(),
     getVersion: () => '9.9.9-test',
+    getLocale: () => 'zh-CN',
     // 代理认证监听注册/移除（proxy-applier 在 fixed 模式挂 login 监听）
     on: vi.fn(),
     removeListener: vi.fn(),

@@ -39,6 +39,7 @@ export const appDomain = {
     OkResSchema,
   ),
   openDataDir: withSchema(IPC_META.app.openDataDir, null, {} as { ok: boolean }, OkResSchema),
+  openLogsDir: withSchema(IPC_META.app.openLogsDir, null, {} as { ok: boolean }, OkResSchema),
   getLoginItemSettings: withSchema(
     IPC_META.app.getLoginItemSettings,
     null,

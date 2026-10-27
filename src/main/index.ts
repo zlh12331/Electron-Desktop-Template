@@ -17,6 +17,7 @@ import {
 } from './infra/autostart/autostart';
 import { initMainI18n, t } from './infra/i18n';
 import { applyProxySetting, migrateProxyCredentials } from './infra/network/proxy-credentials';
+import { readBackupPolicy } from './infra/storage/backup-settings';
 import { initDb } from './infra/storage/db';
 import { readAllSettings, readSetting, writeSetting } from './infra/storage/settings-pref';
 import { readTelemetryLevelSync } from './infra/storage/telemetry-pref';
@@ -55,9 +56,15 @@ import { disposeServices, recoverFromCrash, serviceContainer } from './service-c
 import { createTray } from './tray';
 import { isDevTestEnvEnabled, resolveEnvFileToLoad } from './utils/dev-test-env';
 import { reportError, reportMessage } from './utils/error-report';
-import { flushPendingLogs, initLogger, logger, registerGlobalErrorHandlers } from './utils/logger';
+import {
+  applyLogLevel,
+  flushPendingLogs,
+  initLogger,
+  logger,
+  registerGlobalErrorHandlers,
+} from './utils/logger';
 import { flushTelemetryOnFatal } from './utils/telemetry-flush';
-import { createWindow, readCloseAction } from './window';
+import { createWindow, readCloseAction, readStartMinimized } from './window';
 import { bringMainWindowToFront } from './window-show';
 import { syncTitleBarOverlayFromTheme } from './window-theme';
 
@@ -158,12 +165,13 @@ app
     initTelemetry(startupTelemetryLevel);
     await withStartupObservation(
       startupStartedAt,
-      resolveStartHidden(app) ? 'hidden' : 'foreground',
+      resolveStartHidden(app) || readStartMinimized() ? 'hidden' : 'foreground',
       async () => {
         await withSpan('db.init', {}, async () => {
-          initDb();
+          initDb({ getBackupPolicy: readBackupPolicy });
         });
-        initMainI18n(readSetting('language'));
+        applyLogLevel(isVerboseLoggingEnabled());
+        initMainI18n(readSetting('language'), app.getLocale());
         await initProxyFromSettings();
         registerGlobalErrorHandlers();
         void recoverFromCrash();
@@ -192,6 +200,8 @@ app
 
         serviceContainer.getUpdateService().start({
           autoCheckEnabled: isAutoCheckEnabled,
+          autoDownloadEnabled: isAutoDownloadEnabled,
+          autoInstallOnAppQuitEnabled: isAutoInstallOnAppQuitEnabled,
           allowPrereleaseEnabled: isAllowPrereleaseEnabled,
           devUpdateEnabled: isDevTestEnvEnabled(app.isPackaged, 'APP_DEV_UPDATE'),
         });
@@ -230,7 +240,7 @@ app
         coldLaunchDeepLink ??= extractProtocolUrl(process.argv);
 
         await withSpan('window.create', {}, async () => {
-          createWindow();
+          createWindow({ startHidden: resolveStartHidden(app) || readStartMinimized() });
         });
         const startupDurationMs = Math.round(performance.now() - startupStartedAt);
         recordStartupMilestone('window');
@@ -392,38 +402,55 @@ function readWindowSettings(): Record<string, unknown> {
   }
 }
 
-function isAutoCheckEnabled(): boolean {
+type UpdateBooleanKey = 'autoCheck' | 'autoDownload' | 'autoInstallOnAppQuit' | 'allowPrerelease';
+
+/** 读更新域布尔开关（缺失/损坏/读取失败均按默认值，避免一个坏字段阻断更新） */
+function readUpdateBoolean(key: UpdateBooleanKey): boolean {
   try {
     const value = readSetting('update');
     if (typeof value !== 'object' || value === null) {
-      return DEFAULT_UPDATE_SETTINGS.autoCheck;
+      return DEFAULT_UPDATE_SETTINGS[key];
     }
-    const autoCheck = (value as { autoCheck?: unknown }).autoCheck;
-    return typeof autoCheck === 'boolean' ? autoCheck : DEFAULT_UPDATE_SETTINGS.autoCheck;
+    const field = (value as Record<string, unknown>)[key];
+    return typeof field === 'boolean' ? field : DEFAULT_UPDATE_SETTINGS[key];
   } catch (error) {
     logger.warn(
-      { error: error instanceof Error ? error.message : String(error) },
-      '读取更新设置失败，自动检查按默认开启',
+      { key, error: error instanceof Error ? error.message : String(error) },
+      '读取更新设置失败，使用默认值',
     );
-    return DEFAULT_UPDATE_SETTINGS.autoCheck;
+    return DEFAULT_UPDATE_SETTINGS[key];
   }
 }
 
+function isAutoCheckEnabled(): boolean {
+  return readUpdateBoolean('autoCheck');
+}
+
+function isAutoDownloadEnabled(): boolean {
+  return readUpdateBoolean('autoDownload');
+}
+
+function isAutoInstallOnAppQuitEnabled(): boolean {
+  return readUpdateBoolean('autoInstallOnAppQuit');
+}
+
 function isAllowPrereleaseEnabled(): boolean {
+  return readUpdateBoolean('allowPrerelease');
+}
+
+/** 读详细日志开关（缺失/损坏 → false，保持打包态默认 info） */
+function isVerboseLoggingEnabled(): boolean {
   try {
-    const value = readSetting('update');
+    const value = readSetting('logging');
     if (typeof value !== 'object' || value === null) {
-      return DEFAULT_UPDATE_SETTINGS.allowPrerelease;
+      return false;
     }
-    const allowPrerelease = (value as { allowPrerelease?: unknown }).allowPrerelease;
-    return typeof allowPrerelease === 'boolean'
-      ? allowPrerelease
-      : DEFAULT_UPDATE_SETTINGS.allowPrerelease;
+    return (value as { verbose?: unknown }).verbose === true;
   } catch (error) {
     logger.warn(
       { error: error instanceof Error ? error.message : String(error) },
-      '读取预发布设置失败，默认不接收预发布',
+      '读取日志设置失败，使用默认级别',
     );
-    return DEFAULT_UPDATE_SETTINGS.allowPrerelease;
+    return false;
   }
 }

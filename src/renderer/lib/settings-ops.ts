@@ -93,6 +93,18 @@ export async function openDataDirChecked(): Promise<{ ok: boolean }> {
 }
 
 /**
+ * 打开日志目录（macOS 的 app.getPath('logs') 不在 userData 内，不能复用数据目录）
+ *
+ * @throws Error 无桥（[BRIDGE_UNAVAILABLE]）或 IPC 失败
+ */
+export async function openLogsDirChecked(): Promise<{ ok: boolean }> {
+  if (!hasIpcBridge()) {
+    throw bridgeUnavailableError();
+  }
+  return unwrap(await window.api.app.openLogsDir());
+}
+
+/**
  * 导出诊断包（构建/日志/系统信息）
  *
  * @returns 无桥时返回 null（调用方静默返回，不误报失败）

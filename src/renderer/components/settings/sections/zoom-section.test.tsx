@@ -1,5 +1,6 @@
 import { ZOOM_LEVELS } from '@code-agent/shared/renderer';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { i18n } from '@/i18n';
@@ -17,10 +18,21 @@ beforeEach(() => {
     writable: true,
     configurable: true,
   });
-  useSettingsStore.setState({ appearance: { zoom: 1 } });
+  useSettingsStore.setState({ appearance: { zoom: 1 }, theme: 'dark' });
 });
 
 describe('ZoomSection', () => {
+  it('主题三态显式入口：dark 回显，点击 system 写入 settings-store', async () => {
+    render(<ZoomSection />);
+    expect(screen.getByText(t('settings.themeTitle'))).toBeDefined();
+    await userEvent.click(screen.getByRole('radio', { name: t('settings.themeSystem') }));
+    expect(useSettingsStore.getState().theme).toBe('system');
+    await waitFor(() => {
+      const calls = setSpy.mock.calls as unknown as { key: string }[][];
+      expect(calls.filter((c) => c[0]?.key === 'theme')).toHaveLength(1);
+    });
+  });
+
   it('渲染标题与当前档位回显（100%）', () => {
     render(<ZoomSection />);
     expect(screen.getByText(t('settings.zoomTitle'))).toBeDefined();

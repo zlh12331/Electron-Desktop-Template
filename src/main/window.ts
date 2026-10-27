@@ -37,11 +37,33 @@ export function readCloseAction(): 'minimize' | 'quit' {
   }
 }
 
+/** 读「启动时最小化到托盘」设置（settings.window.startMinimized；缺失/损坏为 false） */
+export function readStartMinimized(): boolean {
+  try {
+    const value = readSetting('window');
+    if (typeof value !== 'object' || value === null) {
+      return DEFAULT_WINDOW_SETTINGS.startMinimized;
+    }
+    const startMinimized = (value as { startMinimized?: unknown }).startMinimized;
+    return typeof startMinimized === 'boolean'
+      ? startMinimized
+      : DEFAULT_WINDOW_SETTINGS.startMinimized;
+  } catch {
+    return DEFAULT_WINDOW_SETTINGS.startMinimized;
+  }
+}
+
+/** 创建主窗口时的可选启动行为 */
+export interface CreateWindowOptions {
+  /** 本次建窗是否隐藏；缺省按自启 argv 判定（启动时由 index.ts 叠加 startMinimized） */
+  readonly startHidden?: boolean;
+}
+
 /**
  * 创建主窗口：恢复上次窗口状态 → frameless + 安全基线 → 导航/新窗限制 → 加载渲染层 →
  * 隐藏启动判定 → 关窗协商 → 崩溃自愈 → 状态跟踪 → dev DevTools
  */
-export function createWindow(): BrowserWindow {
+export function createWindow(options: CreateWindowOptions = {}): BrowserWindow {
   const windowState: WindowState = loadWindowState(
     join(app.getPath('userData'), 'window-state.json'),
     { width: 1280, height: 800 },
@@ -124,9 +146,9 @@ export function createWindow(): BrowserWindow {
     void win.loadFile(join(__dirname, '../renderer/index.html'));
   }
 
-  const startHidden = resolveStartHidden(app);
+  const startHidden = options.startHidden ?? resolveStartHidden(app);
   if (startHidden) {
-    logger.info({}, '开机自启静默启动：窗口驻留托盘不显示');
+    logger.info({}, '静默启动：窗口驻留托盘不显示');
   }
   win.once('ready-to-show', () => {
     recordStartupReady(win.webContents.id, 'ready-to-show');
