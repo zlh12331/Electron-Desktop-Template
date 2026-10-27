@@ -63,6 +63,7 @@ const mocks = vi.hoisted(() => {
     reportError: vi.fn(),
     reportMessage: vi.fn(),
     markMaximizeOnNextShow: vi.fn(),
+    setMainWindow: vi.fn(),
     bindStartupWindow: vi.fn(),
     recordStartupReady: vi.fn(),
     recordRendererCrash: vi.fn(),
@@ -136,6 +137,7 @@ vi.mock('./utils/logger', () => ({
 
 vi.mock('./window-show', () => ({
   markMaximizeOnNextShow: mocks.markMaximizeOnNextShow,
+  setMainWindow: mocks.setMainWindow,
 }));
 
 vi.mock('./window-theme', () => ({

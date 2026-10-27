@@ -6,7 +6,7 @@ import {
   DEFAULT_UPDATE_SETTINGS,
   type DeepLinkPayload,
 } from '@code-agent/shared/main';
-import { app, BrowserWindow, nativeTheme, session } from 'electron';
+import { app, nativeTheme, session } from 'electron';
 import {
   broadcastDeepLink,
   extractProtocolUrl,
@@ -69,7 +69,7 @@ import {
 } from './utils/logger';
 import { flushTelemetryOnFatal } from './utils/telemetry-flush';
 import { createWindow, readCloseAction } from './window';
-import { bringMainWindowToFront } from './window-show';
+import { bringMainWindowToFront, getMainWindow } from './window-show';
 import { syncTitleBarOverlayFromTheme } from './window-theme';
 
 // 环境文件必须先于 userData/CDP/Sentry 解析；空路径用于隔离验收，禁止继承本机后端配置。
@@ -134,8 +134,8 @@ const sentryInit = gotTheLock
 let coldLaunchDeepLink: string | null = null;
 app.on('open-url', (event, url) => {
   event.preventDefault();
-  const win = BrowserWindow.getAllWindows()[0];
-  if (win === undefined) {
+  const win = getMainWindow();
+  if (win === null) {
     coldLaunchDeepLink = url;
   } else {
     deliverDeepLink(parseDeepLink(url));
@@ -377,8 +377,8 @@ async function initProxyFromSettings(): Promise<void> {
 
 // 渲染层已挂载直接广播；仍在加载则暂存，挂载后由 app:takePendingDeepLink 取走
 function deliverDeepLink(payload: DeepLinkPayload): void {
-  const win = BrowserWindow.getAllWindows()[0];
-  if (win === undefined || win.webContents.isLoading()) {
+  const win = getMainWindow();
+  if (win === null || win.webContents.isLoading()) {
     setPendingDeepLink(payload);
     logger.info({ hasTarget: payload.targetId !== null }, '深链已暂存，等待渲染层就绪');
     return;

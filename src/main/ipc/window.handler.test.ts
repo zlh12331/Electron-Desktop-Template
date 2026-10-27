@@ -28,6 +28,7 @@ vi.mock('../utils/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
+import { setMainWindow } from '../window-show';
 import { createWindowHandlers } from './window.handler';
 
 function addWindow(destroyed = false): {
@@ -36,16 +37,19 @@ function addWindow(destroyed = false): {
 } {
   const win = {
     destroyed,
+    isDestroyed: () => destroyed,
     setZoomFactor: vi.fn(),
     setTitleBarOverlay: vi.fn(),
   };
   mocks.windows.push(win);
+  setMainWindow(win as never);
   return win;
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.windows.length = 0;
+  setMainWindow(null);
   setPlatform('win32');
 });
 

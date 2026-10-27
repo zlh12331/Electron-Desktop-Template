@@ -15,7 +15,7 @@ import { notifyMinimizedToTray } from './tray';
 import { getDevRendererUrl, isDevTestEnvEnabled } from './utils/dev-test-env';
 import { reportError, reportMessage } from './utils/error-report';
 import { logger } from './utils/logger';
-import { markMaximizeOnNextShow } from './window-show';
+import { markMaximizeOnNextShow, setMainWindow } from './window-show';
 import { TITLE_BAR_SYMBOL } from './window-theme';
 
 /**
@@ -79,6 +79,7 @@ export function createWindow(): BrowserWindow {
       webSecurity: true,
     },
   });
+  setMainWindow(win);
 
   // 导航白名单：只允许 dev server origin 或产物 index.html 的完全匹配，其余一律拦下
   // （配合主进程对 defaultSession 的 CSP/XFO 注入，构成三层外站拦截的第一层）

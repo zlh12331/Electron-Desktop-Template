@@ -1,8 +1,25 @@
 // window-show.ts：主窗口唤起——显示/还原/聚焦，窗口不存在时交由调用方重建
 // 与 window.ts 的分工：这里只管「把已有窗口带回前台」，创建/销毁/内容加载都在 window.ts
-import { BrowserWindow } from 'electron';
+// 为什么显式跟踪主窗口：Electron 45 下 BrowserWindow.getAllWindows() 可能把 DevTools 排在首位，
+// 不能再用 [0] 猜主窗；由 createWindow 调用 setMainWindow 登记。
+import type { BrowserWindow } from 'electron';
 
 import { logger } from './utils/logger';
+
+let mainWindow: BrowserWindow | null = null;
+
+/** 登记当前主窗口（createWindow 创建后调用；传 null 可清除） */
+export function setMainWindow(win: BrowserWindow | null): void {
+  mainWindow = win;
+}
+
+/** 当前有效主窗口（已销毁返回 null） */
+export function getMainWindow(): BrowserWindow | null {
+  if (mainWindow === null || mainWindow.isDestroyed()) {
+    return null;
+  }
+  return mainWindow;
+}
 
 // 「下次显示时最大化」一次性标记：窗口常以隐藏态创建（开机自启/关到托盘），
 // 创建路径记下最大化意图，由 showMainWindow 消费后清零
@@ -19,8 +36,8 @@ export function markMaximizeOnNextShow(): void {
  * @returns true = 已有窗口并完成唤起；false = 窗口不存在（调用方决定是否重建）
  */
 export function showMainWindow(): boolean {
-  const win = BrowserWindow.getAllWindows()[0];
-  if (win === undefined || win.isDestroyed()) {
+  const win = getMainWindow();
+  if (win === null) {
     return false;
   }
   if (win.isMinimized()) {

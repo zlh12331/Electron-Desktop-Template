@@ -1,7 +1,9 @@
 // window-theme.ts：win32 标题栏 overlay 的明暗联动——frameless 窗口原生标题栏图标配色随主题切换
 // 边界：仅 Windows 生效（setTitleBarOverlay 是 win32 能力）；主题解析入口在 nativeTheme updated 事件（index.ts）
 import { DEFAULT_THEME_SETTING } from '@code-agent/shared/main';
-import { BrowserWindow, nativeTheme } from 'electron';
+import { nativeTheme } from 'electron';
+
+import { getMainWindow } from './window-show';
 
 /** 标题栏 overlay 图标色：亮/暗主题各一档（与渲染层中性色阶对齐的硬编码值） */
 export const TITLE_BAR_SYMBOL = {
@@ -18,8 +20,8 @@ function applyTitleBarOverlayTheme(resolved: 'light' | 'dark'): void {
   if (process.platform !== 'win32') {
     return;
   }
-  const win = BrowserWindow.getAllWindows()[0];
-  if (win === undefined || win.isDestroyed()) {
+  const win = getMainWindow();
+  if (win === null) {
     return;
   }
   try {
