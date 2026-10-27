@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.4.0](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.3.0...v0.4.0) (2026-10-27)
+
+<!-- changelog:polished -->
+
+> 0.4.0 重排设置信息架构并默认跟随系统，同时升级 Electron 45；凭据存储迁移到异步 API，修复了隐藏驻留后二次启动无法唤回窗口的问题。
+
+### 新增
+
+- **设置页 8 个一级分区**：通用 / 外观 / 通知 / 数据 / 快捷键 / 网络代理 / Beta / 关于，导航更扁平，原「凭据」并入「数据」。
+- **更新与实验分区归位**：自动检查、下载、安装和预发布开关统一放回「关于」；Beta 只保留实验功能入口，不再混放更新控件。
+- **主侧栏两段式布局**：笔记固定在顶部，设置固定在左下角；独立关于页及相关路由、命令面板入口移除。
+- **默认跟随系统**：语言与主题改为下拉框，新安装默认跟随 OS；主题选择仍支持浅色 / 深色。
+- **Electron 45**：运行时升级到 Chromium 156 / Node 24.22，原生模块已按新 ABI 重编。
+
+### 修复
+
+- **隐藏驻留唤回**：Electron 45 下 `getAllWindows()` 可能先返回 DevTools；改为显式跟踪主窗口，二次启动可稳定唤回隐藏窗口。
+- **删除 Notes 后的残留引用**：修复模板移除示例后侧栏仍引用 `NotebookPen` / `ROUTES` 的类型错误。
+- **凭据存储**：`safeStorage` 迁移到异步 `encryptStringAsync` / `decryptStringAsync`，并处理密钥轮换 `shouldReEncrypt`；Electron 46 移除同步 API 前完成迁移。
+
+### 内部改进
+
+- 非主版本依赖批量更新（Biome、Vite、Vitest、Playwright、React Router、Radix、i18next 等），`pnpm audit` 为 0 high / 0 critical。
+- 同步技术栈、依赖策略、安全规范、README 与站点版本说明。
+- 更新 8 个设置分区的 a11y、视觉基线、Electron E2E 与派生模板验收。
+
+### 移除
+
+- 移除「启动时最小化到托盘」设置：手动启动始终显示窗口；开机自启的 `--hidden` 静默驻留保持不变。
+
+### 已知限制
+
+- Windows / macOS / Linux 仍为未签名包，正式分发需配置平台签名凭据。
+- 自动更新仍以 GitHub Releases 为唯一渠道。
+
 ## [0.3.0](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.2.1...v0.3.0) (2026-10-26)
 
 <!-- changelog:polished -->
