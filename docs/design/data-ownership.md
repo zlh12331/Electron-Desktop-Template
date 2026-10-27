@@ -77,3 +77,20 @@
 2. **当前实际生产者**：只有 Notes 写路径调用 `broadcastInvalidation`；`settings` / `update` 走各自专用事件，`backups` 由 mutation 本地失效。词表里存在不等于已接线，新写路径必须显式补生产者。
 3. **前缀推导**：`lib/invalidation/invalidation.ts` 把域串按 `:` 切成 queryKey 前缀（`settings` → `['settings']`，`entity:abc` → `['entity','abc']`），非法形态跳过
 4. **新增域时三处同步**：`INVALIDATION_DOMAINS` 加词 + 主进程写路径调用广播 + 本节登记——缺一即出现「写后看到旧数据」的静默失效
+
+## 八、卸载清理边界（Windows NSIS）
+
+真源 = `resources/installer.nsh` 的 `customUnInstall`；本表是行为契约，改清理项须同步本节。
+
+| 路径 / 对象 | 手动卸载 | 更新 / 覆盖安装 | 说明 |
+|---|---|---|---|
+| updater cache `%LOCALAPPDATA%\<package name>-updater` | 删除 | 保留 | 更新包本身就在其中，更新期删除会破坏升级 |
+| userData `%APPDATA%\<package name>`（设置 / 笔记 / 备份 / 日志 / 凭据） | 弹窗询问，默认保留；`--delete-app-data` 直接删 | 保留 | 交互式默认按钮为「否」；静默卸载无 flag 时保留 |
+| 开机自启 Run 值 | 删除 | 保留 | 值名随 AppUserModelID 漂移（默认 `electron.app.<exe ProductName>`，快捷方式启动为 appId），按命令行 exe 路径前缀匹配；更新期删除会静默关闭用户自启 |
+| 协议 `HKCU\Software\Classes\<protocol>` | 删除 | 旧卸载器删除、新安装器重注册 | 与安装器注册对称，避免残留指向已删 exe |
+| `%TEMP%\ns*.tmp` / `electron-download-*` | 不删 | 不删 | 非本应用所有：NSIS / 其他安装器 / 开发期 `@electron/get` 产物；通配删除会误伤 |
+| `%LOCALAPPDATA%\electron` / `electron-builder` | 不删 | 不删 | 共享工具缓存，不属于本应用 |
+
+判断「更新模式」的依据是旧卸载器命令行里的 `/KEEP_APP_DATA`（electron-builder `installUtil.nsh` 固定传入）；不要改成基于时间、文件存在性或 `--updated` 的启发式。旧卸载器失败兜底（`customUnInstallCheck`）只清 `$INSTDIR`，同样不碰 userData / updater cache。
+
+静默卸载：`Uninstall <product>.exe /S` 保留用户数据；`Uninstall <product>.exe /S --delete-app-data` 删除用户数据。App 运行时没有自有临时目录（诊断包写到用户选择的位置），因此卸载器无需、也不应清理系统临时目录。
