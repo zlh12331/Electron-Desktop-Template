@@ -164,6 +164,7 @@ const REPLACEMENT_FILES: readonly ReplacementFile[] = [
         "import { NotebookPen, Settings2 } from 'lucide-react';",
         "import { Settings2 } from 'lucide-react';",
       ],
+      ["import { ROUTES } from '@/lib/constants';", ''],
     ],
   },
   {

@@ -80,9 +80,12 @@ function createFixture(): string {
     'src/renderer/components/layout/Sidebar.tsx',
     [
       "import { NotebookPen, Settings2 } from 'lucide-react';",
+      "import { ROUTES } from '@/lib/constants';",
       '// notes-example:start',
       'const noteIcon = NotebookPen;',
+      'const noteRoute = ROUTES.notes;',
       'void noteIcon;',
+      'void noteRoute;',
       '// notes-example:end',
       'export { Settings2 };',
     ].join('\n'),
@@ -350,7 +353,7 @@ describe('removeNotesExample', () => {
     expect(read(root, 'src/renderer/hooks/use-deep-link.ts')).toContain('navigate(ROUTES.home);');
     expect(read(root, 'src/renderer/hooks/use-deep-link.ts')).not.toContain('ROUTES.note');
     expect(read(root, 'src/renderer/components/layout/Sidebar.tsx')).toBe(
-      ["import { Settings2 } from 'lucide-react';", 'export { Settings2 };'].join('\n'),
+      ["import { Settings2 } from 'lucide-react';", '', 'export { Settings2 };'].join('\n'),
     );
     const mockApi = read(root, 'src/renderer/dev/mock-api.ts');
     expect(mockApi).not.toContain('type Note');

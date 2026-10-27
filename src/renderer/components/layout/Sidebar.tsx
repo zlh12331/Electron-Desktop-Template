@@ -1,3 +1,4 @@
+import type { LucideIcon } from 'lucide-react';
 import { NotebookPen, Settings2 } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { useLocation, useNavigate } from 'react-router';
@@ -17,7 +18,7 @@ import { useUiStore } from '@/stores/transient/ui-store';
 interface NavItem {
   readonly id: string;
   readonly labelKey: string;
-  readonly icon: typeof NotebookPen;
+  readonly icon: LucideIcon;
   /** 目标路由 */
   readonly path: string;
 }
