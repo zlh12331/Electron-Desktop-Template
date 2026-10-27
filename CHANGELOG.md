@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.1](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.4.0...v0.4.1) (2026-10-27)
+
+<!-- changelog:polished -->
+
+> 0.4.1 修复更新安装前多出的一层确认弹窗：点击「重启并安装」后直接打开安装向导，不再出现误导性的任务中断提示。
+
+### 修复
+
+- **更新安装流程**：移除「重启并安装」前的确认弹窗。模板没有会被中断的运行中任务，原「有正在进行的任务」文案与红色危险样式一并删除；点击后直接退出并打开安装向导，安装完成点「完成」自动启动新版本。
+
 ## [0.4.0](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.3.0...v0.4.0) (2026-10-27)
 
 <!-- changelog:polished -->
