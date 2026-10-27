@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.4.0...v0.4.1) (2026-10-27)
+
+
+### 修复
+
+* **update:** 移除重启安装前的冗余确认弹窗 ([#45](https://github.com/zlh12331/Electron-Desktop-Template/issues/45)) ([a11d03f](https://github.com/zlh12331/Electron-Desktop-Template/commit/a11d03f671cb650521090d74e49db6a12a7eea5c))
+
 ## [0.4.0](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.3.0...v0.4.0) (2026-10-27)
 
 <!-- changelog:polished -->
