@@ -157,7 +157,7 @@ SigNoz 保留期入口以目标版本 UI 为准：**Settings → Workspace → R
 
 | 信号           | 操作                                                                                  | 预期                                                                                                                 |
 | -------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Trace          | 打开设置（关于或 Beta），触发任意 IPC（如 `app:getInfo`）                              | SigNoz Traces 出现 `ipc app:getInfo`，服务名 `electron-desktop-template-dev`                                         |
+| Trace          | 打开设置（关于或 Beta），触发任意 IPC（如 `app:getInfo`）                             | SigNoz Traces 出现 `ipc app:getInfo`，服务名 `electron-desktop-template-dev`                                         |
 | Logs           | 应用启动 / 切换设置                                                                   | info 可见「应用启动」「设置已更新」；IPC 成功明细仅在 `OTEL_LOG_LEVEL=debug` 时导出；活动 span 的原生 traceId 可关联 |
 | Renderer error | DevTools Console 执行 `setTimeout(() => { throw new Error('observability-verify') })` | 本地 `main.log` 有「渲染层错误上报」；SigNoz Logs 有 `renderer.error`（无 DSN 时 Sentry 不发送）                     |
 | Metrics        | 等待 ≥1 个导出周期                                                                    | Metrics 出现 `ipc.server.requests`、`process.memory.usage`；更新检查后出现 `app.update.events`                       |
