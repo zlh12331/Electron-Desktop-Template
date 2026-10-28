@@ -5,9 +5,6 @@
   "src/main/infra/i18n/dictionaries.ts": {
     "count": 1
   },
-  "src/main/infra/network/proxy-resolver.ts": {
-    "count": 1
-  },
   "src/main/infra/storage/backup-store.ts": {
     "count": 1
   },
@@ -18,7 +15,7 @@
     "count": 2
   },
   "src/main/infra/storage/settings-io.ts": {
-    "count": 4
+    "count": 3
   },
   "src/main/infra/telemetry/event-loop-lag.ts": {
     "count": 3
@@ -30,12 +27,12 @@
     "count": 2
   },
   "src/main/infra/update/update-service.ts": {
-    "count": 9
+    "count": 5
   },
   "src/main/service-container.ts": {
     "count": 1
   },
   "src/main/utils/logger.ts": {
-    "count": 2
+    "count": 1
   }
 }

@@ -200,20 +200,54 @@ describe('settings-store.proxy 域（34 号网络代理）', () => {
   });
 
   it('updateProxy：fixed 部分合并 + 以 proxy 键写穿透', () => {
-    useSettingsStore.getState().updateProxy({ mode: 'fixed', url: 'http://127.0.0.1:7890' });
+    useSettingsStore.getState().updateProxy({
+      mode: 'fixed',
+      protocol: 'http',
+      host: '127.0.0.1',
+      port: 7890,
+    });
     expect(useSettingsStore.getState().proxy).toEqual({
       mode: 'fixed',
-      url: 'http://127.0.0.1:7890',
+      protocol: 'http',
+      host: '127.0.0.1',
+      port: 7890,
     });
     const calls = setSpy.mock.calls as unknown as { key: string }[][];
     const writes = calls.filter((c) => c[0]?.key === 'proxy');
     expect(writes).toHaveLength(1);
   });
 
-  it('模式从 fixed 切回 system → url/bypass 清除（非 fixed 域不携带代理数据）', () => {
+  it('updateProxy：auth 只随本次写入，不留在 store', () => {
     useSettingsStore.getState().updateProxy({
       mode: 'fixed',
-      url: 'http://p:1',
+      protocol: 'http',
+      host: 'p',
+      port: 8080,
+      auth: { username: 'alice', password: 's3cret' },
+    });
+    expect(useSettingsStore.getState().proxy).toEqual({
+      mode: 'fixed',
+      protocol: 'http',
+      host: 'p',
+      port: 8080,
+    });
+    const calls = setSpy.mock.calls as unknown as { key: string; value: unknown }[][];
+    const write = calls.find((c) => c[0]?.key === 'proxy');
+    expect(write?.[0]?.value).toEqual({
+      mode: 'fixed',
+      protocol: 'http',
+      host: 'p',
+      port: 8080,
+      auth: { username: 'alice', password: 's3cret' },
+    });
+  });
+
+  it('模式从 fixed 切回 system → 代理字段清除（非 fixed 域不携带代理数据）', () => {
+    useSettingsStore.getState().updateProxy({
+      mode: 'fixed',
+      protocol: 'socks5',
+      host: 'p',
+      port: 1080,
       bypass: ['corp.example'],
     });
     useSettingsStore.getState().updateProxy({ mode: 'system' });
@@ -221,7 +255,12 @@ describe('settings-store.proxy 域（34 号网络代理）', () => {
   });
 
   it('快照缺 proxy 键 → 回落 system（V1/V6 渲染半）', () => {
-    useSettingsStore.getState().updateProxy({ mode: 'fixed', url: 'http://p:1' });
+    useSettingsStore.getState().updateProxy({
+      mode: 'fixed',
+      protocol: 'http',
+      host: 'p',
+      port: 1,
+    });
     applySettingsSnapshot({});
     expect(useSettingsStore.getState().proxy).toEqual({ mode: 'system' });
   });
@@ -229,11 +268,15 @@ describe('settings-store.proxy 域（34 号网络代理）', () => {
   it('applyMainChange(proxy)：按域合并且不回写（导入广播回声防线，V8）', () => {
     useSettingsStore.getState().applyMainSettingChange('proxy', {
       mode: 'fixed',
-      url: 'http://10.0.0.1:8080',
+      protocol: 'http',
+      host: '10.0.0.1',
+      port: 8080,
     });
     expect(useSettingsStore.getState().proxy).toEqual({
       mode: 'fixed',
-      url: 'http://10.0.0.1:8080',
+      protocol: 'http',
+      host: '10.0.0.1',
+      port: 8080,
     });
     const calls = setSpy.mock.calls as unknown as { key: string }[][];
     expect(calls.filter((c) => c[0]?.key === 'proxy')).toHaveLength(0);

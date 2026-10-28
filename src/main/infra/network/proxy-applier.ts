@@ -1,5 +1,5 @@
 // proxy-applier.ts：代理变更的统一应用口——
-// Node fetch 配置 → Chromium 三分区 → env 侧通道，一条链全改完
+// Node fetch 配置 → Chromium 两分区 → env 侧通道，一条链全改完
 import {
   type AuthenticationResponseDetails,
   type AuthInfo,
@@ -14,7 +14,6 @@ import { setProxyFetchConfig } from './proxied-fetch';
 import {
   buildChromiumProxyConfig,
   buildProxyUrl,
-  maskProxyUrl,
   normalizeProxyHost,
   type ProxyAuth,
   parseProxyConfig,
@@ -33,6 +32,8 @@ const ENV_PROXY_KEYS = [
   'NO_PROXY',
   'no_proxy',
 ] as const;
+
+const LOOPBACK_NO_PROXY = ['localhost', '127.0.0.1', '::1'] as const;
 
 type LoginListener = (
   event: Event,
@@ -61,14 +62,20 @@ export async function applyProxyChange(raw: unknown): Promise<void> {
   await applyChromiumSessions(cfg);
   applyEnvSideChannel(cfg);
   logger.info(
-    { mode: cfg.mode, ...(cfg.url !== undefined ? { url: maskProxyUrl(cfg.url) } : {}) },
+    {
+      mode: cfg.mode,
+      ...(cfg.protocol !== undefined ? { protocol: cfg.protocol } : {}),
+      ...(cfg.host !== undefined ? { host: cfg.host } : {}),
+      ...(cfg.port !== undefined ? { port: cfg.port } : {}),
+      hasAuth: cfg.auth !== undefined,
+    },
     '代理配置已应用',
   );
 }
 
-// fixed 且 URL 内嵌凭据时注册 app login 监听；其余模式移除，避免向非目标代理发送凭据
+// fixed 且有凭据时注册 app login 监听；其余模式移除，避免向非目标代理发送凭据
 function syncProxyAuth(cfg: ReturnType<typeof parseProxyConfig>): void {
-  activeProxyAuth = cfg.mode === 'fixed' ? resolveProxyAuth(cfg.url) : null;
+  activeProxyAuth = cfg.mode === 'fixed' ? resolveProxyAuth(cfg) : null;
   if (activeProxyAuth === null) {
     removeLoginListener();
     return;
@@ -157,8 +164,9 @@ function applyEnvSideChannel(cfg: ReturnType<typeof parseProxyConfig>): void {
     process.env['https_proxy'] = proxyUrl;
     process.env['HTTP_PROXY'] = proxyUrl;
     process.env['http_proxy'] = proxyUrl;
-    process.env['NO_PROXY'] = 'localhost,127.0.0.1,::1';
-    process.env['no_proxy'] = 'localhost,127.0.0.1,::1';
+    const noProxy = [...LOOPBACK_NO_PROXY, ...(cfg.bypass ?? [])].join(',');
+    process.env['NO_PROXY'] = noProxy;
+    process.env['no_proxy'] = noProxy;
     return;
   }
   if (cfg.mode === 'direct') {

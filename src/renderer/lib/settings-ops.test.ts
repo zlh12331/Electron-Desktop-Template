@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   clearUpdateCache,
+  detectSystemProxy,
   exportDiagnostics,
   exportSettingsFile,
   getLoginItemSettings,
@@ -31,7 +32,7 @@ const api = {
     setLoginItemSettings: vi.fn(),
     subscribeLoginItemChanged: vi.fn(),
   },
-  proxy: { test: vi.fn() },
+  proxy: { test: vi.fn(), detectSystem: vi.fn() },
 };
 
 function installApi(value: typeof api | undefined): void {
@@ -132,18 +133,37 @@ describe('settings-ops · 有桥路径', () => {
   });
 
   it('testProxyConnection：透传测试结果', async () => {
-    api.proxy.test.mockResolvedValue(ok({ ok: true, kind: 'ok' }));
+    api.proxy.test.mockResolvedValue(ok({ ok: true, kind: 'ok', latencyMs: 42 }));
 
-    await expect(testProxyConnection()).resolves.toEqual({ ok: true, kind: 'ok' });
+    await expect(testProxyConnection()).resolves.toEqual({ ok: true, kind: 'ok', latencyMs: 42 });
     expect(api.proxy.test).toHaveBeenCalledWith({});
   });
 
-  it('testProxyConnection：传入自定义目标时透传 targetUrl', async () => {
+  it('testProxyConnection：透传草稿配置与自定义目标', async () => {
     api.proxy.test.mockResolvedValue(ok({ ok: true, kind: 'ok' }));
+    const config = {
+      mode: 'fixed' as const,
+      protocol: 'socks5' as const,
+      host: '127.0.0.1',
+      port: 1080,
+    };
 
-    await testProxyConnection('https://example.com/generate_204');
+    await testProxyConnection({ config, targetUrl: 'https://example.com/generate_204' });
     expect(api.proxy.test).toHaveBeenCalledWith({
+      config,
       targetUrl: 'https://example.com/generate_204',
+    });
+  });
+
+  it('detectSystemProxy：透传系统代理检测结果', async () => {
+    api.proxy.detectSystem.mockResolvedValue(
+      ok({ detected: true, protocol: 'http', host: '127.0.0.1', port: 7890 }),
+    );
+    await expect(detectSystemProxy()).resolves.toEqual({
+      detected: true,
+      protocol: 'http',
+      host: '127.0.0.1',
+      port: 7890,
     });
   });
 });
@@ -184,5 +204,9 @@ describe('settings-ops · 无桥兜底（浏览器模式 / preload 缺失）', (
 
   it('代理测试：返回 not-applicable（UI 可用，行为无感）', async () => {
     await expect(testProxyConnection()).resolves.toEqual({ ok: false, kind: 'not-applicable' });
+  });
+
+  it('系统代理检测：无桥返回 detected=false', async () => {
+    await expect(detectSystemProxy()).resolves.toEqual({ detected: false });
   });
 });

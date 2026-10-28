@@ -61,7 +61,7 @@ function getLoginListener(): LoginListener {
 }
 
 describe('applyProxyChange（四路径统一收口）', () => {
-  it('V3 resetAll 语义（raw=undefined）→ 两分区回落 system + env 清空 + 缓存重置', async () => {
+  it('V3 resetAll 语义（raw=undefined）→ 两分区回落 system + env 清空', async () => {
     await applyProxyChange(undefined);
 
     expect(mocks.setProxy).toHaveBeenCalledTimes(2);
@@ -72,18 +72,38 @@ describe('applyProxyChange（四路径统一收口）', () => {
     expect(process.env['http_proxy']).toBeUndefined();
   });
 
-  it('V2 fixed → 两分区 fixed_servers + proxyRules + <local> 前置', async () => {
-    await applyProxyChange({ mode: 'fixed', url: 'http://127.0.0.1:7890', bypass: ['corp'] });
+  it('V2 fixed HTTP → 两分区 proxyURL + <local> 前置 + bypass 进 NO_PROXY', async () => {
+    await applyProxyChange({
+      mode: 'fixed',
+      protocol: 'http',
+      host: '127.0.0.1',
+      port: 7890,
+      bypass: ['corp.example', '10.0.0.0/8'],
+    });
 
     expect(mocks.setProxy).toHaveBeenCalledTimes(2);
     expect(mocks.setProxy.mock.calls[0]?.[0]).toEqual({
       mode: 'fixed_servers',
-      proxyRules: 'http=127.0.0.1:7890;https=127.0.0.1:7890',
-      proxyBypassRules: '<local>;corp',
+      proxyRules: 'http://127.0.0.1:7890',
+      proxyBypassRules: '<local>;corp.example;10.0.0.0/8',
     });
     expect(process.env['HTTPS_PROXY']).toBe('http://127.0.0.1:7890');
     expect(process.env['https_proxy']).toBe('http://127.0.0.1:7890');
-    expect(process.env['NO_PROXY']).toBe('localhost,127.0.0.1,::1');
+    expect(process.env['NO_PROXY']).toBe('localhost,127.0.0.1,::1,corp.example,10.0.0.0/8');
+  });
+
+  it('fixed SOCKS5 → socks5 proxyURL', async () => {
+    await applyProxyChange({
+      mode: 'fixed',
+      protocol: 'socks5',
+      host: '127.0.0.1',
+      port: 1080,
+    });
+    expect(mocks.setProxy.mock.calls[0]?.[0]).toEqual({
+      mode: 'fixed_servers',
+      proxyRules: 'socks5://127.0.0.1:1080',
+      proxyBypassRules: '<local>',
+    });
   });
 
   it('V1 system → 两分区 {mode: system}，保留启动时继承的代理 env', async () => {
@@ -99,7 +119,12 @@ describe('applyProxyChange（四路径统一收口）', () => {
   it('fixed → system：恢复启动时继承的代理 env', async () => {
     process.env['HTTP_PROXY'] = 'http://corp-proxy:3128';
     process.env['no_proxy'] = 'internal.example';
-    await applyProxyChange({ mode: 'fixed', url: 'http://127.0.0.1:7890' });
+    await applyProxyChange({
+      mode: 'fixed',
+      protocol: 'http',
+      host: '127.0.0.1',
+      port: 7890,
+    });
     expect(process.env['HTTP_PROXY']).toBe('http://127.0.0.1:7890');
 
     await applyProxyChange({ mode: 'system' });
@@ -116,10 +141,13 @@ describe('applyProxyChange（四路径统一收口）', () => {
     expect(process.env['HTTPS_PROXY']).toBe('http://corp-proxy:3128');
   });
 
-  it('fixed + URL 凭据：注册 login 监听并只响应匹配的代理挑战', async () => {
+  it('fixed + 凭据：注册 login 监听并只响应匹配的代理挑战', async () => {
     await applyProxyChange({
       mode: 'fixed',
-      url: 'http://user:p%40ss@proxy.example:8080',
+      protocol: 'http',
+      host: 'proxy.example',
+      port: 8080,
+      auth: { username: 'user', password: 'p@ss' },
     });
 
     const listener = getLoginListener();
@@ -132,7 +160,13 @@ describe('applyProxyChange（四路径统一收口）', () => {
   });
 
   it('login：非代理/主机不匹配 → callback() 取消，不泄露凭据', async () => {
-    await applyProxyChange({ mode: 'fixed', url: 'http://user:pass@proxy.example:8080' });
+    await applyProxyChange({
+      mode: 'fixed',
+      protocol: 'http',
+      host: 'proxy.example',
+      port: 8080,
+      auth: { username: 'user', password: 'pass' },
+    });
     const listener = getLoginListener();
     const event = { preventDefault: vi.fn() };
     const callback = vi.fn();
@@ -147,20 +181,38 @@ describe('applyProxyChange（四路径统一收口）', () => {
   });
 
   it('切到 system：移除 login 监听', async () => {
-    await applyProxyChange({ mode: 'fixed', url: 'http://user:pass@proxy.example:8080' });
+    await applyProxyChange({
+      mode: 'fixed',
+      protocol: 'http',
+      host: 'proxy.example',
+      port: 8080,
+      auth: { username: 'user', password: 'pass' },
+    });
     const listener = getLoginListener();
     await applyProxyChange({ mode: 'system' });
     expect(mocks.removeListener).toHaveBeenCalledWith('login', listener);
   });
 
   it('fixed 无凭据：不注册 login 监听', async () => {
-    await applyProxyChange({ mode: 'fixed', url: 'http://proxy.example:8080' });
+    await applyProxyChange({
+      mode: 'fixed',
+      protocol: 'http',
+      host: 'proxy.example',
+      port: 8080,
+    });
     expect(mocks.on).not.toHaveBeenCalled();
   });
 
-  it('单分区 setProxy 失败 → warn 不抛，其余分区继续（韧性）', async () => {
+  it('单分区 setProxy 失败 → reportError 不抛，其余分区继续', async () => {
     mocks.setProxy.mockRejectedValueOnce(new Error('session destroyed'));
-    await expect(applyProxyChange({ mode: 'fixed', url: 'http://p:1' })).resolves.toBeUndefined();
+    await expect(
+      applyProxyChange({
+        mode: 'fixed',
+        protocol: 'http',
+        host: 'p',
+        port: 1,
+      }),
+    ).resolves.toBeUndefined();
     expect(mocks.setProxy).toHaveBeenCalledTimes(2);
   });
 

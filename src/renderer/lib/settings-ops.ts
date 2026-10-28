@@ -6,6 +6,8 @@ import type {
   ExportDiagnosticsRes,
   LoginItemChangedPayload,
   LoginItemSettingsRes,
+  ProxyDetectSystemRes,
+  ProxyTestReq,
   ProxyTestRes,
   SettingsExportRes,
   SettingsImportRes,
@@ -157,18 +159,28 @@ export function subscribeLoginItemChanged(
 }
 
 /**
- * 测试代理连接（主进程经 proxiedFetch 探测轻量端点）
+ * 测试代理连接（主进程 TCP 预探 + 经代理 fetch，返回归因与耗时）
  *
- * @param targetUrl 可选测试目标（http/https）；省略使用主进程默认探针
+ * @param input 可选草稿配置与测试目标；省略 config 时测试已保存配置
  * @returns 无桥时返回不可测（浏览器模式 UI 可用，行为无感）
  */
-export async function testProxyConnection(targetUrl?: string): Promise<ProxyTestRes> {
+export async function testProxyConnection(input: ProxyTestReq = {}): Promise<ProxyTestRes> {
   if (!hasIpcBridge()) {
     return { ok: false, kind: 'not-applicable' };
   }
-  return unwrap(
-    await window.api.proxy.test(targetUrl === undefined || targetUrl === '' ? {} : { targetUrl }),
-  );
+  return unwrap(await window.api.proxy.test(input));
+}
+
+/**
+ * 检测当前系统代理（从系统导入 / 跟随系统回显）
+ *
+ * @returns 无桥或未检测到时 detected=false
+ */
+export async function detectSystemProxy(): Promise<ProxyDetectSystemRes> {
+  if (!hasIpcBridge()) {
+    return { detected: false };
+  }
+  return unwrap(await window.api.proxy.detectSystem());
 }
 
 /**

@@ -56,8 +56,9 @@ export const SETTING_KEYS = [
   'window',
   // 系统通知（settings.notification.enabled：最小化引导提示门控；缺失/损坏视为开）
   'notification',
-  // 网络代理（settings.proxy：{mode, url?, bypass?}；主进程 proxy-applier 四路径
-  // 收口应用——启动/settings:set/import/resetAll；缺失/损坏视为 system 直通）
+  // 网络代理（settings.proxy：{mode, protocol?, host?, port?, bypass?}；主进程
+  // proxy-applier 四路径收口应用——启动/settings:set/import/resetAll；缺失/损坏
+  // 视为 system 直通；凭据单独存 keychain，不落本表）
   'proxy',
   // 界面缩放（settings.appearance：{zoom}；主进程 window:applyZoom 应用
   // webContents.setZoomFactor + Windows overlay 联动；缺失视为 1，损坏归最近档位）
@@ -105,38 +106,90 @@ const NotificationSettingSchema = z.object({
 });
 
 /** 代理模式值域 */
-const PROXY_MODES = ['system', 'direct', 'fixed'] as const;
+export const PROXY_MODES = ['system', 'direct', 'fixed'] as const;
 
-/** proxy 域值：fixed 模式下 url 必须是合法 http(s) 地址 */
-const ProxySettingSchema = z
+/** 代理协议值域（SOCKS5 认证受 Chromium 限制，见 ProxySettingInputSchema） */
+export const PROXY_PROTOCOLS = ['http', 'https', 'socks5'] as const;
+
+/** 代理模式类型 */
+export type ProxyMode = (typeof PROXY_MODES)[number];
+
+/** 代理协议类型 */
+export type ProxyProtocol = (typeof PROXY_PROTOCOLS)[number];
+
+/** 代理主机：域名 / IPv4 / IPv6，不含协议、端口、路径与凭据 */
+const ProxyHostSchema = z
+  .string()
+  .min(1)
+  .max(253)
+  .refine((value) => !/[\s/?#@[\]]/.test(value), {
+    message: 'proxy.host 不能包含空白、路径、方括号或凭据',
+  })
+  .refine(
+    (value) =>
+      /^[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?$/.test(value) || /^[0-9a-fA-F:]+$/.test(value),
+    { message: 'proxy.host 必须是合法主机名或 IP 地址' },
+  );
+
+/** 代理端口 */
+const ProxyPortSchema = z.number().int().min(1).max(65535);
+
+/** 绕过项（域名后缀 / CIDR / <local>；不含空白） */
+const ProxyBypassEntrySchema = z
+  .string()
+  .min(1)
+  .max(253)
+  .refine((value) => !/\s/.test(value), { message: 'proxy.bypass 项不能包含空白字符' });
+
+/** 代理认证（仅 HTTP/HTTPS；SOCKS5 认证 Chromium 不支持） */
+const ProxyAuthSchema = z.object({
+  username: z.string().max(256),
+  password: z.string().max(1024),
+});
+
+/**
+ * proxy 域值：fixed 模式必须给出协议/主机/端口；SOCKS5 不接受认证。
+ *
+ * auth 只允许出现在 settings:set / proxy:test 的入参里，主进程拆到 keychain 后
+ * 落库值不含它；渲染层回显用派生字段 hasAuth / authUsername。
+ */
+export const ProxySettingInputSchema = z
   .object({
-    mode: z.string().refine((value) => (PROXY_MODES as readonly string[]).includes(value), {
-      message: `proxy.mode 仅支持 ${PROXY_MODES.join('/')}`,
-    }),
-    url: z.string().optional(),
-    bypass: z.array(z.string()).optional(),
+    mode: z.enum(PROXY_MODES),
+    protocol: z.enum(PROXY_PROTOCOLS).optional(),
+    host: ProxyHostSchema.optional(),
+    port: ProxyPortSchema.optional(),
+    bypass: z.array(ProxyBypassEntrySchema).max(64).optional(),
+    auth: ProxyAuthSchema.optional(),
   })
   .superRefine((value, ctx) => {
     if (value.mode !== 'fixed') {
       return;
     }
-    let urlOk = false;
-    if (value.url !== undefined && value.url.length > 0) {
-      try {
-        const parsed = new URL(value.url);
-        urlOk = parsed.protocol === 'http:' || parsed.protocol === 'https:';
-      } catch {
-        urlOk = false;
-      }
-    }
-    if (!urlOk) {
+    if (value.protocol === undefined) {
       ctx.addIssue({
         code: 'custom',
-        path: ['url'],
-        message: 'proxy.mode=fixed 时 url 必须是合法 http(s) 代理地址（如 http://127.0.0.1:7890）',
+        path: ['protocol'],
+        message: 'proxy.mode=fixed 时 protocol 必填',
+      });
+    }
+    if (value.host === undefined) {
+      ctx.addIssue({ code: 'custom', path: ['host'], message: 'proxy.mode=fixed 时 host 必填' });
+    }
+    if (value.port === undefined) {
+      ctx.addIssue({ code: 'custom', path: ['port'], message: 'proxy.mode=fixed 时 port 必填' });
+    }
+    if (value.protocol === 'socks5' && value.auth !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['auth'],
+        message: 'SOCKS5 代理不支持认证（Electron/Chromium 限制）',
       });
     }
   });
+
+/** proxy 落库值 schema（auth 由主进程 sanitize 后剥离） */
+const ProxySettingSchema = ProxySettingInputSchema;
 
 /** appearance 域值：zoom 必须是 ZOOM_LEVELS 的合法档位 */
 const AppearanceSettingSchema = z.object({

@@ -1,3 +1,4 @@
+import type { ProxyDetectSystemRes } from '@code-agent/shared/renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -12,7 +13,10 @@ const t = i18n.t.bind(i18n);
 
 const setSpy = vi.fn(async () => ({ data: { ok: true } }));
 const testSpy = vi.fn(async () => ({
-  data: { ok: true, kind: 'ok', message: undefined },
+  data: { ok: true, kind: 'ok', latencyMs: 42 },
+}));
+const detectSystemSpy = vi.fn<() => Promise<{ data: ProxyDetectSystemRes }>>(async () => ({
+  data: { detected: false },
 }));
 const clearAuthSpy = vi.fn(async () => ({ data: { ok: true } }));
 
@@ -30,7 +34,14 @@ function renderSection(): void {
 beforeEach(() => {
   vi.clearAllMocks();
   Object.defineProperty(window, 'api', {
-    value: { settings: { set: setSpy }, proxy: { test: testSpy, clearAuth: clearAuthSpy } },
+    value: {
+      settings: { set: setSpy },
+      proxy: {
+        test: testSpy,
+        detectSystem: detectSystemSpy,
+        clearAuth: clearAuthSpy,
+      },
+    },
     writable: true,
     configurable: true,
   });
@@ -38,97 +49,176 @@ beforeEach(() => {
 });
 
 describe('ProxySection', () => {
-  it('system 模式：三选项渲染，fixed 专属区块不显示（V10 显隐）', () => {
+  it('system 模式：三选项 + 系统代理检测卡片，fixed 区块不显示', async () => {
     renderSection();
 
     expect(screen.getByText(t('settings.proxyModeSystem'))).toBeDefined();
-    expect(screen.queryByLabelText(t('settings.proxyUrlLabel'))).toBeNull();
+    expect(screen.queryByLabelText(t('settings.proxyHostLabel'))).toBeNull();
     expect(screen.queryByRole('button', { name: t('settings.proxyTestButton') })).toBeNull();
+    await waitFor(() => expect(detectSystemSpy).toHaveBeenCalled());
+    await waitFor(() => {
+      expect(screen.getByText(t('settings.proxySystemNotDetected'))).toBeDefined();
+    });
   });
 
-  it('切换到 fixed → 地址/绕过/测试按钮展开，模式写 store + 写穿透', async () => {
+  it('切换到 fixed → 协议/主机/端口/认证/绕过/测试展开', async () => {
     renderSection();
-
     await userEvent.click(screen.getByText(t('settings.proxyModeFixed')));
 
-    expect(useSettingsStore.getState().proxy.mode).toBe('fixed');
-    await waitFor(() => {
-      const calls = setSpy.mock.calls as unknown as { key: string }[][];
-      expect(calls.filter((c) => c[0]?.key === 'proxy')).toHaveLength(1);
-    });
-    expect(screen.getByLabelText(t('settings.proxyUrlLabel'))).toBeDefined();
+    expect(screen.getByLabelText(t('settings.proxyProtocolLabel'))).toBeDefined();
+    expect(screen.getByLabelText(t('settings.proxyHostLabel'))).toBeDefined();
+    expect(screen.getByLabelText(t('settings.proxyPortLabel'))).toBeDefined();
+    expect(screen.getByLabelText(t('settings.proxyAuthLabel'))).toBeDefined();
+    expect(screen.getByLabelText(t('settings.proxyBypassLabel'))).toBeDefined();
     expect(screen.getByRole('button', { name: t('settings.proxyTestButton') })).toBeDefined();
   });
 
-  it('fixed 地址 blur：合法 http(s) 写穿透（V2 写半）', async () => {
-    useSettingsStore.setState({ proxy: { mode: 'fixed' } });
-    renderSection();
-
-    const input = screen.getByLabelText(t('settings.proxyUrlLabel'));
-    await userEvent.type(input, 'http://127.0.0.1:7890');
-    await userEvent.tab();
-
-    expect(useSettingsStore.getState().proxy.url).toBe('http://127.0.0.1:7890');
-  });
-
-  it('V9 UI 半：非法地址不入库（store 不携带 url）', async () => {
-    useSettingsStore.setState({ proxy: { mode: 'fixed' } });
-    renderSection();
-
-    const input = screen.getByLabelText(t('settings.proxyUrlLabel'));
-    await userEvent.type(input, 'not-a-url');
-    await userEvent.tab();
-
-    expect(useSettingsStore.getState().proxy.url).toBeUndefined();
-  });
-
-  it('V10 测试连接：成功 → 结果文案（proxy:test 被调）', async () => {
-    useSettingsStore.setState({ proxy: { mode: 'fixed', url: 'http://p:1' } });
-    renderSection();
-
-    await userEvent.click(screen.getByRole('button', { name: t('settings.proxyTestButton') }));
-
-    await waitFor(() => {
-      expect(screen.getByText(t('settings.proxyTestSuccess'))).toBeDefined();
+  it('合法主机/端口 → 防抖写穿透结构化 proxy', async () => {
+    useSettingsStore.setState({
+      proxy: { mode: 'fixed', protocol: 'http', host: '' },
     });
-    expect(testSpy).toHaveBeenCalledWith({});
-  });
-
-  it('自定义测试目标：合法 http(s) 地址透传 targetUrl', async () => {
-    useSettingsStore.setState({ proxy: { mode: 'fixed', url: 'http://p:1' } });
     renderSection();
 
-    await userEvent.type(
-      screen.getByLabelText(t('settings.proxyTestTargetLabel')),
-      'https://example.com/generate_204',
+    await userEvent.type(screen.getByLabelText(t('settings.proxyHostLabel')), '127.0.0.1');
+    await userEvent.type(screen.getByLabelText(t('settings.proxyPortLabel')), '7890');
+
+    await waitFor(
+      () => {
+        expect(useSettingsStore.getState().proxy).toEqual({
+          mode: 'fixed',
+          protocol: 'http',
+          host: '127.0.0.1',
+          port: 7890,
+          bypass: [],
+        });
+      },
+      { timeout: 1_500 },
     );
+  });
+
+  it('非法主机 → 行内错误且测试按钮禁用', async () => {
+    useSettingsStore.setState({
+      proxy: { mode: 'fixed', protocol: 'http', host: '', port: 7890 },
+    });
+    renderSection();
+
+    await userEvent.type(screen.getByLabelText(t('settings.proxyHostLabel')), 'http://bad');
+    await userEvent.tab();
+
+    await waitFor(() => {
+      expect(screen.getByText(t('settings.proxyHostInvalid'))).toBeDefined();
+    });
+    expect(screen.getByRole('button', { name: t('settings.proxyTestButton') })).toBeDisabled();
+  });
+
+  it('测试连接：使用草稿配置并显示耗时', async () => {
+    useSettingsStore.setState({
+      proxy: { mode: 'fixed', protocol: 'http', host: '127.0.0.1', port: 7890 },
+    });
+    renderSection();
+
     await userEvent.click(screen.getByRole('button', { name: t('settings.proxyTestButton') }));
 
     await waitFor(() => {
-      expect(testSpy).toHaveBeenCalledWith({
-        targetUrl: 'https://example.com/generate_204',
-      });
+      expect(screen.getByText(t('settings.proxyTestSuccess', { ms: 42 }))).toBeDefined();
+    });
+    expect(testSpy).toHaveBeenCalledWith({
+      config: {
+        mode: 'fixed',
+        protocol: 'http',
+        host: '127.0.0.1',
+        port: 7890,
+        bypass: [],
+      },
     });
   });
 
-  it('非法测试目标：不发请求', async () => {
-    useSettingsStore.setState({ proxy: { mode: 'fixed', url: 'http://p:1' } });
+  it('测试归因：代理不可达显示对应文案', async () => {
+    testSpy.mockResolvedValueOnce({ data: { ok: false, kind: 'proxy-unreachable', latencyMs: 0 } });
+    useSettingsStore.setState({
+      proxy: { mode: 'fixed', protocol: 'http', host: '127.0.0.1', port: 7890 },
+    });
     renderSection();
 
-    await userEvent.type(screen.getByLabelText(t('settings.proxyTestTargetLabel')), 'not-a-url');
     await userEvent.click(screen.getByRole('button', { name: t('settings.proxyTestButton') }));
 
-    expect(testSpy).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByText(t('settings.proxyTestProxyUnreachable'))).toBeDefined();
+    });
+  });
+
+  it('认证：开启后填写用户名/密码，测试草稿携带凭据', async () => {
+    useSettingsStore.setState({
+      proxy: { mode: 'fixed', protocol: 'http', host: '127.0.0.1', port: 7890 },
+    });
+    renderSection();
+
+    await userEvent.click(screen.getByLabelText(t('settings.proxyAuthLabel')));
+    await userEvent.type(screen.getByLabelText(t('settings.proxyAuthUsername')), 'alice');
+    await userEvent.type(screen.getByLabelText(t('settings.proxyAuthPassword')), 's3cret');
+    await userEvent.click(screen.getByRole('button', { name: t('settings.proxyTestButton') }));
+
+    await waitFor(() => {
+      expect(testSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            auth: { username: 'alice', password: 's3cret' },
+          }),
+        }),
+      );
+    });
+  });
+
+  it('SOCKS5：认证开关禁用并显示限制说明', async () => {
+    useSettingsStore.setState({
+      proxy: { mode: 'fixed', protocol: 'http', host: '127.0.0.1', port: 7890 },
+    });
+    renderSection();
+
+    await userEvent.click(screen.getByRole('combobox', { name: t('settings.proxyProtocolLabel') }));
+    await userEvent.click(screen.getByText(t('settings.proxyProtocolSocks5')));
+
+    await waitFor(() => {
+      expect(screen.getByText(t('settings.proxyAuthSocks5Unsupported'))).toBeDefined();
+    });
+    expect(screen.getByLabelText(t('settings.proxyAuthLabel'))).toBeDisabled();
   });
 
   it('已保存凭据：显示用户名与清除入口，清除调用 proxy:clearAuth', async () => {
     useSettingsStore.setState({
-      proxy: { mode: 'fixed', url: 'http://p:1', hasAuth: true, authUsername: 'alice' },
+      proxy: {
+        mode: 'fixed',
+        protocol: 'http',
+        host: '127.0.0.1',
+        port: 7890,
+        hasAuth: true,
+        authUsername: 'alice',
+      },
     });
     renderSection();
 
     expect(screen.getByText(t('settings.proxyAuthSaved', { username: 'alice' }))).toBeDefined();
     await userEvent.click(screen.getByRole('button', { name: t('settings.proxyAuthClear') }));
     await waitFor(() => expect(clearAuthSpy).toHaveBeenCalledTimes(1));
+  });
+
+  it('从系统导入：填充协议/主机/端口并写穿透', async () => {
+    detectSystemSpy.mockResolvedValue({
+      data: { detected: true, protocol: 'socks5', host: '127.0.0.1', port: 1080 },
+    });
+    renderSection();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: t('settings.proxyImportFromSystem') }),
+    );
+
+    await waitFor(() => {
+      expect(useSettingsStore.getState().proxy).toMatchObject({
+        mode: 'fixed',
+        protocol: 'socks5',
+        host: '127.0.0.1',
+        port: 1080,
+      });
+    });
   });
 });

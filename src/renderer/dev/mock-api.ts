@@ -264,7 +264,8 @@ export function createMockApi(): IpcApi {
         }),
     },
     proxy: {
-      test: async () => ipcOk({ ok: true, kind: 'not-applicable' as const }),
+      test: async () => ipcOk({ ok: false, kind: 'not-applicable' as const }),
+      detectSystem: async () => ipcOk({ detected: false }),
       clearAuth: async () => ipcOk({ ok: true }),
     },
     secrets: {

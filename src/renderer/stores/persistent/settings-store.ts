@@ -12,6 +12,7 @@ import {
   DEFAULT_WINDOW_SETTINGS,
   DEFAULT_ZOOM,
   type LanguageSetting,
+  type ProxyProtocol,
   resolveLanguageSetting,
   type SettingKey,
 } from '@code-agent/shared/renderer';
@@ -131,22 +132,37 @@ interface NotificationSettings {
  * 网络代理设置（34 号 spec：Node/Chromium 双栈出口的单一真源）
  *
  * 三模式（D4）：system=跟随系统（默认，V1 零行为变化）/ direct=强制直连 /
- * fixed=自定义代理。url 仅 fixed 时有效（http(s)，可内嵌凭据——日志侧已由
- * 主进程脱敏）；bypass 是主机后缀列表（localhost 家族主进程恒绕过，无需配置）。
+ * fixed=自定义代理（HTTP/HTTPS/SOCKS5）。fixed 用 protocol/host/port 结构化字段，
+ * bypass 支持域名后缀与 CIDR；认证凭据只存 keychain，本域仅携带派生状态。
  * 缺失/损坏语义 = system（fail-open 向既有行为）。
  */
 interface ProxySettings {
   /** 代理模式 */
   readonly mode: 'system' | 'direct' | 'fixed';
-  /** 代理地址（仅 mode=fixed；持久化值不含凭据，凭据在系统 keychain） */
-  readonly url?: string;
-  /** 不走代理的主机后缀（仅 mode=fixed；如 ['corp.example']） */
+  /** 代理协议（仅 mode=fixed） */
+  readonly protocol?: ProxyProtocol;
+  /** 代理主机（仅 mode=fixed；不含协议/端口） */
+  readonly host?: string;
+  /** 代理端口（仅 mode=fixed） */
+  readonly port?: number;
+  /** 不走代理的地址（仅 mode=fixed；域名后缀 / CIDR / <local>） */
   readonly bypass?: readonly string[];
   /** 主进程派生：keychain 中是否已有代理凭据（只读，不落库） */
   readonly hasAuth?: boolean;
   /** 主进程派生：已保存凭据的用户名（只读，不含密码） */
   readonly authUsername?: string;
 }
+
+/** 代理认证草稿（只随单次写入交给主进程，不进 store 状态） */
+interface ProxyAuthInput {
+  readonly username: string;
+  readonly password: string;
+}
+
+/** updateProxy 入参：可见字段 + 可选认证草稿 */
+type ProxyUpdate = Partial<ProxySettings> & {
+  readonly auth?: ProxyAuthInput;
+};
 
 /**
  * 界面缩放设置（35 号 spec：主窗口整体缩放单一真源）
@@ -223,8 +239,8 @@ interface SettingsState extends SettingsData {
   readonly setWindow: (patch: Partial<WindowSettings>) => void;
   /** 更新系统通知设置（写穿透 SQLite；主进程发送通知前即时读取） */
   readonly updateNotification: (patch: Partial<NotificationSettings>) => void;
-  /** 更新网络代理设置（写穿透 SQLite；主进程 settings:set 收口即时应用——V5） */
-  readonly updateProxy: (patch: Partial<ProxySettings>) => void;
+  /** 更新网络代理设置（写穿透 SQLite；auth 只随本次写入，不留在 store） */
+  readonly updateProxy: (patch: ProxyUpdate) => void;
   /** 更新界面缩放（写穿透 SQLite；应用由 AppShell useZoomEffect 单点收敛） */
   readonly updateAppearance: (patch: Partial<AppearanceSettings>) => void;
   /** 更新详细日志（写穿透 SQLite；主进程 settings:set 分支即时应用） */
@@ -393,15 +409,19 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
     persistSetting('notification', notification);
   },
   updateProxy: (patch) => {
-    const proxy = { ...useSettingsStore.getState().proxy, ...patch };
+    const { auth, ...fields } = patch;
+    const proxy: ProxySettings = { ...useSettingsStore.getState().proxy, ...fields };
     if (proxy.mode !== 'fixed') {
-      delete (proxy as { url?: string; bypass?: readonly string[] }).url;
-      delete (proxy as { url?: string; bypass?: readonly string[] }).bypass;
+      delete (proxy as { protocol?: ProxyProtocol }).protocol;
+      delete (proxy as { host?: string }).host;
+      delete (proxy as { port?: number }).port;
+      delete (proxy as { bypass?: readonly string[] }).bypass;
       delete (proxy as { hasAuth?: boolean }).hasAuth;
       delete (proxy as { authUsername?: string }).authUsername;
     }
     set({ proxy });
-    persistSetting('proxy', proxy);
+    const persisted = auth !== undefined && proxy.mode === 'fixed' ? { ...proxy, auth } : proxy;
+    persistSetting('proxy', persisted);
   },
   updateAppearance: (patch) => {
     const appearance = { ...useSettingsStore.getState().appearance, ...patch };
