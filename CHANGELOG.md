@@ -2,10 +2,32 @@
 
 ## [0.5.0](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.4.1...v0.5.0) (2026-10-28)
 
+<!-- changelog:polished -->
+
+> 0.5.0 重做网络代理：支持 HTTP/HTTPS/SOCKS5 与结构化配置；固定代理保留 undici 认证，系统/直连走 Chromium 系统代理与 PAC；设置页补齐协议、认证、绕过、系统导入和可归因的连通性测试。
 
 ### 新增
 
-* **proxy:** 支持 SOCKS5 与结构化代理配置 ([#48](https://github.com/zlh12331/Electron-Desktop-Template/issues/48)) ([17cd6ee](https://github.com/zlh12331/Electron-Desktop-Template/commit/17cd6eebde4297c6f67cd0b5520956b74c8a6922))
+- **SOCKS5 与结构化代理配置**：设置值改为 `{mode, protocol, host, port, bypass}`，协议支持 HTTP/HTTPS/SOCKS5；代理认证拆到 keychain，落库与导出不含凭据。
+- **双栈请求分流**：固定代理走 undici `ProxyAgent`（HTTP/HTTPS 认证、SOCKS5 无认证），`system`/`direct` 走 Chromium `session.fetch`，跟随系统代理/PAC；固定代理保留 undici 以避开主进程 `net.fetch` 的代理认证限制。
+- **设置页重做**：协议/主机/端口、独立认证与密码显示、多行绕过、当前系统代理展示/刷新、从系统代理导入、500ms 防抖保存与行内校验。
+- **可归因的连通性测试**：支持草稿配置即测、1.5 秒 TCP 预探和耗时返回，区分代理不可达、认证失败、超时与目标不可达；新增 `proxy:detectSystem` 与 `proxy:clearAuth`。
+
+### 修复
+
+- **代理凭据边界**：旧 URL 内嵌凭据在启动时迁移到 keychain；换代理主机自动丢弃旧凭据；日志只记录协议/主机/端口与是否存在认证。
+- **绕过规则一致**：Node 侧补齐域名后缀、通配与 CIDR；`NO_PROXY` 包含用户绕过列表；`system` 恢复启动时继承的环境变量，`direct` 清空。
+- **测试连接口径**：浏览器模式 mock 与主进程统一为 `not-applicable` 返回 `ok:false`，避免误显示成功。
+
+### 内部改进
+
+- 设置 schema、IPC 契约、主进程解析/应用/凭据/测试、设置页与测试同步更新；补齐代理相关单测与关键模块覆盖率。
+- 更新代理设计、安全、数据、校验、错误日志、技术栈与 IPC 契约文档；Knowledge Center Wiki 同步 6 个页面。
+
+### 已知限制
+
+- SOCKS5 认证暂不支持（Chromium 限制）；需要认证的 SOCKS5 可使用 HTTP/HTTPS 代理或本地 HTTP 桥接。
+- 自动更新仍以 GitHub Releases 为唯一渠道。
 
 ## [0.4.1](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.4.0...v0.4.1) (2026-10-27)
 
