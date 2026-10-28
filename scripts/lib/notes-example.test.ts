@@ -290,9 +290,9 @@ describe('countIpcMetaSource', () => {
   it('按 meta 源码统计域、请求与事件通道', () => {
     const counts = countIpcMetaSource(read(REPO_ROOT, 'packages/shared/src/ipc/meta.ts'));
     expect(counts.domains).toBe(14);
-    expect(counts.requests).toBe(51);
+    expect(counts.requests).toBe(52);
     expect(counts.events).toBe(5);
-    expect(counts.channels).toBe(56);
+    expect(counts.channels).toBe(57);
     expect(counts.domainNames).toContain('notes');
   });
 });
@@ -460,7 +460,7 @@ describe('模板出厂状态', () => {
       stripNotesMarkers(read(REPO_ROOT, 'packages/shared/src/ipc/meta.ts')),
     );
     expect(afterRemoval.domains).toBe(13);
-    expect(afterRemoval.requests).toBe(44);
+    expect(afterRemoval.requests).toBe(45);
     expect(afterRemoval.events).toBe(5);
     expect(afterRemoval.domainNames).not.toContain('notes');
   });

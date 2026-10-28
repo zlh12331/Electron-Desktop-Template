@@ -85,8 +85,11 @@ describe('代理凭据：app_settings 不落明文，keychain 可恢复', () => 
           key: 'proxy',
           value: {
             mode: 'fixed',
-            url: 'http://alice:s3cret@proxy.example:8080',
+            protocol: 'http',
+            host: 'proxy.example',
+            port: 8080,
             bypass: ['corp.example'],
+            auth: { username: 'alice', password: 's3cret' },
           },
         },
         EMPTY_CTX,
@@ -94,7 +97,9 @@ describe('代理凭据：app_settings 不落明文，keychain 可恢复', () => 
 
       expect(readSetting('proxy')).toEqual({
         mode: 'fixed',
-        url: 'http://proxy.example:8080',
+        protocol: 'http',
+        host: 'proxy.example',
+        port: 8080,
         bypass: ['corp.example'],
       });
       expect(await getSecret('__proxy_auth')).toBe('http://alice:s3cret@proxy.example:8080');
@@ -102,7 +107,9 @@ describe('代理凭据：app_settings 不落明文，keychain 可恢复', () => 
       const { settings } = await settingsHandlers.getAll({}, EMPTY_CTX);
       expect(settings['proxy']).toMatchObject({
         mode: 'fixed',
-        url: 'http://proxy.example:8080',
+        protocol: 'http',
+        host: 'proxy.example',
+        port: 8080,
         hasAuth: true,
         authUsername: 'alice',
       });
@@ -120,7 +127,13 @@ describe('代理凭据：app_settings 不落明文，keychain 可恢复', () => 
           exportedAt: Date.now(),
           settings: {
             theme: 'light',
-            proxy: { mode: 'fixed', url: 'http://bob:p%40ss@proxy.example:9090' },
+            proxy: {
+              mode: 'fixed',
+              protocol: 'http',
+              host: 'proxy.example',
+              port: 9090,
+              auth: { username: 'bob', password: 'p@ss' },
+            },
           },
         }),
         'utf8',
@@ -131,7 +144,9 @@ describe('代理凭据：app_settings 不落明文，keychain 可恢复', () => 
         expect(outcome.imported).toBe(2);
         expect(readSetting('proxy')).toEqual({
           mode: 'fixed',
-          url: 'http://proxy.example:9090',
+          protocol: 'http',
+          host: 'proxy.example',
+          port: 9090,
         });
         expect(await getSecret('__proxy_auth')).toBe('http://bob:p%40ss@proxy.example:9090');
         expect(JSON.stringify(readAllSettings()['proxy'])).not.toContain('bob');
@@ -145,7 +160,16 @@ describe('代理凭据：app_settings 不落明文，keychain 可恢复', () => 
   it('resetAll 清除代理凭据', async () => {
     await withTempUserData(async () => {
       await settingsHandlers.set(
-        { key: 'proxy', value: { mode: 'fixed', url: 'http://alice:s3cret@proxy:8080' } },
+        {
+          key: 'proxy',
+          value: {
+            mode: 'fixed',
+            protocol: 'http',
+            host: 'proxy',
+            port: 8080,
+            auth: { username: 'alice', password: 's3cret' },
+          },
+        },
         EMPTY_CTX,
       );
       await settingsHandlers.resetAll({}, EMPTY_CTX);

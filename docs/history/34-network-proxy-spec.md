@@ -1,5 +1,7 @@
 # 34 · 网络代理（需求 → 设计 → 实施状态）
 
+> 后续演进（2026-10-28）：设置已改为结构化 `{mode, protocol, host, port, bypass}`（HTTP/HTTPS/SOCKS5），凭据单独存 keychain；`system/direct` 走 Chromium `session.fetch` 跟随系统代理/PAC，固定代理仍走 undici。本文保留当时的决策记录。
+>
 > ⚠️ 模板裁剪提示（2026-10-22）：代理设置、解析与应用链（Node / Chromium 双栈）仍是现行实现；文中 AI 供应商 / IM 适配器出口清单已随业务剥离，接入新出口时按本文的接缝方式注入。
 - **状态**：**已实施**（2026-09-29；6834d4a5 → a5aecaf9 → 4c50994e → a1095521 →
   本提交；CP2 双路深读 4 fail 全部修复，分歧处置表见 §3.1；V1-V10 核对见 §3.2）

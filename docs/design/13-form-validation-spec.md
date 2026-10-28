@@ -26,7 +26,7 @@ L3 业务校验         → Service 层（跨字段/领域规则）
 
 - **L1**：设置页/对话框用受控状态 + 提交前校验；错误就近显示（`aria-invalid` + 描述文本）
 - **L2**（强制）：**所有 IPC 入参必须过 zod schema**（定义表 `definitions.ts` 的 schema 即校验器，主进程 `ipc/register.ts` 统一 wrap）；外部输入（设置导入文件等）同样在边界校验
-- **L3**：跨字段规则（如代理 `mode=fixed` 时必须有合法 URL、快捷键组合冲突）在 schema 的 `superRefine` 或消费方校验，错误带 `code` 返回（AppError 体系）
+- **L3**：跨字段规则（如代理 `mode=fixed` 时必须有合法协议/主机/端口、快捷键组合冲突）在 schema 的 `superRefine` 或消费方校验，错误带 `code` 返回（AppError 体系）
 
 ## 三、模式约定
 
@@ -43,5 +43,5 @@ L3 业务校验         → Service 层（跨字段/领域规则）
 
 - [ ] 新 IPC 方法：schema 在 definitions.ts 声明（L2 自动生效）
 - [ ] 表单组件：受控 + 提交防重 + 错误就近展示
-- [ ] 外部输入（设置导入、代理 URL 等）：边界校验后才使用
+- [ ] 外部输入（设置导入、代理主机/端口等）：边界校验后才使用
 - [ ] 错误对象：AppError（code + statusCode），UI 按 code 本地化（i18n errors.json）

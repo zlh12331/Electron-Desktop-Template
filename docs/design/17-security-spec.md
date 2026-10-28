@@ -32,7 +32,7 @@
    - pre-push 与 CI：`pnpm check:secrets-git`（只扫待推送区间；未安装即失败）
    - 手动排查：`pnpm check:secrets`（`gitleaks dir .`，含未提交内容与本地缓存）
    - ⚠️ **不要删除 `useDefault`**：gitleaks 一旦找到配置文件就替代默认规则集，缺这一行等于规则数归零、三道闸门全部静默空转（2026-09-22 实测修复）。
-4. **代理凭据**：URL 内嵌的用户名/密码在 `settings:set` / 导入 / 启动迁移时拆出，经 `safeStorage` 存入 keychain 保留键（`__proxy_auth`），`app_settings` 只保无凭据 URL。设置导出与诊断包均脱敏 URL；渲染层只拿到 `hasAuth` / `authUsername` 派生状态，`secrets` 域拒绝访问保留键。加密不可用时拒绝保存凭据（不回退明文）。
+4. **代理凭据**：代理设置以结构化 `{mode, protocol, host, port, bypass}` 落库；用户名/密码在 `settings:set` / 导入 / 启动迁移时拆出，经 `safeStorage` 存入 keychain 保留键（`__proxy_auth`），`app_settings` 不含凭据。设置导出与诊断包均不含凭据；渲染层只拿到 `hasAuth` / `authUsername` 派生状态，`secrets` 域拒绝访问保留键。加密不可用时拒绝保存凭据（不回退明文）。
 5. **`.env`**：仅主进程 `process.loadEnvFile()` 在 whenReady 前加载；文件不入仓。
 6. **测试密钥**：用显式 fake 值（`fake-token` 风格）；日志禁止输出密钥（只记掩码 / 存在性）。
 

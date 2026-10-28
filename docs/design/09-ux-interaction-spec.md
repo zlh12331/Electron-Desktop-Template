@@ -201,7 +201,7 @@ stateDiagram-v2
 | 通知 | `notification-section` | `notification.enabled` → 主进程 `tray.ts` 读取 |
 | 数据 | `data-section` | 存储 / 备份 / 日志 / 凭据 / 设置迁移 / 重置 |
 | 快捷键 | `shortcuts-section` | `shortcuts` 设置 + 冲突检测 |
-| 网络代理 | `proxy-section` | `proxy` 设置 + `proxy:test` |
+| 网络代理 | `proxy-section` | `proxy` 设置 + `proxy:test` / `proxy:detectSystem` |
 | Beta | `beta-section` | 实验功能空态（无真实 flag 时不造假开关） |
 | 关于 | `about-section` | `app:getInfo` / 更新状态 / 诊断包 / 许可 |
 

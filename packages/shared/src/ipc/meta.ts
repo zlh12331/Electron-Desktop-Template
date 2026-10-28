@@ -83,8 +83,10 @@ export const IPC_META = {
   },
 
   proxy: {
-    // 代理连通性探测：主进程先重读库内配置注入 proxiedFetch 再探轻量端点；mode 非 fixed 返回 not-applicable
+    // 代理连通性探测：可带草稿配置（未保存即测）；TCP 预探 + 经代理 fetch，返回归因与耗时
     test: request('proxy:test'),
+    // 解析当前系统代理（Chromium resolveProxy；从系统导入用）
+    detectSystem: request('proxy:detectSystem'),
     // 清除已保存的代理凭据（keychain 保留键；渲染层只触发，不读取）
     clearAuth: request('proxy:clearAuth'),
   },

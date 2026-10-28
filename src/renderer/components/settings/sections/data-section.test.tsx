@@ -143,9 +143,16 @@ describe('DataSection', () => {
     );
   });
 
-  it('导出设置：代理 URL 含凭据也不再二次确认（主进程统一脱敏）', async () => {
+  it('导出设置：代理凭据不再二次确认（主进程统一脱敏）', async () => {
     useSettingsStore.setState({
-      proxy: { mode: 'fixed', url: 'http://user:pass@proxy.example:8080' },
+      proxy: {
+        mode: 'fixed',
+        protocol: 'http',
+        host: 'proxy.example',
+        port: 8080,
+        hasAuth: true,
+        authUsername: 'user',
+      },
     });
     renderSection();
 

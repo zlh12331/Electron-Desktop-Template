@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../utils/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -15,59 +15,85 @@ import {
 } from './proxy-resolver';
 
 describe('parseProxyConfig', () => {
-  it('V1 缺失（undefined）→ mode=system（fail-open 向既有行为）', () => {
+  it('V1 缺失/损坏 → mode=system（fail-open 向既有行为）', () => {
     expect(parseProxyConfig(undefined)).toEqual({ mode: 'system' });
-  });
-
-  it('损坏（非对象 / 字符串 / 数组）→ mode=system + warn 一次', () => {
     expect(parseProxyConfig('garbage')).toEqual({ mode: 'system' });
     expect(parseProxyConfig(42)).toEqual({ mode: 'system' });
     expect(parseProxyConfig(['fixed'])).toEqual({ mode: 'system' });
   });
 
-  it('合法 fixed → 保留 url 与 bypass', () => {
+  it('结构化 fixed → 保留协议/主机/端口/bypass，主机归一化', () => {
     expect(
-      parseProxyConfig({ mode: 'fixed', url: 'http://127.0.0.1:7890', bypass: ['corp.example'] }),
-    ).toEqual({ mode: 'fixed', url: 'http://127.0.0.1:7890', bypass: ['corp.example'] });
+      parseProxyConfig({
+        mode: 'fixed',
+        protocol: 'http',
+        host: 'Proxy.Example',
+        port: 7890,
+        bypass: ['corp.example'],
+      }),
+    ).toEqual({
+      mode: 'fixed',
+      protocol: 'http',
+      host: 'proxy.example',
+      port: 7890,
+      bypass: ['corp.example'],
+    });
   });
 
-  it('字段非法（mode 未知 / url 非法协议 / bypass 非数组）→ 整体回 system（fail-open）', () => {
+  it('旧版 URL 形态 → 结构化字段 + 凭据（启动迁移兼容）', () => {
+    expect(
+      parseProxyConfig({ mode: 'fixed', url: 'http://alice:p%40ss@proxy.example:8080' }),
+    ).toEqual({
+      mode: 'fixed',
+      protocol: 'http',
+      host: 'proxy.example',
+      port: 8080,
+      auth: { username: 'alice', password: 'p@ss' },
+    });
+  });
+
+  it('SOCKS5 接受无认证配置，认证字段被丢弃（Chromium 限制）', () => {
+    expect(
+      parseProxyConfig({
+        mode: 'fixed',
+        protocol: 'socks5',
+        host: '127.0.0.1',
+        port: 1080,
+        auth: { username: 'u', password: 'p' },
+      }),
+    ).toEqual({ mode: 'fixed', protocol: 'socks5', host: '127.0.0.1', port: 1080 });
+  });
+
+  it('字段非法（缺项 / 非法协议 / 非法主机）→ 整体回 system', () => {
     expect(parseProxyConfig({ mode: 'quick' })).toEqual({ mode: 'system' });
-    expect(parseProxyConfig({ mode: 'fixed', url: 'ftp://x' })).toEqual({ mode: 'system' });
-    expect(parseProxyConfig({ mode: 'fixed', url: 'not-a-url' })).toEqual({ mode: 'system' });
-    expect(parseProxyConfig({ mode: 'fixed', url: 'http://p:1', bypass: 'x' })).toEqual({
+    expect(parseProxyConfig({ mode: 'fixed', protocol: 'http', host: 'p' })).toEqual({
       mode: 'system',
     });
+    expect(parseProxyConfig({ mode: 'fixed', protocol: 'ftp', host: 'p', port: 1 })).toEqual({
+      mode: 'system',
+    });
+    expect(
+      parseProxyConfig({ mode: 'fixed', protocol: 'http', host: 'http://p', port: 1 }),
+    ).toEqual({ mode: 'system' });
   });
 });
 
-describe('resolveProxyAuth（Chromium login 事件凭据）', () => {
-  it('无凭据/缺失/非法 URL → null', () => {
-    expect(resolveProxyAuth(undefined)).toBeNull();
-    expect(resolveProxyAuth('')).toBeNull();
-    expect(resolveProxyAuth('http://proxy.example:8080')).toBeNull();
-    expect(resolveProxyAuth('not-a-url')).toBeNull();
+describe('resolveProxyAuth', () => {
+  it('无凭据/端点不完整 → null', () => {
+    expect(resolveProxyAuth({ mode: 'system' })).toBeNull();
+    expect(resolveProxyAuth({ mode: 'fixed', protocol: 'http', host: 'p', port: 8080 })).toBeNull();
   });
 
-  it('解析用户名/密码、IPv6 主机与缺省端口', () => {
-    expect(resolveProxyAuth('http://user:p%40ss@[::1]:8080')).toEqual({
-      host: '::1',
-      port: 8080,
-      username: 'user',
-      password: 'p@ss',
-    });
-    expect(resolveProxyAuth('https://user:pass@PROXY.example')).toEqual({
-      host: 'proxy.example',
-      port: 443,
-      username: 'user',
-      password: 'pass',
-    });
-    expect(resolveProxyAuth('http://user:pass@proxy.example')).toEqual({
-      host: 'proxy.example',
-      port: 80,
-      username: 'user',
-      password: 'pass',
-    });
+  it('返回规范化主机 + 凭据', () => {
+    expect(
+      resolveProxyAuth({
+        mode: 'fixed',
+        protocol: 'http',
+        host: 'PROXY.example',
+        port: 8080,
+        auth: { username: 'user', password: 'pass' },
+      }),
+    ).toEqual({ host: 'proxy.example', port: 8080, username: 'user', password: 'pass' });
   });
 
   it('normalizeProxyHost：IPv6 去括号 + 小写', () => {
@@ -77,43 +103,71 @@ describe('resolveProxyAuth（Chromium login 事件凭据）', () => {
 });
 
 describe('buildChromiumProxyConfig', () => {
-  it('system → {mode: system}', () => {
+  it('system → {mode: system}；direct → {mode: direct}', () => {
     expect(buildChromiumProxyConfig({ mode: 'system' })).toEqual({ mode: 'system' });
-  });
-
-  it('V3 direct → {mode: direct}（强制直连）', () => {
     expect(buildChromiumProxyConfig({ mode: 'direct' })).toEqual({ mode: 'direct' });
   });
 
-  it('fixed → fixed_servers + proxyRules + 强制 <local> bypass（反例 2）', () => {
-    const cfg = buildChromiumProxyConfig({
-      mode: 'fixed',
-      url: 'http://127.0.0.1:7890',
-      bypass: ['corp.example'],
-    });
-    expect(cfg).toEqual({
+  it('HTTP 固定代理 → 单 proxyURL + 强制 <local> bypass', () => {
+    expect(
+      buildChromiumProxyConfig({
+        mode: 'fixed',
+        protocol: 'http',
+        host: '127.0.0.1',
+        port: 7890,
+        bypass: ['corp.example'],
+      }),
+    ).toEqual({
       mode: 'fixed_servers',
-      proxyRules: 'http=127.0.0.1:7890;https=127.0.0.1:7890',
+      proxyRules: 'http://127.0.0.1:7890',
       proxyBypassRules: '<local>;corp.example',
     });
   });
 
-  it('fixed 但 url 缺失（防御）→ 回 system 映射', () => {
+  it('HTTPS / SOCKS5 固定代理 → 对应协议 URL', () => {
+    expect(
+      buildChromiumProxyConfig({
+        mode: 'fixed',
+        protocol: 'https',
+        host: 'proxy.example',
+        port: 443,
+      }).proxyRules,
+    ).toBe('https://proxy.example:443');
+    expect(
+      buildChromiumProxyConfig({
+        mode: 'fixed',
+        protocol: 'socks5',
+        host: '127.0.0.1',
+        port: 1080,
+      }).proxyRules,
+    ).toBe('socks5://127.0.0.1:1080');
+  });
+
+  it('fixed 但字段缺失（防御）→ 回 system 映射', () => {
     expect(buildChromiumProxyConfig({ mode: 'fixed' })).toEqual({ mode: 'system' });
   });
 });
 
 describe('buildProxyUrl', () => {
-  it('fixed → http 代理 URL（undici ProxyAgent / env 侧门共用）', () => {
-    expect(buildProxyUrl({ mode: 'fixed', url: 'http://127.0.0.1:7890' })).toBe(
+  it('fixed → 协议 URL（keychain / env 侧门共用）', () => {
+    expect(buildProxyUrl({ mode: 'fixed', protocol: 'http', host: '127.0.0.1', port: 7890 })).toBe(
       'http://127.0.0.1:7890',
+    );
+    expect(buildProxyUrl({ mode: 'fixed', protocol: 'socks5', host: '[::1]', port: 1080 })).toBe(
+      'socks5://[::1]:1080',
     );
   });
 
-  it('带认证的 fixed → 保留凭据（D5：Node 栈原生支持）', () => {
-    expect(buildProxyUrl({ mode: 'fixed', url: 'http://user:pass@10.0.0.1:8080' })).toBe(
-      'http://user:pass@10.0.0.1:8080',
-    );
+  it('带认证 → userinfo 编码保留', () => {
+    expect(
+      buildProxyUrl({
+        mode: 'fixed',
+        protocol: 'http',
+        host: '10.0.0.1',
+        port: 8080,
+        auth: { username: 'u@ser', password: 'p@ss' },
+      }),
+    ).toBe('http://u%40ser:p%40ss@10.0.0.1:8080');
   });
 
   it('system/direct → undefined', () => {
@@ -123,41 +177,48 @@ describe('buildProxyUrl', () => {
 });
 
 describe('shouldBypass', () => {
-  it('V4 localhost 家族恒绕过（硬规则，反例 2）', () => {
+  const cfg = {
+    mode: 'fixed' as const,
+    protocol: 'http' as const,
+    host: 'p',
+    port: 1,
+    bypass: ['corp.example', '10.0.0.0/8', '192.168.1.0/24', '2001:db8::/32', '*.wild.example'],
+  };
+
+  it('V4 localhost 家族恒绕过（硬规则）', () => {
     for (const url of [
       'http://localhost:11434/v1',
       'http://127.0.0.1:9374/health',
       'http://[::1]:8080/x',
     ]) {
-      expect(shouldBypass({ mode: 'fixed', url: 'http://p:1' }, url)).toBe(true);
+      expect(shouldBypass(cfg, url)).toBe(true);
     }
   });
 
-  it('用户 bypass：主机后缀匹配', () => {
-    const cfg = { mode: 'fixed' as const, url: 'http://p:1', bypass: ['corp.example'] };
+  it('域名后缀 / 通配前缀', () => {
     expect(shouldBypass(cfg, 'http://api.corp.example/v1')).toBe(true);
     expect(shouldBypass(cfg, 'http://corp.example:8080/x')).toBe(true);
     expect(shouldBypass(cfg, 'http://evil-corp.example.com/')).toBe(false);
-    expect(shouldBypass(cfg, 'https://api.openai.com/v1')).toBe(false);
+    expect(shouldBypass(cfg, 'http://a.wild.example/')).toBe(true);
   });
 
-  it('非 fixed 模式恒 false（无需绕过判断）', () => {
+  it('IPv4 / IPv6 CIDR', () => {
+    expect(shouldBypass(cfg, 'http://10.1.2.3/')).toBe(true);
+    expect(shouldBypass(cfg, 'http://192.168.1.99/')).toBe(true);
+    expect(shouldBypass(cfg, 'http://192.168.2.1/')).toBe(false);
+    expect(shouldBypass(cfg, 'http://[2001:db8::1]/')).toBe(true);
+    expect(shouldBypass(cfg, 'http://[2001:db9::1]/')).toBe(false);
+  });
+
+  it('非 fixed 模式恒 false', () => {
     expect(shouldBypass({ mode: 'system' }, 'http://localhost:1')).toBe(false);
   });
 });
 
 describe('maskProxyUrl（安全：凭据不落日志）', () => {
-  beforeEach(() => {});
-
-  it('带凭据 URL 脱敏', () => {
+  it('带凭据 URL 脱敏；无凭据/非法 URL 原样', () => {
     expect(maskProxyUrl('http://user:pass@10.0.0.1:8080')).toBe('http://***@10.0.0.1:8080');
-  });
-
-  it('无凭据 URL 原样', () => {
     expect(maskProxyUrl('http://127.0.0.1:7890')).toBe('http://127.0.0.1:7890');
-  });
-
-  it('非法 URL 原样返回（不抛）', () => {
     expect(maskProxyUrl('not-a-url')).toBe('not-a-url');
   });
 });

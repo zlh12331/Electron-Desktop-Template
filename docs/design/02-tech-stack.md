@@ -24,7 +24,7 @@
 | 更新 | electron-updater | GitHub provider；六架构产物元数据由 release.yml 生成（Windows/macOS 各双架构合并） |
 | 错误聚合 | @sentry/electron（主进程） | 错误/原生崩溃/release health；DSN 未配置即完全 no-op |
 | 遥测 | OpenTelemetry（OTLP/HTTP）+ web-vitals | trace/metrics/logs；未配置 endpoint 即不外发，渲染层只上报错误与 Web Vitals |
-| 网络 | undici | 统一 fetch 实现，代理配置注入（`infra/network/proxied-fetch`） |
+| 网络 | undici | 固定代理（HTTP/HTTPS/SOCKS5）与认证；system/direct 走 Chromium `session.fetch`（`infra/network/proxied-fetch`） |
 | 压缩 | adm-zip | 诊断包导出 |
 | 契约校验 | zod 4 | IPC 入参/响应；preload 与渲染层出口按进程拆分，避免 zod 进沙箱 |
 | Markdown | react-markdown + rehype | 设置关于页渲染 release notes（sanitize 后渲染） |
