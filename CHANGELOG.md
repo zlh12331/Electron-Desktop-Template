@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.4.1...v0.5.0) (2026-10-28)
+
+
+### 新增
+
+* **proxy:** 支持 SOCKS5 与结构化代理配置 ([#48](https://github.com/zlh12331/Electron-Desktop-Template/issues/48)) ([17cd6ee](https://github.com/zlh12331/Electron-Desktop-Template/commit/17cd6eebde4297c6f67cd0b5520956b74c8a6922))
+
 ## [0.4.1](https://github.com/zlh12331/Electron-Desktop-Template/compare/v0.4.0...v0.4.1) (2026-10-27)
 
 <!-- changelog:polished -->
